@@ -1,0 +1,40 @@
+# FalkorDB is the memory store (recall-stage-spec.md §2: default to FalkorDB for the
+# self-hosted single-node case). Ollama deliberately stays on the HOST rather than in a
+# container: the host already serves the models on the GPUs, and a second copy inside
+# compose would duplicate ~15GB of weights and fight over the same devices.
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: memore-falkordb
+    ports:
+      - "6379:6379"
+      - "3000:3000"   # FalkorDB Browser
+    volumes:
+      - falkordb-data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  memore:
+    build: .
+    container_name: memore-app
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      MEMORE_FALKOR_HOST: falkordb
+      MEMORE_FALKOR_PORT: "6379"
+      # host.docker.internal is mapped to the host gateway below so the container
+      # reaches the host's Ollama.
+      MEMORE_OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data
+    stdin_open: true
+    tty: true
+
+volumes:
+  falkordb-data:

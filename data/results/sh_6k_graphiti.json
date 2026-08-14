@@ -1,0 +1,19 @@
+[
+  {
+    "arm": "graphiti",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 0,
+    "accuracy": 0.0,
+    "exact_match": 0.0,
+    "retrieval_hit": 0.0,
+    "facts_ingested": 0,
+    "facts_stored": 0,
+    "cases": {},
+    "ingest_seconds": 0.0,
+    "query_seconds": 0.0,
+    "notes": [
+      "arm unavailable: OpenAIError: Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable."
+    ],
+    "samples": []
+  }
+]

@@ -1,0 +1,114 @@
+{
+  "cases": {
+    "NEW": 1559,
+    "DUPLICATE": 0,
+    "CONTRADICTION": 751,
+    "REFINEMENT": 0
+  },
+  "alias": {
+    "enabled": false,
+    "df_ratio": 0.015,
+    "min_subjects": 200
+  },
+  "merges": [],
+  "n_questions": 100,
+  "matched": 100,
+  "consolidation_correct": 94,
+  "stale_live": 0,
+  "gold_fact_superseded": 0,
+  "unmatched": 0,
+  "n_groups": 1559,
+  "n_multi_fact_groups": 751,
+  "failures": [
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which religion is Morris Iemma affiliated with?",
+      "gold": [
+        "Methodism"
+      ],
+      "matched_subject": "affiliated iemma morris religion",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Morris Iemma is affiliated with the religion of Catholic Church.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Morris Iemma is affiliated with the religion of Catholic Church."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city did Noel Pemberton Billing work in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "billing city noel pemberton worked",
+      "match_score": 0.8,
+      "group_size": 2,
+      "newest_fact": "Noel Pemberton Billing worked in the city of Washington, D.C..",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Noel Pemberton Billing worked in the city of Washington, D.C.."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "What is the capital of Papal States?",
+      "gold": [
+        "Rome"
+      ],
+      "matched_subject": "capital papal states",
+      "match_score": 1.0,
+      "group_size": 2,
+      "newest_fact": "The capital of Papal States is Watertown.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The capital of Papal States is Watertown."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which religion is Maria Amalia of Naples and Sicily affiliated with?",
+      "gold": [
+        "Church of Greece"
+      ],
+      "matched_subject": "affiliated amalia maria naples religion sicily",
+      "match_score": 0.923,
+      "group_size": 1,
+      "newest_fact": "Maria Amalia of Naples and Sicily is affiliated with the religion of Catholic Church.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Maria Amalia of Naples and Sicily is affiliated with the religion of Catholic Church."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of Microsoft located in?",
+      "gold": [
+        "Beverly Hills"
+      ],
+      "matched_subject": "city headquarters ilyushin located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of MTV located in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "city headquarters ilyushin located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    }
+  ]
+}

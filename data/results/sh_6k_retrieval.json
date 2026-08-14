@@ -1,0 +1,22 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 100,
+    "accuracy": 0.0,
+    "exact_match": 0.0,
+    "retrieval_hit": 0.94,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 314,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 141,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 7.718412145000002,
+    "query_seconds": 31.9147014149994,
+    "notes": [],
+    "samples": []
+  }
+]

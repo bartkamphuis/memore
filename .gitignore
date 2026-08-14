@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.idea
+
+# agents
+.claude
+*.log
+
+# Third-party benchmark data -- MemoryAgentBench ships its own terms; fetch it with the
+# curl command in README.md rather than redistributing it here.
+data/*.parquet
+
+# Raw per-query calibration dumps (~1.5MB). Regenerate with
+# `python -m memore.bench.calibrate --configs all --reingest`; the conclusions they
+# support are summarised in RESULTS.md §5 and §9.
+data/results/calibration.json
+data/results/calib_nosubj.json
+data/results/calib_subjcheck.json
+
+# Pre-publication history and internal design docs -- not for the public repo.
+HISTORY-private.md
+specs/

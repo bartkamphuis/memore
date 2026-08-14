@@ -1,0 +1,113 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_32k",
+    "n_questions": 100,
+    "accuracy": 0.98,
+    "exact_match": 0.95,
+    "retrieval_hit": 0.89,
+    "facts_ingested": 2310,
+    "facts_stored": 2310,
+    "cases": {
+      "NEW": 1559,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 751,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 42.346239849000995,
+    "query_seconds": 213.45812826600013,
+    "notes": [],
+    "samples": [
+      {
+        "question": "Which sport is Salem-Keizer Volcanoes associated with?",
+        "gold": [
+          "basketball"
+        ],
+        "answer": "basketball",
+        "top_live": "Salem-Keizer Volcanoes is associated with the sport of basketball.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What position does Nick Rimando play?",
+        "gold": [
+          "flanker"
+        ],
+        "answer": "flanker",
+        "top_live": "Nick Rimando plays the position of flanker.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which sport is power forward associated with?",
+        "gold": [
+          "rugby"
+        ],
+        "answer": "rugby",
+        "top_live": "power forward is associated with the sport of rugby.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which religion is Morris Iemma affiliated with?",
+        "gold": [
+          "Methodism"
+        ],
+        "answer": "Methodism and Catholic Church.",
+        "top_live": "Morris Iemma is affiliated with the religion of Methodism.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which sport is FC Slutsk associated with?",
+        "gold": [
+          "association football"
+        ],
+        "answer": "association football",
+        "top_live": "FC Slutsk is associated with the sport of association football.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city did Noel Pemberton Billing work in?",
+        "gold": [
+          "London"
+        ],
+        "answer": "Washington, D.C.",
+        "top_live": "Noel Pemberton Billing worked in the city of Washington, D.C..",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital of Papal States?",
+        "gold": [
+          "Rome"
+        ],
+        "answer": "Watertown",
+        "top_live": "The capital of Papal States is Watertown.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which religion is Maria Amalia of Naples and Sicily affiliated with?",
+        "gold": [
+          "Church of Greece"
+        ],
+        "answer": "Catholic Church and Church of Greece.",
+        "top_live": "Maria Amalia of Naples and Sicily is affiliated with the religion of Catholic Church.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which religion is Bahawalpur State affiliated with?",
+        "gold": [
+          "Catholic Church"
+        ],
+        "answer": "Islam and Catholic Church",
+        "top_live": "Bahawalpur State is affiliated with the religion of Islam.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      }
+    ]
+  }
+]

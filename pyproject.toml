@@ -1,0 +1,67 @@
+[project]
+name = "memore"
+version = "0.1.0"
+description = "Deterministic write-time memory consolidation and pre-fetch recall for LLM agents"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Bart Kamphuis" }]
+keywords = ["llm", "memory", "agents", "consolidation", "retrieval", "falkordb"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "falkordb>=1.6.2",
+    # Pinned below 8.1: falkordb 1.6.2's async client builds a sync Redis from the async
+    # client's connection kwargs, and redis 8.1 added `himport_registry` to the async
+    # side only, so `falkordb.asyncio.FalkorDB(...)` raises TypeError on construction.
+    # The sync client is unaffected. Revisit when falkordb fixes cluster detection.
+    "redis<8.1",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/bartkamphuis/memore"
+Repository = "https://github.com/bartkamphuis/memore"
+Results = "https://github.com/bartkamphuis/memore/blob/main/RESULTS.md"
+
+[project.optional-dependencies]
+# The Step-0 spike arm (a): graphiti-core doing its own edge-invalidation. Kept an
+# extra because the core deterministic path (arm b) must not depend on it -- see
+# RESULTS.md §0 and §4: Graphiti is storage+retrieval only.
+graphiti = ["graphiti-core[falkordb]>=0.29.3"]
+bench = ["pyarrow>=17.0", "rouge-score>=0.1.2"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+memore = "memore.cli:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = ["integration: needs a running FalkorDB (docker compose up -d falkordb)"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["memore"]

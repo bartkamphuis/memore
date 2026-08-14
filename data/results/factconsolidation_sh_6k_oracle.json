@@ -1,0 +1,33 @@
+{
+  "cases": {
+    "NEW": 303,
+    "DUPLICATE": 0,
+    "CONTRADICTION": 152,
+    "REFINEMENT": 0
+  },
+  "n_questions": 100,
+  "matched": 100,
+  "consolidation_correct": 99,
+  "stale_live": 0,
+  "gold_fact_superseded": 0,
+  "unmatched": 0,
+  "n_groups": 303,
+  "n_multi_fact_groups": 152,
+  "failures": [
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "What kind of work does Stephen McNeil do?",
+      "gold": [
+        "journalist"
+      ],
+      "matched_subject": "crane famous stephen work",
+      "match_score": 0.5,
+      "group_size": 2,
+      "newest_fact": "Stephen Crane is famous for Charlie Hebdo.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Stephen Crane is famous for Charlie Hebdo."
+      ]
+    }
+  ]
+}

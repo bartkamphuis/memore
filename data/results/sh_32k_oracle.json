@@ -1,0 +1,213 @@
+{
+  "cases": {
+    "NEW": 1614,
+    "DUPLICATE": 0,
+    "CONTRADICTION": 696,
+    "REFINEMENT": 0
+  },
+  "n_questions": 100,
+  "matched": 100,
+  "consolidation_correct": 87,
+  "stale_live": 0,
+  "gold_fact_superseded": 0,
+  "unmatched": 0,
+  "n_groups": 1614,
+  "n_multi_fact_groups": 696,
+  "failures": [
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Salem-Keizer Volcanoes associated with?",
+      "gold": [
+        "basketball"
+      ],
+      "matched_subject": "sport associated with salem keizer volcanoes",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Salem-Keizer Volcanoes is associated with the sport of baseball.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Salem-Keizer Volcanoes is associated with the sport of baseball."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is power forward associated with?",
+      "gold": [
+        "rugby"
+      ],
+      "matched_subject": "sport associated with power forward",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "power forward is associated with the sport of basketball.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "power forward is associated with the sport of basketball."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which religion is Morris Iemma affiliated with?",
+      "gold": [
+        "Methodism"
+      ],
+      "matched_subject": "religion morris iemma is affiliated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Morris Iemma is affiliated with the religion of Catholic Church.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Morris Iemma is affiliated with the religion of Catholic Church."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city did Noel Pemberton Billing work in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "city where noel pemberton billing worked",
+      "match_score": 0.8,
+      "group_size": 2,
+      "newest_fact": "Noel Pemberton Billing worked in the city of Washington, D.C..",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Noel Pemberton Billing worked in the city of Washington, D.C.."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "What is the capital of Papal States?",
+      "gold": [
+        "Rome"
+      ],
+      "matched_subject": "capital of papal states",
+      "match_score": 1.0,
+      "group_size": 2,
+      "newest_fact": "The capital of Papal States is Watertown.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The capital of Papal States is Watertown."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which religion is Maria Amalia of Naples and Sicily affiliated with?",
+      "gold": [
+        "Church of Greece"
+      ],
+      "matched_subject": "religion maria amalia of naples and sicily is affiliated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Maria Amalia of Naples and Sicily is affiliated with the religion of Catholic Church.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Maria Amalia of Naples and Sicily is affiliated with the religion of Catholic Church."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is midfielder associated with?",
+      "gold": [
+        "sumo"
+      ],
+      "matched_subject": "sport midfielder is associated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "midfielder is associated with the sport of association football.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "midfielder is associated with the sport of association football."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of Microsoft located in?",
+      "gold": [
+        "Beverly Hills"
+      ],
+      "matched_subject": "city where headquarters of ilyushin is located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is 2009 Six Nations Championship associated with?",
+      "gold": [
+        "association football"
+      ],
+      "matched_subject": "sport 2009 six nations championship is associated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "2009 Six Nations Championship is associated with the sport of rugby union.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "2009 Six Nations Championship is associated with the sport of rugby union."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Imran Khan associated with?",
+      "gold": [
+        "association football"
+      ],
+      "matched_subject": "sport associated with imran khan",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Imran Khan is associated with the sport of cricket.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Imran Khan is associated with the sport of cricket."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of MTV located in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "city where headquarters of ilyushin is located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Sports Interactive associated with?",
+      "gold": [
+        "basketball"
+      ],
+      "matched_subject": "sport associated with sports interactive",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Sports Interactive is associated with the sport of association football.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Sports Interactive is associated with the sport of association football."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is shooting guard associated with?",
+      "gold": [
+        "rugby"
+      ],
+      "matched_subject": "sport associated with shooting guard",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "shooting guard is associated with the sport of basketball.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "shooting guard is associated with the sport of basketball."
+      ]
+    }
+  ]
+}

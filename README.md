@@ -1,0 +1,183 @@
+# memore
+
+*Italian, from Latin* memor *— mindful, remembering.*
+
+Deterministic memory for LLM agents. Facts are consolidated **when they are written**, so
+the store holds exactly one live fact per subject and the "which of these two contradictory
+facts is current?" question is never asked at read time — or asked of a model at all.
+
+Memory is fetched *before* the model call and injected at prompt-assembly time, rather than
+exposed as a tool the model chooses to invoke. Local models throughout: no cloud LLM
+anywhere in the pipeline, and none at all in the recall path or the consolidation decision.
+
+```
+turn ──► recall()   A key synthesis ─► B hybrid lookup ─► C gate ─► D assembly ──► prompt
+                    no LLM in A–D · 200ms P95 budget · ~96ms measured
+
+turn ──► write path  P1 extract (LLM, off-path) ─► P2 consolidate ─► P3 commit
+                                                   deterministic: (subject key,
+                                                   freshness ordinal, value equality)
+```
+
+## Where this sits relative to published work
+
+**Read this before quoting any number from this repo.**
+
+The deterministic-freshness idea is **not** original here. Reddy & Challaram,
+[*Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict
+Resolution*](https://arxiv.org/abs/2606.01435) (arXiv:2606.01435v1, May 2026), proposed
+LLM candidate-extraction followed by a deterministic `max(serial)` and measured it on the
+same benchmark. That paper is prior art for the core thesis, and this project was built
+against it.
+
+Two things are worth knowing about it. First, it was **revised in August 2026** and
+retitled *Reliable Post-Retrieval Assembly for Agent Memory: Separating Evidence Extraction
+from Policy Execution* — the authors now attribute the gain primarily to separating
+evidence extraction from policy execution "rather than the freshness mechanism alone."
+Second, this repo reached the same conclusion independently and from the other direction:
+consolidation was correct on **every** subject group in every run at both corpus sizes, and
+every single residual error was extraction naming one subject two different ways
+(`RESULTS.md` §3). Freshness was never the bottleneck. Subject identity was.
+
+Measured against their numbers, on MemoryAgentBench FactConsolidation:
+
+| | memore (local `gemma4`) | 2606.01435 (gpt-4o) |
+|---|---|---|
+| single-hop | 0.99 @6k · 0.95 @32k | 0.948 |
+| multi-hop | **0.760** @6k | 0.515 |
+
+Single-hop is **comparable, not a win**, and the comparison is not controlled — different
+reader, different corpus sizes. Multi-hop is where the margin is real, and the mechanism is
+different: a deterministic value→subject graph walk over live facts, with no LLM and no
+embeddings, which has no counterpart in the published recipe.
+
+The other architectural difference: consolidation here happens at **write** time, so the
+store is always in a resolved state, versus assembling over retrieved candidates at read
+time. That is what makes the read path free of any freshness reasoning.
+
+Older comparisons you may see quoted — HippoRAG-v2 at 54%, Zep/Graphiti at 7% — are the
+pre-2606.01435 field and are **no longer the state of the art.** `RESULTS.md` predates that
+finding in places; §0 records the correction.
+
+## What is actually novel here
+
+- **A deterministic multi-hop chain walk** (`memore/chain.py`). Exact token containment of
+  one fact's value in another fact's subject key, walked after the relevance gate. Takes
+  multi-hop from 0.200 to 0.760. It is nearly free precisely *because* consolidation keeps
+  the graph sparse — superseded facts are what would otherwise make hub entities explode
+  the frontier.
+- **Wrong-subject admission control** (`memore/subjects.py`). A similarity gate keeps
+  *off-topic* memory out (~3% false opens) but cannot keep out memory about *someone else* —
+  right relation, wrong entity — which cleared the calibrated floor 75.8% of the time. No
+  threshold fixes it; the distributions overlap by construction. The separating signal is
+  whether the query **names** the subject, decided from the session's own vocabulary with no
+  LLM and no embedding. False opens fall to 0.253, and useful-recall *rises*.
+- **DF-gated subject aliasing** (`memore/aliases.py`). Merges two namings of one subject
+  when they differ only by generic relation words, decided by document frequency across
+  subjects. Fixes the under-merges above without the over-merges that plain subset-merging
+  causes. sh_32k 0.940 → 0.960, zero over-merges.
+- **Negative results, recorded rather than buried.** Embedding-based duplicate detection
+  silently *loses facts* and is off by default. A scalar relevance floor cannot separate
+  "has this kind of fact" from "has this fact." Hybrid fusion must be multiplicative. The
+  relevance floor and the embedder are one decision, not two. All in `RESULTS.md`.
+
+## Honest limitations
+
+- **One benchmark, one task family, two of its four splits.** 64k and 262k are unmeasured.
+- **The benchmark's gold answer is arrival order, and the freshness primitive is arrival
+  order.** On this task "newest wins" is the stated scoring rule, so a deterministic
+  implementation of it is close to implementing the metric. The interesting finding is that
+  systems *told* the rule still fail it — not that this one succeeds.
+- **The comparison arm did not run.** Graphiti-delegated consolidation stored 0 edges in
+  762s for 20 facts under local-model constraints. That is a documented negative about
+  viability under *these* constraints, not a measurement of Graphiti's quality.
+- **Different reader from published work**, uncontrolled.
+- **PoC scope.** No async job machinery, no cross-session recall, no queryable audit log,
+  no rolling-summary key synthesis.
+
+## Running it
+
+Ollama runs on the host (it has the GPUs); FalkorDB runs in Compose.
+
+```bash
+docker compose up -d falkordb
+uv sync --extra dev --extra bench
+
+uv run memore demo        # interactive trace of both paths
+uv run memore inspect     # what the store actually holds, by session
+uv run pytest tests/ -q
+```
+
+Models are pinned to how the host serves them — mismatched `num_ctx` makes Ollama reload an
+18GB model on every process start, and `keep_alive` is per-request, so omitting it silently
+replaces a `Forever` pin with a 5-minute default:
+
+```
+gemma4:26b                32768 ctx   # extraction (P1) and the bench reader
+mxbai-embed-large:latest    512 ctx   # embeddings; paired with score_floor 0.48
+```
+
+`MEMORE_LLM_MODEL` / `MEMORE_LLM_NUM_CTX` / `MEMORE_EMBED_MODEL` align a different host.
+Each embedder needs its own graph (`MEMORE_GRAPH`) — the vector index is created at a fixed
+width, and `connect()` refuses a graph whose width does not match.
+
+### Getting memories in and out
+
+**In** — every turn typed into `memore demo` runs the write path: P1 extracts durable facts
+(transient turns store nothing, by design), P2 consolidates against the existing subject,
+P3 commits.
+
+**Out** — `recall()` runs before the model call and injects only when the gate opens. There
+is no "fetch memory" tool for a model to call; that is the pattern this design leaves
+behind.
+
+**Recall is session-scoped**, which is the most common surprise: the bench writes to
+`bench-<source>`, the demo defaults to `demo`, and a query against the wrong session
+correctly finds nothing.
+
+```bash
+uv run memore inspect --session bench-factconsolidation_sh_6k
+uv run memore inspect --session demo --query "what's my deploy setup?"
+```
+
+`inspect` groups facts by subject and shows superseded ones alongside live — "supersede,
+never delete" is the design claim, so the inspector shows the evidence.
+
+### Reproducing the benchmark
+
+The corpus is not redistributed here; fetch it from the MemoryAgentBench dataset:
+
+```bash
+curl -sL -o data/Conflict_Resolution.parquet \
+  'https://huggingface.co/datasets/ai-hyz/MemoryAgentBench/resolve/main/data/Conflict_Resolution-00000-of-00001.parquet'
+
+uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
+uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
+uv run python -m memore.bench.run --source factconsolidation_mh_6k --expansion-hops 3
+```
+
+`oracle_run` is the honest instrument: it scores the consolidation decision directly, with
+no retrieval and no reader, so a good number cannot come from the reader guessing.
+
+## References
+
+- Hu, Wang & McAuley, [*Evaluating Memory in LLM Agents via Incremental Multi-Turn
+  Interactions*](https://arxiv.org/abs/2507.05257) (arXiv:2507.05257) — introduces
+  MemoryAgentBench and the FactConsolidation task used here.
+- Reddy & Challaram, [arXiv:2606.01435](https://arxiv.org/abs/2606.01435) — v1 *Don't Ask
+  the LLM to Track Freshness*; v2 *Reliable Post-Retrieval Assembly for Agent Memory*. Prior
+  art for the deterministic freshness primitive, and the current baseline to beat.
+  ([companion repo](https://github.com/cvikasreddy/memory-conflict-resolution))
+- Du, [*Memory for Autonomous LLM Agents: Mechanisms, Evaluation, and Emerging
+  Frontiers*](https://arxiv.org/abs/2603.07670) (arXiv:2603.07670) — survey.
+- Zep / Graphiti — bitemporal edges and hybrid retrieval. Used here for storage and
+  retrieval only; consolidation is deliberately not delegated to it.
+- MemGPT / Letta — the tool-call memory lineage this design moves away from.
+
+Supersede-never-delete with `valid_at` / `invalid_at` is bitemporal modelling, standardised
+in SQL:2011 and long predating any of this. None of the temporal machinery is new; the
+claim is only about *who decides*, and when.
+
+## License
+
+Apache-2.0. See `LICENSE`.

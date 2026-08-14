@@ -1,0 +1,83 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 100,
+    "accuracy": 1.0,
+    "exact_match": 0.99,
+    "retrieval_hit": 0.89,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 303,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 152,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 6.279250110001158,
+    "query_seconds": 187.4170857120007,
+    "notes": [],
+    "samples": [
+      {
+        "question": "Which sport is goaltender associated with?",
+        "gold": [
+          "pes\u00e4pallo"
+        ],
+        "answer": "pes\u00e4pallo",
+        "top_live": "goaltender is associated with the sport of pes\u00e4pallo.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Nobuhiro Watsuki famous for?",
+        "gold": [
+          "The Fairly OddParents"
+        ],
+        "answer": "The Fairly OddParents.",
+        "top_live": "Nobuhiro Watsuki is famous for The Fairly OddParents.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which country was rugby union created in?",
+        "gold": [
+          "India"
+        ],
+        "answer": "India",
+        "top_live": "Gala RFC is associated with the sport of rugby union.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Ferdowsi famous for?",
+        "gold": [
+          "Shahnameh"
+        ],
+        "answer": "Shahnameh",
+        "top_live": "Ferdowsi is famous for Shahnameh.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which university was Joan Didion educated at?",
+        "gold": [
+          "University of California, Berkeley"
+        ],
+        "answer": "University of California, Berkeley.",
+        "top_live": "The univeristy where Joan Didion was educated is University of California, Berkeley.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which religion is Karen Armstrong affiliated with?",
+        "gold": [
+          "Church of Scotland"
+        ],
+        "answer": "Catholic Church and Church of Scotland.",
+        "top_live": "Karen Armstrong is affiliated with the religion of Catholic Church.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      }
+    ]
+  }
+]

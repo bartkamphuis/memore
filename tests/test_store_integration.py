@@ -1,0 +1,297 @@
+"""Suite 11 -- store adapter, against real FalkorDB (recall-stage-test-spec.md).
+
+The only suite that touches an external service. Gated behind the `integration` marker
+so unit runs stay fast:
+
+    uv run pytest -m integration        # needs `docker compose up -d falkordb`
+    uv run pytest -m "not integration"  # default-fast
+"""
+
+from __future__ import annotations
+
+import uuid
+
+import pytest
+
+from memore.config import StoreConfig
+from memore.consolidate import ConsolidationConfig, DeterministicConsolidator, subject_key
+from memore.embed import StubEmbedder
+from memore.store.falkor import FalkorStore
+from memore.types import CandidateFact, ConsolidationCase, FactType
+
+pytestmark = pytest.mark.integration
+
+DIM = 8
+
+
+@pytest.fixture
+async def store():
+    # StubEmbedder emits 8-dim vectors; use a throwaway graph so the dimension of the
+    # real 768-d graph is untouched and tests never collide with bench data.
+    config = StoreConfig(graph_name=f"test_{uuid.uuid4().hex[:8]}")
+    falkor = FalkorStore(config, dimension=DIM)
+    await falkor.connect()
+    yield falkor
+    await falkor._q("MATCH (f:Fact) DELETE f")
+    await falkor.aclose()
+
+
+def candidate(fact: str, subject: str) -> CandidateFact:
+    return CandidateFact(
+        fact=fact, type=FactType.STATE, confidence=0.9, valid_at=None, subject_hint=subject
+    )
+
+
+async def test_ingest_search_roundtrip(store):
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate("s1", [candidate("deploys to staging by default", "deploy target")])
+
+    query_vec = await embedder.embed_one("deploys to staging by default")
+    hits = await store.hybrid_search("deploy staging", query_vec, "s1", 5)
+    assert [h.fact for h in hits] == ["deploys to staging by default"]
+    assert 0.0 <= hits[0].score <= 1.0
+    assert hits[0].valid_at is not None
+
+
+async def test_scores_are_normalized_zero_to_one(store):
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate(
+        "s1",
+        [candidate(f"fact number {i} about topic {i}", f"topic {i}") for i in range(8)],
+    )
+    query_vec = await embedder.embed_one("fact number 3 about topic 3")
+    hits = await store.hybrid_search("fact number 3", query_vec, "s1", 8)
+    assert hits
+    assert all(0.0 <= h.score <= 1.0 for h in hits)
+    assert hits == sorted(hits, key=lambda h: h.score, reverse=True)
+
+
+async def test_session_scoping(store):
+    """§13: no cross-session recall in v1."""
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate("session-a", [candidate("a-only secret", "secret")])
+    await con.consolidate("session-b", [candidate("b-only secret", "secret")])
+
+    query_vec = await embedder.embed_one("a-only secret")
+    hits = await store.hybrid_search("secret", query_vec, "session-b", 10)
+    assert [h.fact for h in hits] == ["b-only secret"]
+
+
+async def test_session_scoping_survives_a_crowded_index(store):
+    """The regression this pins: FalkorDB's vector index is global and its query
+    procedure takes no filter, so session scoping happens after the ANN fetch. With a
+    fixed over-fetch, a session holding one fact silently returns nothing once other
+    sessions crowd the index."""
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate(
+        "noisy", [candidate(f"unrelated filler fact {i}", f"filler {i}") for i in range(300)]
+    )
+    await con.consolidate("tiny", [candidate("the one fact in this session", "the subject")])
+
+    query_vec = await embedder.embed_one("the one fact in this session")
+    hits = await store.hybrid_search("the one fact in this session", query_vec, "tiny", 12)
+    assert [h.fact for h in hits] == ["the one fact in this session"]
+
+
+async def test_live_chain_view_returns_only_live_facts(store):
+    """Live-only is what keeps the multi-hop walk affordable, not a nicety.
+
+    Superseded facts multiply the out-degree of exactly the hub values that would
+    otherwise explode the frontier, so a chain view that leaked them would change the
+    walk's cost characteristics, not just its answers (`memore.chain`).
+    """
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate("s1", [candidate("The capital of Italy is Rome.", "capital of Italy")])
+    await con.consolidate("s1", [candidate("The capital of Italy is Duluth.", "capital of Italy")])
+    await con.consolidate("other", [candidate("A fact in another session.", "elsewhere")])
+
+    view = await store.live_chain_view("s1")
+    assert [n.fact for n in view] == ["The capital of Italy is Duluth."]
+    assert all(n.invalid_at is None for n in view)
+    # Subject keys come back normalized, which is what the edge rule compares against.
+    assert view[0].subject_key == subject_key("capital of Italy")
+
+
+async def test_expansion_reaches_a_fact_the_gate_alone_cannot(store):
+    """End to end: a chained answer that no similarity score would have surfaced.
+
+    Pinned because this is the whole multi-hop claim. The gate is calibrated on
+    similarity to the turn, and a hop-2 fact shares no entity with the turn -- measured
+    on `factconsolidation_mh_6k`, the gate alone put the gold answer in the block on 5%
+    of questions and the walk took that to 91% (RESULTS.md §8).
+    """
+    from memore.config import RecallConfig
+    from memore.recall import recall
+    from memore.types import TurnContext
+
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate(
+        "s1",
+        [
+            candidate("Igor of Kiev is married to Olga of Kiev.", "spouse of Igor of Kiev"),
+            candidate("Olga of Kiev died in the city of Rodez.", "place of death of Olga of Kiev"),
+        ],
+    )
+
+    # floor 0 isolates the walk from the gate, and k=1 forces retrieval to return only
+    # the hop-1 fact -- so reaching Rodez is the walk's doing and cannot be retrieval
+    # having found it anyway.
+    turn = TurnContext(session_id="s1", user_message="Igor of Kiev is married to Olga of Kiev.")
+    base = await recall(turn, RecallConfig(score_floor=0.0, k=1, expansion_hops=0), store, embedder)
+    walked = await recall(turn, RecallConfig(score_floor=0.0, k=1, expansion_hops=2), store, embedder)
+
+    assert [h.fact for h in base.memories_used] == ["Igor of Kiev is married to Olga of Kiev."]
+    assert "Olga of Kiev died in the city of Rodez." in [h.fact for h in walked.memories_used]
+    assert len(walked.memories_used) > len(base.memories_used)
+    # Chain facts carry no similarity score -- they were never ranked against the turn.
+    chained = [h for h in walked.memories_used if h.score == 0.0]
+    assert chained and all(h.invalid_at is None for h in chained)
+
+
+async def test_widening_is_not_bounded_by_the_graph_size(store):
+    """The second half of the crowded-index problem, which hid behind the fix for the
+    first: HNSW returns FEWER nodes than asked for, so "I asked for every node in the
+    graph" is not "I saw every node in the graph".
+
+    Measured on the calibration graph: 467 facts, ask the index for 467, get 182 back, of
+    which zero belonged to the 12-fact session under test -- `recall()` then returned
+    nothing and the gate read as correctly shut. Bounding the widening by `total` (which
+    is what "stop once fetch covers the graph" means) reintroduces exactly the silent
+    empty result the widening exists to prevent.
+    """
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate(
+        "noisy", [candidate(f"unrelated filler fact {i}", f"filler {i}") for i in range(600)]
+    )
+    session_facts = [f"session fact number {i}" for i in range(12)]
+    await con.consolidate("small", [candidate(f, f"subject {f}") for f in session_facts])
+
+    query_vec = await embedder.embed_one("session fact number 0")
+    hits = await store.hybrid_search("session fact number 0", query_vec, "small", 12)
+    # Every fact the session holds, not merely "something".
+    assert sorted(h.fact for h in hits) == sorted(session_facts)
+
+
+async def test_supersede_persists_bitemporal_fields(store):
+    embedder = StubEmbedder(DIM)
+    # StubEmbedder vectors are deterministic but semantically meaningless, so any
+    # similarity threshold over them is noise -- two contradictory strings can land
+    # above 0.97 and be called DUPLICATE. Real embeddings put contradictions at
+    # 0.85-0.91 (measured); the string path is what this test pins.
+    con = DeterministicConsolidator(
+        store, embedder, ConsolidationConfig(use_embedding_comparison=False)
+    )
+    await con.consolidate("s1", [candidate("deploys to staging", "deploy target")])
+    outcomes = await con.consolidate("s1", [candidate("deploys to prod", "deploy target")])
+    assert outcomes[0].case is ConsolidationCase.CONTRADICTION
+
+    live = await store.live_facts_for_subject("s1", subject_key("deploy target"))
+    assert [f.fact for f in live] == ["deploys to prod"]
+    assert await store.count("s1") == 2
+
+    query_vec = await embedder.embed_one("deploys to staging")
+    hits = await store.hybrid_search("deploy", query_vec, "s1", 5)
+    superseded = [h for h in hits if h.invalid_at is not None]
+    assert [h.fact for h in superseded] == ["deploys to staging"]
+
+
+async def test_commit_is_idempotent_per_fact(store):
+    """writepath §3: re-running a turn's job must not create duplicate facts."""
+    from memore.types import StoredFact
+
+    embedder = StubEmbedder(DIM)
+    vector = await embedder.embed_one("stable fact")
+    fact = StoredFact(
+        id="fixed-id",
+        session_id="s1",
+        fact="stable fact",
+        subject_key="stable",
+        subject_label="stable subject",
+        ordinal=1,
+        valid_at=None,
+        invalid_at=None,
+        source_episode_id="turn-7",
+    )
+    await store.add_fact(fact, vector)
+    await store.add_fact(fact, vector)
+    assert await store.count("s1") == 1
+
+
+async def test_embedder_dimension_mismatch_fails_at_connect():
+    """A store whose index was built for another embedder must refuse to open.
+
+    This one degrades into silence rather than an error: the wrong-width write succeeds,
+    only the query raises, and `recall()` swallows every store exception by design (§3.1)
+    -- so the gate is shut forever and the only symptom is one WARNING per turn. It is a
+    single step away, because changing MEMORE_EMBED_MODEL does not change the graph name.
+    """
+    config = StoreConfig(graph_name=f"test_{uuid.uuid4().hex[:8]}")
+    first = FalkorStore(config, dimension=DIM)
+    await first.connect()
+    try:
+        mismatched = FalkorStore(config, dimension=DIM * 2)
+        with pytest.raises(RuntimeError, match="dimension vector index"):
+            await mismatched.connect()
+        await mismatched.aclose()
+        # Same width still opens: the guard rejects mismatches, not reconnections.
+        again = FalkorStore(config, dimension=DIM)
+        await again.connect()
+        await again.aclose()
+    finally:
+        await first._q("MATCH (f:Fact) DELETE f")
+        await first.aclose()
+
+
+async def test_irrelevant_query_stays_below_the_gate_floor():
+    """The precision regression this pins (§6 is the differentiator: inject only when
+    the store actually has something relevant).
+
+    With additive fusion `w_v*cos + w_t*bm25_norm`, BM25's max-normalization gave the
+    best of two terrible lexical matches a full 1.0, lifting an unrelated fact to 0.419
+    against a 0.35 floor. Multiplicative fusion anchors the score on cosine, so an
+    irrelevant query cannot be boosted over the floor by keyword noise alone.
+    """
+    from memore.config import EmbedConfig, RecallConfig
+    from memore.embed import OllamaEmbedder
+
+    # Its own graph: the shared fixture indexes 8-dim stub vectors, and this test needs
+    # the real embedder to say anything about actual relevance. from_env() (not the bare
+    # default) so the configured prefixes and dimension are the ones we ship -- and the
+    # index width has to follow the embedder, not a constant, or the store silently holds
+    # vectors it cannot search.
+    embed_config = EmbedConfig.from_env()
+    embedder = OllamaEmbedder(embed_config)
+    real = FalkorStore(
+        StoreConfig(graph_name=f"test_{uuid.uuid4().hex[:8]}"), dimension=embed_config.dimension
+    )
+    await real.connect()
+    con = DeterministicConsolidator(real, embedder)
+    await con.consolidate("s1", [candidate("The user deploys to prod by default.", "deploy target")])
+
+    floor = RecallConfig().score_floor
+    relevant = await real.hybrid_search(
+        "remind me where I deploy?",
+        await embedder.embed_one("remind me where I deploy?", query=True),
+        "s1",
+        5,
+    )
+    irrelevant = await real.hybrid_search(
+        "what is the weather in Paris?",
+        await embedder.embed_one("what is the weather in Paris?", query=True),
+        "s1",
+        5,
+    )
+    await embedder.aclose()
+    try:
+        assert relevant and relevant[0].score >= floor
+        assert all(h.score < floor for h in irrelevant)
+    finally:
+        await real._q("MATCH (f:Fact) DELETE f")
+        await real.aclose()

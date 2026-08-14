@@ -1,0 +1,93 @@
+{
+  "cases": {
+    "NEW": 314,
+    "DUPLICATE": 0,
+    "CONTRADICTION": 141,
+    "REFINEMENT": 0
+  },
+  "n_questions": 100,
+  "matched": 100,
+  "consolidation_correct": 95,
+  "stale_live": 0,
+  "gold_fact_superseded": 0,
+  "unmatched": 0,
+  "n_groups": 314,
+  "n_multi_fact_groups": 141,
+  "failures": [
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Tunisia national football team associated with?",
+      "gold": [
+        "basketball"
+      ],
+      "matched_subject": "sport associated with tunisia national football team",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Tunisia national football team is associated with the sport of association football.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Tunisia national football team is associated with the sport of association football."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Slovakia national football team associated with?",
+      "gold": [
+        "cricket"
+      ],
+      "matched_subject": "sport slovakia national football team is associated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Slovakia national football team is associated with the sport of association football.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Slovakia national football team is associated with the sport of association football."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Bo Ryan associated with?",
+      "gold": [
+        "association football"
+      ],
+      "matched_subject": "sport bo ryan is associated with",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Bo Ryan is associated with the sport of basketball.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Bo Ryan is associated with the sport of basketball."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "What kind of work does Stephen McNeil do?",
+      "gold": [
+        "journalist"
+      ],
+      "matched_subject": "work for which stephen crane is famous",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "Stephen Crane is famous for The Red Badge of Courage.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Stephen Crane is famous for The Red Badge of Courage."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which sport is Surrey Senior Cup associated with?",
+      "gold": [
+        "basketball"
+      ],
+      "matched_subject": "sport associated with surrey senior cup",
+      "match_score": 1.0,
+      "group_size": 1,
+      "newest_fact": "Surrey Senior Cup is associated with the sport of association football.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Surrey Senior Cup is associated with the sport of association football."
+      ]
+    }
+  ]
+}

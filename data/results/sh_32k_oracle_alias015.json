@@ -1,0 +1,229 @@
+{
+  "cases": {
+    "NEW": 1523,
+    "DUPLICATE": 0,
+    "CONTRADICTION": 787,
+    "REFINEMENT": 0
+  },
+  "alias": {
+    "enabled": true,
+    "df_ratio": 0.015,
+    "min_subjects": 200
+  },
+  "merges": [
+    [
+      "affiliated i leo religion thracian",
+      "i leo religion thracian"
+    ],
+    [
+      "august bavaria clemens religion",
+      "affiliated august bavaria clemens religion"
+    ],
+    [
+      "cardinal religion stritch university",
+      "affiliated cardinal religion stritch university"
+    ],
+    [
+      "adalbert prague religion",
+      "adalbert affiliated prague religion"
+    ],
+    [
+      "france isabella religion",
+      "affiliated france isabella religion"
+    ],
+    [
+      "affiliated denis religion thatcher",
+      "denis religion thatcher"
+    ],
+    [
+      "current head soviet state union",
+      "head soviet state union"
+    ],
+    [
+      "buddhist religion temple",
+      "affiliated buddhist religion temple"
+    ],
+    [
+      "aubrey beardsley religion",
+      "affiliated aubrey beardsley religion"
+    ],
+    [
+      "affiliated common religion",
+      "common religion"
+    ],
+    [
+      "affiliated de joseph maistre religion",
+      "de joseph maistre religion"
+    ],
+    [
+      "city gazeta headquarters located wyborcza",
+      "gazeta headquarters wyborcza"
+    ],
+    [
+      "david miscavige religion",
+      "affiliated david miscavige religion"
+    ],
+    [
+      "i queen religion victoria",
+      "affiliated i queen religion victoria"
+    ],
+    [
+      "affiliated dashiell hammett religion",
+      "dashiell hammett religion"
+    ],
+    [
+      "affiliated alexis de religion tocqueville",
+      "alexis de religion tocqueville"
+    ],
+    [
+      "affiliated lorenzo religion valla",
+      "lorenzo religion valla"
+    ],
+    [
+      "affiliated college iona religion",
+      "college iona religion"
+    ],
+    [
+      "affiliated carroll michael patrick religion",
+      "carroll michael patrick religion"
+    ],
+    [
+      "affiliated blois henry religion",
+      "blois henry religion"
+    ],
+    [
+      "affiliated grammaticus religion saxo",
+      "grammaticus religion saxo"
+    ],
+    [
+      "affiliated cleves duchy religion",
+      "cleves duchy religion"
+    ],
+    [
+      "current government head sweden",
+      "government head sweden"
+    ],
+    [
+      "gaga lady religion",
+      "affiliated gaga lady religion"
+    ],
+    [
+      "affiliated claude jean juncker religion",
+      "claude jean juncker religion"
+    ],
+    [
+      "bucharest headquarters university",
+      "bucharest city headquarters located university"
+    ],
+    [
+      "herman melville work",
+      "famous herman melville work"
+    ],
+    [
+      "affiliated bonaventure religion st university",
+      "bonaventure religion st university"
+    ],
+    [
+      "affiliated justus lipsius religion",
+      "justus lipsius religion"
+    ],
+    [
+      "john religion woolman",
+      "affiliated john religion woolman"
+    ],
+    [
+      "france louis religion xv",
+      "affiliated france louis religion xv"
+    ],
+    [
+      "iemma morris religion",
+      "affiliated iemma morris religion"
+    ],
+    [
+      "amalia maria naples religion sicily",
+      "affiliated amalia maria naples religion sicily"
+    ],
+    [
+      "affiliated gebhard religion truchsess von waldburg",
+      "gebhard religion truchsess von waldburg"
+    ],
+    [
+      "affiliated bahawalpur religion state",
+      "bahawalpur religion state"
+    ],
+    [
+      "jonathan religion swift",
+      "affiliated jonathan religion swift"
+    ]
+  ],
+  "n_questions": 100,
+  "matched": 100,
+  "consolidation_correct": 96,
+  "stale_live": 0,
+  "gold_fact_superseded": 0,
+  "unmatched": 0,
+  "n_groups": 1523,
+  "n_multi_fact_groups": 787,
+  "failures": [
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city did Noel Pemberton Billing work in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "billing city noel pemberton worked",
+      "match_score": 0.8,
+      "group_size": 2,
+      "newest_fact": "Noel Pemberton Billing worked in the city of Washington, D.C..",
+      "newest_is_live": true,
+      "live_in_group": [
+        "Noel Pemberton Billing worked in the city of Washington, D.C.."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "What is the capital of Papal States?",
+      "gold": [
+        "Rome"
+      ],
+      "matched_subject": "capital papal states",
+      "match_score": 1.0,
+      "group_size": 2,
+      "newest_fact": "The capital of Papal States is Watertown.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The capital of Papal States is Watertown."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of Microsoft located in?",
+      "gold": [
+        "Beverly Hills"
+      ],
+      "matched_subject": "city headquarters ilyushin located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    },
+    {
+      "kind": "wrong_group_or_under_merge",
+      "question": "Which city is the headquarter of MTV located in?",
+      "gold": [
+        "London"
+      ],
+      "matched_subject": "city headquarters ilyushin located",
+      "match_score": 0.5,
+      "group_size": 1,
+      "newest_fact": "The headquarters of Ilyushin is located in the city of Moscow.",
+      "newest_is_live": true,
+      "live_in_group": [
+        "The headquarters of Ilyushin is located in the city of Moscow."
+      ]
+    }
+  ]
+}
