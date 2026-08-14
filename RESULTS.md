@@ -23,12 +23,24 @@ reported:
 | gpt-4o-mini | 0.780 | 0.302 |
 | gpt-4o | **0.948** | **0.515** |
 
+Their §4.5 states the metric: "We use SubEM (substring exact match), the metric used in the
+MAB paper." That is the same metric §1 ports in `memore/bench/scoring.py` and reports as
+`accuracy`, so the matched comparison is SubEM-to-SubEM — **not** against the exact-match
+figures this document generally prefers:
+
+| | memore SubEM | memore exact-match | 2606.01435 SubEM (gpt-4o) |
+|---|---|---|---|
+| sh_6k | 1.000 | 0.990 | 0.948 |
+| sh_32k | 0.980 | 0.950 | 0.948 |
+| mh_6k | **0.800** | **0.760** | 0.515 |
+
 Against that baseline, this project's position changes from "beats the field by 40 points"
 to something narrower and more defensible:
 
-- **Single-hop is comparable, not a win.** 0.990 at 6k and 0.950 at 32k against 0.948, on
-  a weaker reader — but uncontrolled, and inside the noise of the differences in setup.
-- **Multi-hop remains a real margin.** 0.760 against 0.515, and by a mechanism with no
+- **Single-hop is parity, not a win.** 0.980–1.000 SubEM against 0.948 is inside the noise
+  of an uncontrolled setup comparison, and §2 already establishes that 2 of the 100 32k
+  questions are unwinnable, putting the ceiling at 98.
+- **Multi-hop remains a real margin.** 0.800 SubEM against 0.515, by a mechanism with no
   counterpart in their recipe (§8's deterministic chain walk, no LLM, no embeddings).
 - **The write-time/read-time split is a genuine architectural difference.** Their recipe
   assembles over retrieved candidates at read time; consolidation here happens at write

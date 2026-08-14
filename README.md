@@ -39,17 +39,29 @@ consolidation was correct on **every** subject group in every run at both corpus
 every single residual error was extraction naming one subject two different ways
 (`RESULTS.md` §3). Freshness was never the bottleneck. Subject identity was.
 
-Measured against their numbers, on MemoryAgentBench FactConsolidation:
+Measured against their numbers on MemoryAgentBench FactConsolidation. Their §4.5 reports
+**SubEM** (substring exact match), which is MemoryAgentBench's own metric, so that is the
+matched row; exact-match is the stricter figure this repo prefers and they do not report it:
 
 | | memore (local `gemma4`) | 2606.01435 (gpt-4o) |
 |---|---|---|
-| single-hop | 0.99 @6k · 0.95 @32k | 0.948 |
-| multi-hop | **0.760** @6k | 0.515 |
+| single-hop, SubEM | 1.000 @6k · 0.980 @32k | 0.948 |
+| single-hop, exact-match | 0.99 @6k · 0.95 @32k | not reported |
+| multi-hop, SubEM | **0.800** @6k | 0.515 |
+| multi-hop, exact-match | **0.760** @6k | not reported |
 
-Single-hop is **comparable, not a win**, and the comparison is not controlled — different
-reader, different corpus sizes. Multi-hop is where the margin is real, and the mechanism is
-different: a deterministic value→subject graph walk over live facts, with no LLM and no
-embeddings, which has no counterpart in the published recipe.
+Single-hop is a **modest edge at best and not a controlled comparison** — different reader,
+different setup, and 2 of the 100 single-hop questions at 32k have gold answers that
+contradict the benchmark's own "newer serial wins" rule, so the ceiling is 98 rather than
+100. Treat it as parity.
+
+Multi-hop is where the margin is real, and the mechanism is different: a deterministic
+value→subject graph walk over live facts, with no LLM and no embeddings, which has no
+counterpart in the published recipe.
+
+SubEM is a generous metric and rewards a hedging reader — `RESULTS.md` §3 shows a case
+where "association football and basketball" scores 1.0 against gold `basketball`. That cuts
+both ways in the table above, which is why exact-match is listed beside it.
 
 The other architectural difference: consolidation here happens at **write** time, so the
 store is always in a resolved state, versus assembling over retrieved candidates at read
