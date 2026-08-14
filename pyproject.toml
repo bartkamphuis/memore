@@ -3,7 +3,7 @@ name = "memore"
 version = "0.1.0"
 description = "Deterministic write-time memory consolidation and pre-fetch recall for LLM agents"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Bart Kamphuis" }]
@@ -52,7 +52,7 @@ asyncio_mode = "auto"
 markers = ["integration: needs a running FalkorDB (docker compose up -d falkordb)"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py311"
 line-length = 110
 
 [tool.ruff.lint]
