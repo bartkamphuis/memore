@@ -1081,3 +1081,122 @@ that "born in" and "wrote it in" are different properties.
 
 Whether either needs the §10 document-frequency treatment is unmeasured, and there is no
 corpus that would answer it — for exactly the reason there is none that shows the defect.
+
+---
+
+## 12. The BM25 arm is a penalty, and the floor sits on the penalised score
+
+Reported from real console use: the gate often stays shut on turns the store can answer,
+and whether it opens seems to depend on *wording* — "my / me / I / the" — rather than on
+whether the memory exists.
+
+That is correct, and the cause is not the embedder.
+
+### The embedding is fine; the fusion is not
+
+`mxbai-embed-large` puts "how old am i" at cosine **0.608** against `The user is 58 years
+old.` — comfortably over the 0.48 floor. Across 15 real trace queries whose answer is in
+the store, raw cosine clears the floor on **15/15**. First-person query against
+third-person stored fact is not the problem.
+
+The fused score is, and the mechanism is arithmetic. Fusion is
+
+```
+fused = cos · (1 + w·bm25_norm) / (1 + w)          w = text_weight = 0.3
+```
+
+`bm25_norm` is `raw / best_text`, so it is 1.0 only for the single best lexical match in
+the result set and 0.0 for anything sharing no terms with the query. The range of `fused`
+is therefore `[cos/1.3, cos]` — **BM25 can only ever deduct**, never add, and a fact with
+no lexical overlap loses exactly 23% of its score before the floor sees it:
+
+```
+  query                              cos    fused   ratio   gate
+  what am i called                  0.555   0.427   0.769   shut
+  What are my profile details?      0.568   0.437   0.769   shut
+  who am i?                         0.576   0.443   0.769   shut
+  what do i do for work?            0.489   0.427   0.874   shut
+  how old am i                      0.608   0.608   1.000   OPEN
+  do i write tests?                 0.767   0.767   1.000   OPEN
+```
+
+`what am i called` is the clearest case: `The user's name is Bart.` is the top semantic
+match at 0.555 and shares not one word with the query — "called" versus "name" — so it is
+docked to 0.427 and refused. The user's diagnosis was right; the word matching is BM25's,
+not the embedder's.
+
+This also explains why the same question behaves differently in different sessions. The
+penalty depends on `best_text`, which depends on what *else* is in the store, so identical
+phrasing can open the gate in one session and not another.
+
+### It also inverts positives and negatives
+
+The worst off-domain negative in the set scores **fused 0.580** — higher than three
+genuinely answerable questions score after the deduction. The fused score is not merely
+noisier than cosine here, it ranks a false positive above a true one.
+
+### Floor sweep, both quantities, real P1 phrasing
+
+15 positives (answer is in the store) against the 39 off-domain negatives from
+`calib_fixtures`, gating on the shipped fused score versus on raw cosine:
+
+```
+   floor |    FUSED (shipped)    |   COSINE (gate only)
+         |  recall  false-open   |  recall  false-open
+    0.48 |    0.73       0.077   |    1.00       0.282   <- shipped
+    0.52 |    0.67       0.051   |    0.87       0.103
+    0.54 |    0.67       0.026   |    0.87       0.077
+    0.56 |    0.67       0.026   |    0.80       0.051
+    0.60 |    0.47       0.000   |    0.53       0.000
+```
+
+Cosine-gating **dominates at every matched false-open budget** in the useful range: 0.73 →
+0.87 recall at FO 0.077, 0.67 → 0.80 at FO 0.051. Gating on cosine while continuing to
+*rank* on the fused score is the change this points at, and it does not reintroduce what
+the multiplicative-fusion invariant guards against — that invariant exists to stop BM25
+*inflating* an irrelevant hit over the floor, and cosine-gating cannot inflate anything,
+because `fused ≤ cos` always. It removes a deduction; it adds no bonus.
+
+### Why it is not shipped here
+
+Two reasons, both measured rather than cautious.
+
+**The floor moves with the gated quantity.** At the shipped 0.48 on raw cosine, off-domain
+false-open is 0.282 — a quarter of unrelated chit-chat opens the gate. `score_floor` and
+the gated quantity are one decision in exactly the way `score_floor` and the embedder are.
+This needs `bench.calibrate`, not a hand-picked number.
+
+**The calibration fixture does not contain this failure.** `CHAT_FACTS` stores terse
+fragments — `"deploys to staging by default"` — while real P1 stores
+`"The user deploys to staging by default"`, and the fixture's positives share stems with
+its facts (`deploy setup`/`deploys`, `test framework`/`tests`). The 1/(1+w) deduction
+therefore almost never bit during the run that chose 0.48. Recalibrating against that
+fixture would re-bake the blind spot whichever quantity is gated on. The fixtures have to
+be regenerated from the real extractor first, so they track P1 instead of drifting from it
+again.
+
+And the honest limit: the distributions overlap. Positives run 0.489–0.767 while the worst
+off-domain negative reaches 0.581, so **six real positives sit below the worst negative**.
+No floor on either quantity separates them. Cosine-gating is a better operating curve, not
+a fix — the same structural result §5 and §9 reached from the other direction.
+
+### `mxbai-embed-large` has no prefix entry
+
+`_PREFIXES` covers `nomic-embed-text` only, so the current default embedder is used
+symmetrically although it is trained asymmetrically. Measured over this set the query
+prefix is roughly neutral on positives and cut off-domain false-open 9/39 → 6/39 on one
+arm — enough to belong in the sweep as a variant, not enough to change by hand. Same
+coupling: adding it changes the query-side distribution and therefore the floor.
+
+## 12a. An explicit "remember that X" was being silently refused
+
+Separate defect, no calibration involved. P1's salience gate dropped
+`"The chair is against the wall"` — defensible, it is mundane — but it also dropped
+`"Remember that the chair is against the wall"`, which is not a salience judgement to
+make. The user had already made it.
+
+Fixed in the P1 prompt: an explicit remember-request overrides the salience rules, and the
+one rule it does not override is the question rule (`"can you remember what I said
+earlier?"` is still a question). Verified against `gemma4:26b` — six remember-request
+phrasings now all store, and six transient turns including two memory-related questions
+still all drop.

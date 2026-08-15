@@ -59,6 +59,14 @@ deploy setup?", "remind me where I deploy?" -- return an empty list. The answer 
 already be in memory, but the asking teaches you nothing new. Never restate a fact from
 the prior turns as if this turn asserted it; extract only what THIS turn asserts.
 
+AN EXPLICIT REQUEST TO REMEMBER OVERRIDES EVERY RULE ABOVE EXCEPT THE QUESTION RULE.
+If the user says "remember that X", "don't forget X", "keep in mind X", "note that X",
+extract X. Do not apply your own salience judgement to it -- the user has already made
+that judgement, and it outranks yours. This holds even when X looks trivial, mundane or
+physical: "remember that the chair is against the wall" MUST be extracted. Returning
+nothing there is a silent refusal of a direct instruction, which is worse than storing
+something dull.
+
 Rules for each extracted fact:
 - `fact` MUST be standalone: resolve every pronoun and reference so the sentence is
   meaningful with no surrounding context. "switched it to prod" is WRONG;
