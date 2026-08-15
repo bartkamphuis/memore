@@ -75,13 +75,21 @@ class ConsolidatingStore(MemoryStore, Protocol):
         """
         ...
 
-    async def subject_labels(self, session_id: str) -> list[str]:
-        """Readable names of the subjects held for this session, one per subject.
+    async def subject_slots(self, session_id: str) -> list[str]:
+        """One readable line per subject: `label -> property, property`.
 
         Fed back into P1 so the extractor can reuse an existing subject instead of
         coining a synonym -- the measured cause of missed contradictions (RESULTS.md §3).
         Labels, not keys: the canonical key is sorted tokens and would only confuse the
         model being asked to reuse it.
+
+        The properties are on the same line rather than in a separate list because P1 has
+        to make one decision, not two: a new value for a property already under a subject
+        must reuse that property string, and a genuinely new property must not be forced
+        into an existing one. Showing the subject alone (as this returned before
+        RESULTS.md §11) pushed the model toward reusing coarse subjects with no way to
+        say which slot it meant, which is how six independently true facts about one
+        subject ended up superseding each other.
         """
         ...
 

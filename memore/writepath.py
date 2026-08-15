@@ -61,7 +61,7 @@ class WritePath:
             logger.debug("writepath: no store wired, P1 runs without known subjects")
             return []
         try:
-            return await self.store.subject_labels(session_id)
+            return await self.store.subject_slots(session_id)
         except Exception as exc:  # noqa: BLE001 -- a hint, never a hard dependency
             logger.warning("writepath: could not read known subjects: %s", exc)
             return []

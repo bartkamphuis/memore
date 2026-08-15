@@ -29,8 +29,9 @@ _SCHEMA = {
                     "type": {"type": "string", "enum": [t.value for t in FactType]},
                     "confidence": {"type": "number"},
                     "subject_hint": {"type": "string"},
+                    "attribute": {"type": "string"},
                 },
-                "required": ["fact", "type", "confidence", "subject_hint"],
+                "required": ["fact", "type", "confidence", "subject_hint", "attribute"],
             },
         }
     },
@@ -62,13 +63,28 @@ Rules for each extracted fact:
 - `fact` MUST be standalone: resolve every pronoun and reference so the sentence is
   meaningful with no surrounding context. "switched it to prod" is WRONG;
   "deploys to prod by default" is RIGHT.
-- `subject_hint` is a short key naming WHAT THE FACT IS ABOUT, not its value:
-  "deploy target", "answer-length preference", "primary programming language".
-  Two facts that could contradict each other MUST get the identical subject_hint,
-  character for character. Consolidation matches subjects EXACTLY: if you call it
-  "deploy target" once and "deployment environment" the next time, the store keeps both
-  and the contradiction is never noticed. Prefer the shortest natural noun phrase, and
-  reuse a subject you have already used in this conversation rather than rephrasing it.
+- `subject_hint` is the TOPIC the fact is about: "the user", "the memory system",
+  "the Netherlands". Prefer the shortest natural noun phrase, and reuse a subject you
+  have already used in this conversation rather than rephrasing it.
+- `attribute` is the single PROPERTY of that subject this fact gives a value for:
+  "deploy target", "age", "implementation language", "lookup latency", "capital city".
+  This is the test that matters, and it is not the same test as the subject:
+
+    Could BOTH facts be true at the same time?
+      YES -> they are different properties -> they MUST get different `attribute`s.
+             "the memory system is written in Python" (implementation language) and
+             "the memory system takes 70-90ms" (lookup latency) are both true. Storing
+             them under one attribute makes the newer one erase the older one.
+      NO  -> they are the same property with different values -> they MUST get the
+             IDENTICAL `attribute`, character for character.
+             "deploys to staging by default" and "the default deployment target is now
+             production" are the SAME property (deploy target) and must collide, or the
+             store keeps both and answers with the stale one.
+
+  Name the property, never its value: "deploy target", not "staging". Reuse an attribute
+  you have already used for that subject rather than rephrasing it -- matching is exact,
+  so "deploy target" and "deployment environment" are two different properties and the
+  contradiction between them is never noticed.
 - `confidence` is your own 0..1 confidence that this is a durable fact.
 """
 
@@ -105,8 +121,12 @@ class OllamaExtractor:
         if known_subjects:
             listed = "\n".join(f"- {s}" for s in sorted(known_subjects)[:40])
             subjects = (
-                "Subjects already in memory for this session. If this turn asserts "
-                "something about ANY of these, reuse that exact subject string:\n"
+                "Already in memory for this session, as `subject -> properties`. If this "
+                "turn asserts something about ANY of these, reuse that exact subject "
+                "string; and if it gives a new value for a property already listed under "
+                "that subject, reuse that exact property string too, so the two collide. "
+                "A property NOT listed is a new one -- coin it rather than forcing the "
+                "fact into a property it does not belong to:\n"
                 f"{listed}\n\n"
             )
         prompt = (
@@ -141,6 +161,10 @@ class OllamaExtractor:
                     confidence=confidence,
                     valid_at=now,
                     subject_hint=subject,
+                    # Absent or empty is not an error: it means "unspecified", and
+                    # `_competing` treats that as colliding with everything, which is
+                    # exactly the behaviour of every extractor written before this field.
+                    attribute=(item.get("attribute") or "").strip(),
                 )
             )
         return out

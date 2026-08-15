@@ -16,9 +16,21 @@ from memore.types import CandidateFact, ConsolidationCase, FactType
 SESSION = "s1"
 
 
-def candidate(fact: str, subject: str, confidence: float = 0.9) -> CandidateFact:
+def candidate(
+    fact: str, subject: str, confidence: float = 0.9, attribute: str = ""
+) -> CandidateFact:
+    """`attribute` defaults to "" -- unspecified, colliding with every slot.
+
+    That default is why the tests written before RESULTS.md §11 still pin exactly what
+    they pinned: an extractor that names no slot gets the pre-§11 behaviour.
+    """
     return CandidateFact(
-        fact=fact, type=FactType.PREFERENCE, confidence=confidence, valid_at=None, subject_hint=subject
+        fact=fact,
+        type=FactType.PREFERENCE,
+        confidence=confidence,
+        valid_at=None,
+        subject_hint=subject,
+        attribute=attribute,
     )
 
 
@@ -175,7 +187,7 @@ async def test_subject_label_keeps_the_readable_name(consolidator):
     separately -- it is what gets shown back to P1 and printed in traces."""
     con, store = consolidator
     await con.consolidate(SESSION, [candidate("deploys to staging", "deploy target")])
-    assert await store.subject_labels(SESSION) == ["deploy target"]
+    assert await store.subject_slots(SESSION) == ["deploy target"]
     stored = next(iter(store.facts.values()))
     assert stored.subject_key == "deploy target"  # already canonical
     assert stored.subject_label == "deploy target"
@@ -202,3 +214,159 @@ def test_narrower_entity_is_not_the_same_subject():
     """
     assert subject_key("founder of Buddhism") != subject_key("founder of Shingon Buddhism")
     assert subject_key("headquarters of Google") != subject_key("headquarters of Google Cloud")
+
+
+# ---------------------------------------------------------------------------
+# Attribute slots (RESULTS.md §11)
+# ---------------------------------------------------------------------------
+#
+# These are built from three real gateway sessions, not from MemoryAgentBench, and that
+# is the point. FactConsolidation is constructed as repeated updates to ONE attribute per
+# subject, so "a subject holds exactly one live fact" is true there by construction and
+# the defect below is structurally invisible to the bench -- sh_6k, sh_32k and mh_6k
+# cannot move whether this works or not. They stay a regression guard; this is the test.
+#
+# Measured on the three sessions before the fix: 18 supersedes fired, 1 was correct.
+
+
+async def test_compatible_attributes_of_one_subject_all_stay_live(consolidator):
+    """The §11 defect, verbatim from session 1's `current memory system` subject.
+
+    Six facts, every one of them true at the same time, arriving under one subject
+    because that is the topic P1 named. Before the fix, five were marked SUPERSEDED --
+    including "written in Python", which the model was then asked about two turns later
+    and had to answer from a fact labelled stale.
+    """
+    con, store = consolidator
+    subject = "the memory system"
+    facts = [
+        ("the memory system is written in Python", "implementation language"),
+        ("the memory system extraction is asynchronous", "extraction timing"),
+        ("the memory system extraction returns structured data", "extraction output"),
+        ("the memory system uses SUPERSEDED tags", "supersession scheme"),
+        ("the memory system was written in Den Haag", "origin location"),
+        ("the memory system lookup takes 70-90ms", "lookup latency"),
+    ]
+    for fact, attribute in facts:
+        await con.consolidate(SESSION, [candidate(fact, subject, attribute=attribute)])
+
+    live = await store.live_facts_for_subject(SESSION, subject_key(subject))
+    assert len(live) == len(facts)
+    assert {f.fact for f in live} == {f for f, _ in facts}
+
+
+async def test_a_new_slot_supersedes_nothing(consolidator):
+    """"The user is a software engineer" was marked SUPERSEDED in all three sessions,
+    knocked out by "Bart specialises in memory systems for LLMs" -- same subject, no
+    disagreement at all. Both are still true; both must stay live."""
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("the user is a software engineer", "the user",
+                                              attribute="profession")])
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("Bart specialises in memory systems for LLMs", "the user",
+                   attribute="specialisation")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    assert [o.superseded_fact_id for o in outcomes] == [None]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert len(live) == 2
+
+
+async def test_same_slot_still_contradicts(consolidator):
+    """The half that must NOT regress. Amsterdam -> Den Haag was the one correct
+    supersede in three sessions of traces; slotting must not cost it."""
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("The capital of the Netherlands is Amsterdam",
+                                              "the Netherlands", attribute="capital city")])
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("The capital of the Netherlands is Den Haag", "the Netherlands",
+                   attribute="capital city")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the Netherlands"))
+    assert [f.fact for f in live] == ["The capital of the Netherlands is Den Haag"]
+    # Supersede, never delete.
+    assert len(store.facts) == 2
+
+
+async def test_contradiction_supersedes_only_its_own_slot(consolidator):
+    """The landmine: `targets = live` would have made this fix a no-op.
+
+    A contradiction about the deploy target must not take the unrelated live facts on
+    the same subject down with it.
+    """
+    con, store = consolidator
+    subject = "the user"
+    await con.consolidate(SESSION, [candidate("deploys to staging by default", subject,
+                                              attribute="deploy target")])
+    await con.consolidate(SESSION, [candidate("the user is 58", subject, attribute="age")])
+    await con.consolidate(SESSION, [candidate("the user likes Python", subject,
+                                              attribute="language preference")])
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("the default deployment target is now production", subject,
+                   attribute="deploy target")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = {f.fact for f in await store.live_facts_for_subject(SESSION, subject_key(subject))}
+    assert live == {
+        "the default deployment target is now production",
+        "the user is 58",
+        "the user likes Python",
+    }
+
+
+async def test_attribute_key_is_order_insensitive_like_the_subject(consolidator):
+    """Slots go through the same normalization as subjects, so P1 rephrasing a property
+    does not silently open a second slot and lose the contradiction."""
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("deploys to staging", "the user",
+                                              attribute="the deploy target")])
+    outcomes = await con.consolidate(
+        SESSION, [candidate("deploys to prod", "the user", attribute="Deploy-Target")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+
+
+async def test_unslotted_candidate_still_supersedes_everything(consolidator):
+    """Backward compatibility, and the safe error direction.
+
+    With no slot information there is nothing to reason with, so we fall back to
+    over-superseding: the right answer stays live and a neighbour is merely mislabelled.
+    Under-superseding would leave a genuinely dead fact presented as current, which is
+    the failure this project exists to prevent.
+    """
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("deploys to staging", "the user",
+                                              attribute="deploy target")])
+    await con.consolidate(SESSION, [candidate("the user is 58", "the user", attribute="age")])
+    outcomes = await con.consolidate(SESSION, [candidate("deploys to prod", "the user")])
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert [f.fact for f in live] == ["deploys to prod"]
+
+
+async def test_duplicate_is_caught_across_slots(consolidator):
+    """DUPLICATE is checked against every live fact on the subject, not just the
+    competing slot: the same sentence under a different property is still a second copy,
+    and store bloat is what the DUPLICATE case exists to prevent."""
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("the user is 58", "the user", attribute="age")])
+    outcomes = await con.consolidate(
+        SESSION, [candidate("the user is 58", "the user", attribute="age in years")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.DUPLICATE]
+    assert len(store.facts) == 1
+
+
+async def test_subject_slots_shows_properties_back_to_p1(consolidator):
+    """P1 can only reuse a property string it has been shown -- and reusing it is what
+    keeps a contradiction colliding."""
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("deploys to staging", "deploy setup",
+                                              attribute="deploy target")])
+    await con.consolidate(SESSION, [candidate("uses GitHub Actions", "deploy setup",
+                                              attribute="ci provider")])
+    assert await store.subject_slots(SESSION) == ["deploy setup -> ci provider, deploy target"]

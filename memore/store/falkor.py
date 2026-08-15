@@ -290,7 +290,7 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid AND f.subject_key = $key "
             "AND f.invalid_at IS NULL RETURN f.id, f.fact, f.subject_key, f.ordinal, "
-            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label "
+            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label, f.attribute "
             "ORDER BY f.ordinal DESC",
             {"sid": session_id, "key": subject_key},
         )
@@ -306,6 +306,7 @@ class FalkorStore:
                 invalid_at=_dt(row[5]),
                 source_episode_id=row[6] or "",
                 type=FactType(row[7]) if row[7] else FactType.STATE,
+                attribute=row[9] or "",
             )
             for row in result.result_set
         ]
@@ -396,6 +397,7 @@ class FalkorStore:
             "ordinal": fact.ordinal,
             "source_episode_id": fact.source_episode_id,
             "type": fact.type.value,
+            "attribute": fact.attribute,
         }
         valid_at = _ts(fact.valid_at)
         invalid_at = _ts(fact.invalid_at)
@@ -421,14 +423,22 @@ class FalkorStore:
             {"id": fact_id, "ts": _ts(invalid_at)},
         )
 
-    async def subject_labels(self, session_id: str) -> list[str]:
+    async def subject_slots(self, session_id: str) -> list[str]:
         await self.connect()
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
-            "RETURN f.subject_key, min(f.subject_label)",
+            "RETURN f.subject_key, min(f.subject_label), collect(f.attribute)",
             {"sid": session_id},
         )
-        return [row[1] or row[0] for row in result.result_set if row[0] or row[1]]
+        lines = []
+        for key, label, attributes in (
+            (row[0], row[1], row[2] or []) for row in result.result_set
+        ):
+            if not (key or label):
+                continue
+            slots = sorted({a for a in attributes if a})
+            lines.append(f"{label or key} -> {', '.join(slots)}" if slots else (label or key))
+        return lines
 
     async def live_subject_keys(self, session_id: str) -> list[str]:
         await self.connect()
@@ -483,7 +493,7 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
             "RETURN f.id, f.fact, f.subject_key, f.ordinal, f.valid_at, f.invalid_at, "
-            "f.source_episode_id, f.type, f.subject_label ORDER BY f.ordinal",
+            "f.source_episode_id, f.type, f.subject_label, f.attribute ORDER BY f.ordinal",
             {"sid": session_id},
         )
         return [
@@ -498,6 +508,7 @@ class FalkorStore:
                 invalid_at=_dt(row[5]),
                 source_episode_id=row[6] or "",
                 type=FactType(row[7]) if row[7] else FactType.STATE,
+                attribute=row[9] or "",
             )
             for row in result.result_set
         ]

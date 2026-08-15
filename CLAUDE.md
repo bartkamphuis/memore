@@ -159,6 +159,18 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
 ## Invariants that are easy to violate by accident
 
 - **No LLM in recall components A–D, and none in the consolidation decision.** An LLM *is* the right tool for P1 extraction — that runs off the response path.
+- **A subject is a TOPIC; the slot that holds one value at a time is `attribute`.** Facts
+  compete on `(subject_key, attribute)`, and only same-slot facts can supersede. Before
+  RESULTS.md §11 the supersede loop ran over every live fact on the subject, which meant
+  six independently-true facts about one topic knocked each other out: measured across
+  three real sessions, **18 supersedes fired and 1 was correct**. Do not "simplify" the
+  competing-set filter back to `live` — that single word silently reverts the whole fix.
+  `attribute=""` means unspecified and collides with everything, which is what keeps old
+  graphs and the bench inert; do not change it to match nothing.
+- **The bench cannot validate slotting, and unchanged sh/mh numbers are not evidence
+  either way.** FactConsolidation is one-attribute-per-subject *by construction*, so the
+  §11 defect is structurally inexpressible in it. Those runs are a regression guard only;
+  the real fixtures are the trace-derived tests at the end of `tests/test_consolidation.py`.
 - **Value comparison in consolidation is normalized-string equality, and `use_embedding_comparison` defaults to False.** Do not "improve" this by turning embedding similarity back on: a false DUPLICATE discards an update permanently, while a false CONTRADICTION keeps both facts with the right one live. Measured at 32k, sentence embeddings put real value changes ("rugby union"→"rugby", 0.982) *above* the threshold and genuine paraphrases (0.877) *below* real contradictions (0.849–0.911), so no threshold separates the cases. RESULTS.md §6.
 - `recall()` never raises. Store error or timeout → closed result, logged, turn proceeds.
 - `enabled=False` on either path → full no-op.

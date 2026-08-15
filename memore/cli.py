@@ -128,18 +128,26 @@ async def run_inspect(session: str | None, query: str | None, config: RecallConf
     if not facts:
         print("  (empty -- recall from this session will always find nothing)")
 
-    # Grouped by subject, because the subject key IS the identity contract: one live
-    # fact per subject is the invariant, and a group showing two is the bug.
+    # Grouped by subject, because the subject key IS the identity contract. The invariant
+    # is one live fact per SLOT, not per subject: a subject is a topic and legitimately
+    # holds several properties at once (RESULTS.md §11). So the warning is per attribute,
+    # and a subject showing four live facts in four slots is healthy, not a bug.
     by_subject: dict[str, list] = {}
     for fact in facts:
         by_subject.setdefault(fact.subject_key, []).append(fact)
     for subject_key, group in sorted(by_subject.items(), key=lambda kv: kv[1][0].ordinal):
         label = group[0].subject_label or subject_key
-        flag = "" if sum(1 for f in group if f.invalid_at is None) == 1 else "  <-- not exactly 1 live"
+        live_per_slot: dict[str, int] = {}
+        for fact in group:
+            if fact.invalid_at is None:
+                live_per_slot[fact.attribute] = live_per_slot.get(fact.attribute, 0) + 1
+        clashes = sorted(slot for slot, n in live_per_slot.items() if n > 1)
+        flag = f"  <-- {len(clashes)} slot(s) with >1 live: {', '.join(clashes)}" if clashes else ""
         print(f"  [{label}]{flag}")
         for fact in group:
             mark = "SUPERSEDED" if fact.invalid_at is not None else "live      "
-            print(f"    #{fact.ordinal:<4} {mark}  {fact.fact}")
+            slot = f"({fact.attribute}) " if fact.attribute else ""
+            print(f"    #{fact.ordinal:<4} {mark}  {slot}{fact.fact}")
 
     if query:
         embedder = OllamaEmbedder(embed_config)

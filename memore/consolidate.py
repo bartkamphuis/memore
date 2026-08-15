@@ -25,6 +25,7 @@ from typing import Protocol
 
 from .aliases import AliasConfig, SubjectVocabulary
 from .embed import Embedder, cosine
+from .keys import normalize_subject
 from .store import ConsolidatingStore
 from .store.falkor import normalize_subject as subject_key
 from .types import (
@@ -85,6 +86,36 @@ def _normalize_value(text: str) -> str:
     )
 
 
+def _competing(candidate: CandidateFact, live: list[StoredFact]) -> list[StoredFact]:
+    """The live facts on this subject that the candidate is allowed to supersede.
+
+    Subject identity says "these facts are about the same thing". It does NOT say "these
+    facts cannot both be true", and treating it as if it did is the defect RESULTS.md §11
+    measures: across three real conversational sessions, 18 supersedes fired and 1 was
+    correct. "The user is a software engineer" was marked SUPERSEDED in all three,
+    knocked out by "Bart specialises in memory systems for LLMs" -- same subject, no
+    disagreement whatsoever.
+
+    The attribute is the slot that holds exactly one value at a time, so only a fact in
+    the same slot competes. `""` is unspecified and competes with everything, in EITHER
+    direction:
+
+      old fact, no attribute       any candidate supersedes it, as before this field
+      candidate with no attribute  supersedes every live fact, as before this field
+
+    That asymmetry is deliberate and is what makes the change inert where it has no
+    evidence to act on -- a graph written before §11, or the bench harness, whose cached
+    subject extraction carries no attribute (`bench/extract.py`). It also keeps the error
+    direction the safe one: with no slot information we fall back to over-superseding,
+    which leaves the right answer live and merely mislabels a stale-looking neighbour,
+    rather than under-superseding and leaving a genuinely dead fact presented as current.
+    """
+    key = normalize_subject(candidate.attribute)
+    if not key:
+        return list(live)
+    return [f for f in live if not f.attribute or f.attribute == key]
+
+
 class DeterministicConsolidator:
     """recall-poc-spec.md §4. No LLM, no graph inference, no judgment call."""
 
@@ -143,35 +174,51 @@ class DeterministicConsolidator:
     def _classify(
         self, candidate: CandidateFact, live: list[StoredFact], candidate_vec: list[float] | None,
         live_vecs: dict[str, list[float]] | None,
-    ) -> tuple[ConsolidationCase, StoredFact | None]:
-        """Step 2 of §4: decide the case deterministically."""
-        if not live:
-            return ConsolidationCase.NEW, None
+    ) -> tuple[ConsolidationCase, StoredFact | None, list[StoredFact]]:
+        """Step 2 of §4: decide the case deterministically.
 
+        Returns the case, the incumbent, and the *competing set* -- the live facts the
+        candidate is allowed to supersede. That third value is the whole of the §11 fix:
+        it is a subset of `live`, not all of it.
+        """
         candidate_value = _normalize_value(candidate.fact)
-        # `live` arrives ordinal-descending; the incumbent is the freshest live fact.
-        incumbent = live[0]
-        incumbent_value = _normalize_value(incumbent.fact)
 
-        if candidate_value == incumbent_value:
-            return ConsolidationCase.DUPLICATE, incumbent
+        # DUPLICATE is checked against every live fact on the subject, not just the
+        # competing slot. The same sentence arriving under a different attribute is still
+        # the same sentence, and a second copy is exactly the store bloat writepath §2.2
+        # case 2 exists to prevent.
+        for fact in live:
+            if _normalize_value(fact.fact) == candidate_value:
+                return ConsolidationCase.DUPLICATE, fact, []
+
+        competing = _competing(candidate, live)
+        if not competing:
+            # Either the subject is empty, or every live fact on it occupies a DIFFERENT
+            # slot and is still true. Coexist. Before §11 this branch did not exist and
+            # the candidate superseded whatever was there.
+            return ConsolidationCase.NEW, None, []
+
+        # `competing` inherits `live`'s ordinal-descending order; the incumbent is the
+        # freshest live fact IN THIS SLOT.
+        incumbent = competing[0]
 
         if self.config.use_embedding_comparison and candidate_vec is not None and live_vecs:
             incumbent_vec = live_vecs.get(incumbent.id)
             if incumbent_vec is not None:
                 similarity = cosine(candidate_vec, incumbent_vec)
                 if similarity >= self.config.duplicate_similarity:
-                    return ConsolidationCase.DUPLICATE, incumbent
+                    return ConsolidationCase.DUPLICATE, incumbent, []
 
         # More specific, not incompatible: the candidate says everything the incumbent
         # said and more ("works in Python" -> "works in Python, mainly async backend").
+        incumbent_value = _normalize_value(incumbent.fact)
         if incumbent_value in candidate_value and len(candidate_value) > len(incumbent_value):
-            return ConsolidationCase.REFINEMENT, incumbent
+            return ConsolidationCase.REFINEMENT, incumbent, [incumbent]
 
-        # Same subject, different value, neither a superset of the other. The higher
-        # freshness ordinal wins -- and the candidate always has it, because it is
+        # Same subject, same slot, different value, neither a superset of the other. The
+        # higher freshness ordinal wins -- and the candidate always has it, because it is
         # arriving now. This is the money case.
-        return ConsolidationCase.CONTRADICTION, incumbent
+        return ConsolidationCase.CONTRADICTION, incumbent, competing
 
     async def consolidate(
         self, session_id: str, candidates: list[CandidateFact]
@@ -197,7 +244,7 @@ class DeterministicConsolidator:
                 live_by_text = await self._vectors_for([f.fact for f in live])
                 live_vecs = {f.id: live_by_text[f.fact] for f in live}
 
-            case, incumbent = self._classify(candidate, live, vector, live_vecs)
+            case, incumbent, competing = self._classify(candidate, live, vector, live_vecs)
             now = datetime.now(UTC)
 
             if case is ConsolidationCase.DUPLICATE:
@@ -217,13 +264,18 @@ class DeterministicConsolidator:
                 # Supersede, do not delete: the prior fact stays and surfaces to recall
                 # marked SUPERSEDED, so the model sees "was X, now Y" not a hole.
                 assert incumbent is not None
-                # A subject should hold exactly one live fact, but if the invariant was
-                # ever broken (concurrent writes, a store restored from elsewhere), the
-                # arriving fact outranks *every* live fact on the subject, not just the
+                # A subject SLOT should hold exactly one live fact, but if the invariant
+                # was ever broken (concurrent writes, a store restored from elsewhere),
+                # the arriving fact outranks every live fact in that slot, not just the
                 # freshest. Superseding all of them makes the invariant self-healing
                 # instead of leaving a stale fact live forever.
-                targets = live if case is ConsolidationCase.CONTRADICTION else [incumbent]
-                for target in targets:
+                #
+                # `competing`, not `live` -- and that is the load-bearing word. Before §11
+                # this read `live`, so a contradiction about the memory system's latency
+                # also superseded live facts about its language and its birthplace. Once a
+                # subject can legitimately hold several slots, `live` here would quietly
+                # undo the entire fix.
+                for target in competing:
                     await self.store.supersede(target.id, now)
                 superseded_id = incumbent.id
 
@@ -239,6 +291,7 @@ class DeterministicConsolidator:
                 invalid_at=None,
                 source_episode_id="",
                 type=candidate.type,
+                attribute=normalize_subject(candidate.attribute),
             )
             await self.store.add_fact(stored, vector)
             vocab.add(key)

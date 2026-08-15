@@ -76,6 +76,14 @@ class CandidateFact:
     It carries more weight here than in the production spec: the deterministic
     consolidation primitive (recall-poc-spec.md §4) keys its freshness ordinals by
     normalized subject, so subject_hint is what decides whether two facts collide.
+
+    `attribute` narrows that collision to one SLOT within the subject, and exists because
+    subject alone conflates two different questions. A subject is a topic, and a topic
+    accumulates many attributes that are all true at once ("the memory system" is written
+    in Python *and* takes 70-90ms *and* was built in Den Haag). Without a slot, every one
+    of those supersedes the last. Empty means unspecified, which collides with everything
+    on the subject -- the pre-attribute behaviour, kept so old stores and the bench (which
+    supplies no attribute) are unaffected. RESULTS.md §11.
     """
 
     fact: str
@@ -83,6 +91,7 @@ class CandidateFact:
     confidence: float
     valid_at: datetime | None
     subject_hint: str
+    attribute: str = ""
 
 
 @dataclass(frozen=True)
@@ -106,6 +115,17 @@ class StoredFact:
     invalid_at: datetime | None
     source_episode_id: str
     type: FactType = FactType.STATE
+    # Normalized slot within the subject -- see `CandidateFact.attribute`. Only a fact
+    # sharing this slot can supersede this one. `""` means unspecified and collides with
+    # every slot, which is what facts written before this field existed carry.
+    #
+    # Normalized through the same `normalize_subject` as `subject_key`, so it reads as
+    # sorted tokens ("latency lookup") and there is deliberately no `attribute_label`
+    # counterpart. The subject needed one because P1 is asked to reuse subject strings
+    # verbatim and a mangled one would confuse it; the attribute does not, because the
+    # same sorting makes reuse order-insensitive -- P1 rephrasing "latency lookup" back
+    # to "lookup latency" lands in the identical slot either way.
+    attribute: str = ""
 
 
 @dataclass(frozen=True)

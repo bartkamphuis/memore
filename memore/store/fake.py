@@ -119,12 +119,19 @@ class InMemoryStore:
             }
         )
 
-    async def subject_labels(self, session_id: str) -> list[str]:
-        by_key = {}
+    async def subject_slots(self, session_id: str) -> list[str]:
+        labels: dict[str, str] = {}
+        slots: dict[str, set[str]] = {}
         for f in self.facts.values():
-            if f.session_id == session_id:
-                by_key.setdefault(f.subject_key, f.subject_label or f.subject_key)
-        return sorted(by_key.values())
+            if f.session_id != session_id:
+                continue
+            labels.setdefault(f.subject_key, f.subject_label or f.subject_key)
+            if f.attribute:
+                slots.setdefault(f.subject_key, set()).add(f.attribute)
+        return sorted(
+            f"{label} -> {', '.join(sorted(slots[key]))}" if slots.get(key) else label
+            for key, label in labels.items()
+        )
 
     async def add_fact(self, fact: StoredFact, embedding: list[float]) -> None:
         self.facts[fact.id] = fact
@@ -143,6 +150,7 @@ class InMemoryStore:
             invalid_at=invalid_at,
             source_episode_id=existing.source_episode_id,
             type=existing.type,
+            attribute=existing.attribute,
         )
 
     async def count(self, session_id: str) -> int:

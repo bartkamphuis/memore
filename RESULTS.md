@@ -959,3 +959,111 @@ that the finished-corpus view does not also endorse.
 Cost: ~21µs per fact at 1559 subjects (59ms vs 10ms to resolve the whole 32k corpus), plus
 one store query per session to seed the vocabulary. It is on the write path, off the
 response path, and nowhere near recall's latency budget.
+
+---
+
+## 11. One subject is not one slot — the defect the benchmark cannot see
+
+Three parallel gateway sessions, same 17 turns sent to three separate chats, `gemma4:26b`
+throughout. Across all three, **18 facts were marked SUPERSEDED and 1 of those was
+correct.**
+
+The one correct supersede was `capital of the Netherlands: Amsterdam → Den Haag`. Every
+other one looked like this (session 1, subject `current memory system`):
+
+```
+#10  superseded  the current memory system is written in Python
+#11  superseded  the memory system extraction process is asynchronous...
+#12  superseded  the memory system extraction is one turn behind...
+#13  superseded  the memory system extraction returns structured data
+#14  superseded  the memory system uses `SUPERSEDED` tags...
+#18  live        the memory system fact lookup times range from 70-90ms
+```
+
+Six facts, all six simultaneously true, five marked stale. Two turns later the model was
+asked what language the system was written in and had to answer from a fact the store had
+labelled superseded. The cleanest single instance is `the user is a software engineer`,
+which was superseded in **all three** sessions by `Bart specialises in memory systems for
+LLMs` — same subject, no disagreement whatsoever.
+
+### The cause is one line, and it is the design, not a bug
+
+`_classify` returned CONTRADICTION for any same-subject fact whose normalized text
+differed and was not a superset, and the supersede loop then ran over `live` — every live
+fact on the subject. Together those enforce **exactly one live fact per subject key**.
+
+That is correct only if a subject holds exactly one value. It does not. `subject_hint`
+answers *"what is this fact about"*, and the answer is a **topic**; a topic accumulates
+many properties that are all true at once. The consolidator was reading a topic as if it
+were a slot.
+
+Two forces made it worse rather than better. `subject_labels` was fed back into P1 with
+"reuse that exact subject string" — the RESULTS.md §3 fix for *missed* contradictions —
+which actively pushed the extractor toward coarse subjects. Subject identity was being
+asked to do two incompatible jobs at once: *"same topic, retrieve together"* and *"same
+slot, so contradict"*. No single granularity satisfies both, because they pull opposite
+ways.
+
+### Why sh_6k / sh_32k / mh_6k report nothing
+
+MemoryAgentBench FactConsolidation is constructed as repeated updates to **one attribute
+per subject**. "One live fact per subject" is true there *by construction*, so the defect
+cannot occur in the corpus and cannot appear in the score. §2–§3's numbers were measured
+on data that structurally cannot express it.
+
+This is worth stating plainly: those numbers are not wrong, but they measure the primitive
+on the one shape where its weakest assumption always holds. Conversational memory is a
+different shape, and nothing in the bench suite was ever going to say so.
+
+### The fix: subject is the topic, attribute is the slot
+
+`CandidateFact.attribute` / `StoredFact.attribute` name the single property the fact gives
+a value for. Consolidation competes on **(subject_key, attribute)**; only a fact in the
+same slot can supersede. `subject_key` is untouched, so `aliases.py`, `chain.py` and the
+subject vocabulary all keep working on the topic exactly as before.
+
+The decision stays deterministic — exact match on two normalized keys, then the freshness
+ordinal. No LLM and no embedding entered the decision. P1 already chose which facts
+collide, by choosing `subject_hint`; it is now asked the question that actually determines
+that, instead of one that only correlates with it.
+
+`""` means unspecified and collides with everything, in both directions — an old fact with
+no attribute, or a candidate with none, behaves exactly as it did before this field
+existed. That keeps old graphs and the bench harness (whose cached subject extraction
+carries no attribute) inert, and it keeps the fallback on the safe side of the asymmetry:
+with no slot information we over-supersede, which mislabels a neighbour but leaves the
+right answer live, rather than under-superseding and presenting a dead fact as current.
+
+### Measured after, same turns, same model
+
+```
+#3   live        [the user :: occupation]              The user is a software engineer
+#4   live        [the user :: specialisation]          ...specialises in memory systems for LLMs
+#5   live        [the memory system :: implementation language]  ...written in Python
+#7   live        [the memory system :: latency lookup]  ...lookup times range from 70-90ms
+#9   SUPERSEDED  [the Netherlands :: capital city]      ...is Amsterdam
+#10  live        [the Netherlands :: capital city]      ...is Den Haag
+#12  SUPERSEDED  [the user :: default deployment target] deploys to staging by default
+#13  live        [the user :: default deployment target] ...is now production
+```
+
+**3 supersedes, 2 correct**, against 18 supersedes and 1 correct before. Both genuine
+contradictions still fire, including the §6 pair — P1 emitted the identical attribute
+(`default deployment target`) for "deploys to staging by default" and "the default
+deployment target is now production", which was the one thing this change could not afford
+to break.
+
+The remaining error is a P1 labelling mistake, not a consolidation one: `the user was born
+in Den Haag` was filed under `creation location`, the slot already holding `the user wrote
+the memory system in Den Haag`, and superseded it. Slotting moves this class of error to
+where an LLM can be asked to fix it; it does not eliminate it.
+
+### What this does not fix
+
+Attribute identity now has the synonym problem subject identity has (`deploy target` vs
+`deployment environment` are two slots, and a contradiction between them is missed). It is
+narrower than the subject version — the candidate set is one subject's slots rather than
+the whole session — and `subject_slots` shows P1 the properties already held per subject
+so it can reuse one. Sorted-token normalization collapses word-order variants, as it does
+for subjects. Whether it needs the §10 document-frequency treatment is unmeasured; there
+is no corpus that would answer it, for the same reason there is none that shows the defect.

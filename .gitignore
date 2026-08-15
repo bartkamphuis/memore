@@ -28,3 +28,4 @@ data/results/calib_subjcheck.json
 # Pre-publication history and internal design docs -- not for the public repo.
 HISTORY-private.md
 specs/
+logs/
