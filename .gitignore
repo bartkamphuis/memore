@@ -22,6 +22,7 @@ data/*.parquet
 # `python -m memore.bench.calibrate --configs all --reingest`; the conclusions they
 # support are summarised in RESULTS.md §5 and §9.
 data/results/calibration.json
+data/results/calibration_gate.json
 data/results/calib_nosubj.json
 data/results/calib_subjcheck.json
 

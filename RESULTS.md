@@ -1200,3 +1200,107 @@ one rule it does not override is the question rule (`"can you remember what I sa
 earlier?"` is still a question). Verified against `gemma4:26b` — six remember-request
 phrasings now all store, and six transient turns including two memory-related questions
 still all drop.
+
+---
+
+## 13. Recalibration — the fixtures were the instrument, and it was bent
+
+§12 identified the BM25 deduction and stopped short of shipping a change, for two stated
+reasons: the floor moves with the gated quantity, and the calibration fixtures could not
+express the failure. Both were addressed before re-measuring.
+
+### The fixtures are now derived from the write path, not authored
+
+`bench.gen_calib_fixtures` runs the real `OllamaExtractor` over authored learn-turns and
+keeps what it emits, so `CHAT_FACTS` holds `"the user deploys to staging by default"`
+rather than the hand-written `"deploys to staging by default"`. Two things fell out of
+that immediately, and both are the point:
+
+- **The old fixture contained a fact the write path would never produce.** `"flies out to
+  Lisbon on the 14th"` was authored as a stored fact; P1 refuses it, correctly, as a dated
+  one-off. The generator's one-fact-per-turn assertion caught it. It is now a recurring
+  trip.
+- **`"the user's work laptop"`**, not `"the work laptop"` — P1 attaches the possessor. A
+  fixture written by hand does not guess that.
+
+The generator asserts what silently breaks otherwise: exactly one fact per turn (the
+positives are `(query, index)` pairs, so a turn yielding two shifts every later index and
+zeroes `useful_tpr` without raising), and that each entity survives extraction (the
+crowded fixture's hard negatives are near-misses *by construction*; rename the entities
+and that fixture stops measuring anything). `build_chat_fixture` additionally asserts at
+build time that every positive names a fact the fixture actually stores.
+
+Regeneration is **not** bit-reproducible even at `temperature=0.0` — one run emitted
+`"the prod cluster is in us-east-1"`, the next `"the production cluster is located in
+us-east-1"`. So the generated literals are checked in rather than derived at import: a
+floor has to be calibrated against a fixed object.
+
+### The positives had the same drift, one level up
+
+Every original positive shared a word stem with its fact — `deploy setup`/`deploys`,
+`test framework`/`tests`, `milk`/`oat milk` — so the BM25 arm found something on every
+one, and the 1/(1+w) deduction almost never bit. **A fixture that cannot express the
+failure cannot calibrate against it.** Twelve paraphrase-only positives were added, one
+per fact, sharing no content word with what they target (`"who employs me?"`,
+`"what goes in my flat white?"`, `"anything I can't eat?"`).
+
+That single change moved the measured chat TPR of the *shipped* config from 0.920 to
+0.730. The gate was always this leaky; the instrument could not see it.
+
+### Result — cosine dominates fused at every floor in the chat regime
+
+`mxbai-embed-large`, `subject_check=ON`, 37 chat positives / 39 off-domain:
+
+```
+   floor |  FUSED tpr / off-dom   |  COSINE tpr / off-dom
+    0.48 |      0.730       0.077 |      0.892       0.205   <- old shipped (fused)
+    0.52 |      0.649       0.051 |      0.838       0.103
+    0.54 |      0.622       0.051 |      0.784       0.051
+    0.57 |      0.622       0.026 |      0.784       0.026   <- NEW shipped (cosine)
+    0.60 |      0.514       0.000 |      0.649       0.000
+```
+
+At matched false-open rates cosine is worth a consistent **+16 points of conversational
+recall**. And the shipped move improves *both* axes at once:
+
+| | chat TPR | chat off-domain FPR |
+|---|---|---|
+| old: fused @ 0.48 | 0.730 | **0.077** — over the 5% budget it was chosen to satisfy |
+| new: cosine @ 0.57 | **0.784** | **0.026** |
+
+All three regimes at the new pairing: bench TPR 1.000 / useful 0.990 / off-domain 0.000;
+chat 0.784 / 0.026; crowded 1.000 / 0.000. Latency is unchanged — p50 ~84ms chat, ~106ms
+bench, well inside §14's 200ms P95 budget, because nothing new is computed: the un-fused
+cosine was already in hand and is now simply carried on the hit.
+
+**What it costs.** Bench hard negatives rise 0.111 → 0.263 (right relation, absent
+subject). That is `subject_check`'s job, not the floor's — §5 and §9 both established that
+the gate keeps *off-topic* memory out and never *wrong-subject* memory, because those
+distributions overlap and no scalar threshold separates them. Trading a metric the floor
+was never able to own for recall it can is the right side of that division of labour.
+
+### The query prefix is measured and rejected
+
+`mxbai-embed-large` is trained asymmetrically and its card specifies a query prefix. Using
+it costs conversational recall at every operating point — chat TPR 0.784 → 0.730 on
+cosine, 0.622 → 0.595 on fused — for no off-domain gain. It buys bench hard-negative
+precision (0.263 → 0.253 cosine, 0.111 → 0.081 fused), which is again not the floor's job.
+
+So it is **not** applied. `config.KNOWN_PREFIXES` records what the card documents and
+`_PREFIXES` records what ships; they are separate tables precisely because listing mxbai
+in the latter would have enabled it silently for every deployment.
+
+### What this does not fix, stated against the original report
+
+`"what am i called"` — cosine 0.555 against `The user's name is Bart.` — **still shuts**,
+because 0.555 is below 0.57. On a 12-query ad-hoc probe drawn from the original traces the
+new pairing fixed one query and lost two; that is small-sample noise against the 37-positive
+calibrated set where it wins on both axes, but it is not nothing, and the reason is the one
+§12 already gave: the distributions overlap. Chat positives run down to p05 0.404 while
+off-domain negatives reach 0.575. **No floor on either quantity separates them.**
+
+Two knobs remain for anyone who wants the other trade, both measured above: cosine at 0.55
+buys back `what am i called` at off-domain 0.051, and cosine at 0.52 gives chat TPR 0.838
+at off-domain 0.103. Neither meets the 5% budget `recommend()` enforces, which is why
+neither ships by default; on a personal console, where a spurious recalled fact costs
+almost nothing, 0.52 is a defensible local override.

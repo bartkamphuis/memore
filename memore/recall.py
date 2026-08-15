@@ -66,6 +66,16 @@ def _usable(hit: MemoryHit, now: datetime) -> bool:
     return True
 
 
+def gate_score(hit: MemoryHit, config: RecallConfig) -> float:
+    """The quantity the floor tests -- see `RecallConfig.gate_on`.
+
+    No fallback when `similarity` is 0.0. A store that does not supply the un-fused cosine
+    shuts the gate under `gate_on="cosine"`, loudly and at once; silently reverting to the
+    fused score would hide the misconfiguration behind behaviour that merely looks worse.
+    """
+    return hit.similarity if config.gate_on == "cosine" else hit.score
+
+
 def apply_gate(
     hits: list[MemoryHit],
     config: RecallConfig,
@@ -75,8 +85,11 @@ def apply_gate(
     query: str = "",
 ) -> GateDecision:
     """Component C -- the relevance gate (§6). Deterministic, sub-millisecond, no LLM."""
-    # 1. Floor test. The floor is inclusive.
-    survivors = [h for h in hits if _usable(h, now) and h.score >= config.score_floor]
+    # 1. Floor test. The floor is inclusive, and it is applied to `config.gate_on` --
+    # ranking is unaffected, `hits` arrives ordered by the fused score either way.
+    survivors = [
+        h for h in hits if _usable(h, now) and gate_score(h, config) >= config.score_floor
+    ]
     # 1b. Subject admission (`memore.subjects`), when configured. Applied AFTER the floor
     # and as a veto only: it can never promote a hit the score rejected, so `score_floor`
     # keeps exactly the meaning it was calibrated with (RESULTS.md §5).

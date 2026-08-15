@@ -14,13 +14,53 @@ class RecallConfig:
     alpha: float = 0.7  # key-synthesis blend weight (§4)
     k: int = 12  # retrieval width (§5)
     lookup_timeout_ms: int = 180  # hard timeout on hybrid_search (§5)
-    # Gate floor (§6). Calibrated for `EmbedConfig.model`, NOT a portable constant --
-    # see EmbedConfig, and re-run `python -m memore.bench.calibrate` before changing
-    # either. The spec's 0.35 was carried over untested and is wrong for every model
-    # measured: it opens the gate on 20% of off-domain conversational turns even with
-    # the embeddinggemma it was written for. 0.48 is the lowest floor holding off-domain
-    # false opens under 5% in both measured regimes (band 0.48-0.51). RESULTS.md §5.
-    score_floor: float = 0.48
+    # Gate floor (§6). Calibrated for `EmbedConfig.model` AND for `gate_on` below -- the
+    # three are one decision, not three constants. Re-run
+    # `python -m memore.bench.calibrate` before changing any of them.
+    #
+    # The spec's 0.35 was carried over untested and is wrong for every model measured: it
+    # opens the gate on 20% of off-domain conversational turns even with the
+    # embeddinggemma it was written for.
+    #
+    # 0.48 was this project's first calibrated value (RESULTS.md §5) and is now retired.
+    # It was measured against fixtures that had drifted from the write path -- terse
+    # authored facts, and positives sharing word stems with them -- so it never saw the
+    # paraphrase case that dominates real use. Re-measured against extractor-derived facts
+    # and paraphrase-only positives, 0.48 lets off-domain false opens reach 0.077, over
+    # the 5% budget it was supposed to satisfy.
+    #
+    # 0.57 is the lowest floor holding off-domain false opens under 5% in all three
+    # measured regimes (band 0.57-0.57). RESULTS.md §13.
+    score_floor: float = 0.57
+    # WHICH quantity the floor is compared against, and it is one decision with the floor
+    # exactly as the floor is one decision with the embedder -- each choice puts the
+    # relevant/irrelevant boundary somewhere different, so a floor only means something
+    # next to the quantity it was calibrated on.
+    #
+    #   "fused"   `cos·(1 + w·bm25)/(1 + w)` -- ranks well, but its range is
+    #             `[cos/(1+w), cos]`, so a fact sharing no term with the query is docked
+    #             ~23% before the floor sees it, and whether the gate opens then depends
+    #             on wording and on what else is in the store (RESULTS.md §12).
+    #   "cosine"  the un-fused similarity. Ranking still uses the fused score; only the
+    #             open/shut test changes. Cannot inflate anything past the floor, since
+    #             `fused <= cos` always, so it does not reintroduce what the
+    #             multiplicative-fusion invariant guards against.
+    #
+    # Measured at the SAME recommended floor (0.57), so this is a like-for-like swap:
+    #
+    #                bench TPR/hard    chat TPR/off-domain   crowded TPR/hard
+    #   fused        1.000 / 0.111     0.622 / 0.026         1.000 / 0.692
+    #   cosine       1.000 / 0.263     0.784 / 0.026         1.000 / 0.692
+    #
+    # +16.2 points of conversational recall at an identical floor and identical off-domain
+    # false-open rate. The cost is bench hard negatives (right relation, absent subject) --
+    # and that is `subject_check`'s job, not the floor's: the gate keeps *off-topic* memory
+    # out, never *wrong-subject* memory, because those distributions overlap and no scalar
+    # threshold separates them (RESULTS.md §5, §9). Trading a metric the floor was never
+    # able to own for recall it can is the right side of that division of labour.
+    #
+    # Re-run `python -m memore.bench.calibrate` before changing this OR the floor.
+    gate_on: str = "cosine"
     inject_token_budget: int = 512  # hard cap on injected tokens (§6)
     enabled: bool = True  # master kill switch -> full no-op (§7)
     # Multi-hop chain expansion (`memore.chain`). 0 disables it entirely and recall
@@ -112,6 +152,22 @@ class StoreConfig:
 # nomic-embed-text is trained with these exact prefixes -- but measured over the
 # calibration query set they make its discrimination *worse*, not better (RESULTS.md §5),
 # so the mapping is kept for the record and no shipped default uses it.
+# Prefixes a model's card documents, whether or not we use them. Reference data for
+# `bench.calibrate`, which measures each as its own arm -- NOT applied by `from_env`.
+KNOWN_PREFIXES = {
+    "nomic-embed-text": ("search_document: ", "search_query: "),
+    "mxbai-embed-large": ("", "Represent this sentence for searching relevant passages: "),
+}
+
+# Prefixes actually APPLIED. Separate from the table above on purpose: a card documents
+# what a model was trained with, but whether the prefix helps *this* gate at *this* floor
+# is an empirical question, and the two tables disagree.
+#
+# mxbai-embed-large is trained asymmetrically and its card specifies the query prefix
+# above. Measured (RESULTS.md §13) it costs conversational recall at every operating
+# point -- chat TPR 0.784 -> 0.730 gating on cosine, 0.622 -> 0.595 gating on fused, with
+# no off-domain gain -- so it is deliberately NOT applied. Listing it here would enable it
+# silently for every deployment, because `from_env` consults this table by model name.
 _PREFIXES = {
     "nomic-embed-text": ("search_document: ", "search_query: "),
 }

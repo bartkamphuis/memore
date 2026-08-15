@@ -21,9 +21,15 @@ from memore.types import MemoryHit, TurnContext
 NOW = datetime(2026, 3, 14, tzinfo=UTC)
 
 
-def make_hit(fact: str, score: float, valid_at=None, invalid_at=None, episode="ep1") -> MemoryHit:
+def make_hit(
+    fact: str, score: float, valid_at=None, invalid_at=None, episode="ep1",
+    similarity: float | None = None,
+) -> MemoryHit:
+    """`similarity` defaults to `score`, so a crafted hit gates identically under either
+    `RecallConfig.gate_on`. Pass them apart only when testing that distinction."""
     return MemoryHit(
-        fact=fact, score=score, valid_at=valid_at, invalid_at=invalid_at, source_episode_id=episode
+        fact=fact, score=score, similarity=score if similarity is None else similarity,
+        valid_at=valid_at, invalid_at=invalid_at, source_episode_id=episode,
     )
 
 

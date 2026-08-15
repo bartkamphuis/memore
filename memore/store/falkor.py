@@ -167,22 +167,25 @@ class FalkorStore:
 
         best_text = max((s for _, s in text_hits.values()), default=0.0)
         weight = self.config.text_weight
-        fused: dict[str, tuple[dict, float]] = {}
+        fused: dict[str, tuple[dict, float, float]] = {}
         for fact_id, (row, sim) in vector_hits.items():
             raw = text_hits.get(fact_id, (None, 0.0))[1]
             bm25_norm = raw / best_text if best_text > 0 else 0.0
-            fused[fact_id] = (row, sim * (1.0 + weight * bm25_norm) / (1.0 + weight))
+            # The un-fused cosine travels alongside the fused score. Ranking uses the
+            # fused one; the gate may use either (RecallConfig.gate_on, RESULTS.md §12).
+            fused[fact_id] = (row, sim * (1.0 + weight * bm25_norm) / (1.0 + weight), sim)
 
-        ranked = sorted(fused.values(), key=lambda pair: pair[1], reverse=True)[:k]
+        ranked = sorted(fused.values(), key=lambda triple: triple[1], reverse=True)[:k]
         return [
             MemoryHit(
                 fact=row["fact"],
                 score=min(1.0, max(0.0, score)),
+                similarity=min(1.0, max(0.0, sim)),
                 valid_at=_dt(row.get("valid_at")),
                 invalid_at=_dt(row.get("invalid_at")),
                 source_episode_id=row.get("source_episode_id") or "",
             )
-            for row, score in ranked
+            for row, score, sim in ranked
         ]
 
     async def _vector_arm(self, query_vec: list[float], session_id: str, k: int) -> dict:

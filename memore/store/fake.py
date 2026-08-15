@@ -83,6 +83,8 @@ class InMemoryStore:
                 MemoryHit(
                     fact=fact.fact,
                     score=max(0.0, min(1.0, similarity)),
+                    # Cosine-only retrieval here, so the two coincide.
+                    similarity=max(0.0, min(1.0, similarity)),
                     valid_at=fact.valid_at,
                     invalid_at=fact.invalid_at,
                     source_episode_id=fact.source_episode_id,

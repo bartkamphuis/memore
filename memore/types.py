@@ -49,13 +49,26 @@ class TurnContext:
 
 @dataclass(frozen=True)
 class MemoryHit:
-    """recall-stage-spec.md §3.2. `score` is the fused hybrid score, normalized 0..1."""
+    """recall-stage-spec.md §3.2. `score` is the fused hybrid score, normalized 0..1.
+
+    `similarity` is the SAME hit's un-fused cosine, and the two differ for a reason that
+    turns out to matter (RESULTS.md §12). Fusion is `cos·(1 + w·bm25)/(1 + w)`, whose range
+    is `[cos/(1+w), cos]` — so BM25 can only ever deduct, and a fact sharing no term with
+    the query is docked ~23% before any threshold sees it. That is right for RANKING (a
+    lexical match is better evidence) and wrong for GATING (an absolute relevance
+    question), which is why `RecallConfig.gate_on` chooses between them.
+
+    A store that cannot supply the un-fused value leaves it 0.0. That is deliberately not
+    made to fall back to `score`: with `gate_on="cosine"` such a store shuts the gate
+    visibly, rather than silently reverting to the behaviour being measured against.
+    """
 
     fact: str
     score: float
     valid_at: datetime | None
     invalid_at: datetime | None
     source_episode_id: str
+    similarity: float = 0.0
 
 
 @dataclass(frozen=True)

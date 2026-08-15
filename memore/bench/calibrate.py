@@ -116,11 +116,15 @@ class EmbedderVariant:
 
 
 def _prefixes_for(model: str) -> tuple[str, str]:
-    """The same table `EmbedConfig.from_env` consults, so the prefixed arm here is
-    exactly what shipping `MEMORE_EMBED_MODEL=nomic-embed-text` would give."""
-    from ..config import _PREFIXES
+    """Every prefix a model's card documents, not only the ones currently applied.
 
-    for stem, pair in _PREFIXES.items():
+    Deliberately `KNOWN_PREFIXES` rather than the shipped `_PREFIXES`: this harness exists
+    to decide *whether* a prefix should ship, so it has to be able to measure one that
+    does not. `EmbedConfig.from_env` consults the narrower table.
+    """
+    from ..config import KNOWN_PREFIXES
+
+    for stem, pair in KNOWN_PREFIXES.items():
         if model.startswith(stem):
             return pair
     return "", ""
@@ -136,7 +140,13 @@ VARIANTS: dict[str, EmbedderVariant] = {
         # than assuming -- hence both arms.
         EmbedderVariant("nomic_prefixed", "nomic-embed-text:latest", use_prefixes=True),
         EmbedderVariant("nomic_bare", "nomic-embed-text:latest", use_prefixes=False),
+        # The shipped default, and the one new arm. mxbai is trained asymmetrically but
+        # had no `_PREFIXES` entry until RESULTS.md §12, so `mxbai` here is what actually
+        # ships today and `mxbai_prefixed` is what its model card asks for.
         EmbedderVariant("mxbai", "mxbai-embed-large:latest", dimension=1024),
+        EmbedderVariant(
+            "mxbai_prefixed", "mxbai-embed-large:latest", dimension=1024, use_prefixes=True
+        ),
     ]
 }
 
@@ -153,6 +163,11 @@ class Observation:
     on_subject: bool
     n_hits: int
     latency_ms: float
+    # The SAME hit's un-fused cosine. Both are recorded so one run can compare gating on
+    # each without re-embedding -- `RecallConfig.gate_on`, RESULTS.md §12. Last and
+    # defaulted so an older results JSON still re-analyses, scoring as if the two
+    # coincided, which for `gate_on="fused"` is exactly what it was.
+    top1_cosine: float = 0.0
 
 
 @dataclass
@@ -196,6 +211,9 @@ class VariantReport:
     variant: str
     model: str
     use_prefixes: bool
+    # Which quantity the floor was swept against (`RecallConfig.gate_on`). A report is one
+    # (variant, gate_on) pair, because a floor only means something next to both.
+    gate_on: str = "fused"
     subject_check: bool = False
     counts: dict[str, dict[str, int]] = field(default_factory=dict)
     # Queries where the store returned nothing at all. `top1_score` records those as 0.0,
@@ -209,6 +227,7 @@ class VariantReport:
     # WHERE), but a pooled p95 would mix three different conditions.
     latency: dict[str, dict[str, float]] = field(default_factory=dict)
     score_summary: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
+    cosine_summary: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
     curves: dict[str, list[FloorPoint]] = field(default_factory=dict)
     recommendation: Recommendation | None = None
     at_default_floor: dict[str, FloorPoint] = field(default_factory=dict)
@@ -333,13 +352,37 @@ async def build_bench_fixtures(source: str, extractor_model: str) -> tuple[list[
     return fixtures, notes
 
 
+def _assert_positives_resolve(fixture: Fixture) -> None:
+    """Every POSITIVE must name a fact the fixture actually stores.
+
+    `on_subject_facts` is matched by exact fact STRING, and the facts are regenerated from
+    the live extractor (`bench.gen_calib_fixtures`) while the positives are authored
+    against indexes. A regeneration that shifts or rewords a fact does not raise -- it
+    silently zeroes `on_subject`, and therefore `useful_tpr` and every `--subject-check`
+    number, while the run still completes and prints plausible curves. So it is asserted
+    at build time, where it is cheap and loud.
+    """
+    stored = {c.fact for c in fixture.candidates}
+    broken = [
+        q.query
+        for q in fixture.queries
+        if q.label == POSITIVE and not (q.on_subject_facts and q.on_subject_facts <= stored)
+    ]
+    if broken:
+        raise SystemExit(
+            f"{fixture.name}: {len(broken)} positive(s) point at a fact this fixture does not "
+            f"store -- regenerate the positives' indexes alongside the facts: {broken}"
+        )
+
+
 def build_crowded_chat_fixture() -> Fixture:
     """Conversational, but with competing subjects -- see `calib_fixtures`."""
     candidates = [
         CandidateFact(
-            fact=fact, type=FactType.PREFERENCE, confidence=1.0, valid_at=None, subject_hint=subject
+            fact=fact, type=FactType.PREFERENCE, confidence=1.0, valid_at=None,
+            subject_hint=subject, attribute=attribute,
         )
-        for fact, subject in CROWDED_CHAT_FACTS
+        for fact, subject, attribute in CROWDED_CHAT_FACTS
     ]
     queries = [
         LabelledQuery(query, POSITIVE, frozenset({CROWDED_CHAT_FACTS[index][0]}))
@@ -347,9 +390,11 @@ def build_crowded_chat_fixture() -> Fixture:
     ]
     queries += [LabelledQuery(q, HARD_NEGATIVE, frozenset()) for q in CROWDED_CHAT_HARD_NEGATIVES]
     queries += [LabelledQuery(q, OFF_DOMAIN, frozenset()) for q in OFF_DOMAIN_NEGATIVES]
-    return Fixture(
+    fixture = Fixture(
         name="chat_crowded", session="calib-chat-crowded", candidates=candidates, queries=queries
     )
+    _assert_positives_resolve(fixture)
+    return fixture
 
 
 def build_chat_fixture() -> Fixture:
@@ -360,15 +405,18 @@ def build_chat_fixture() -> Fixture:
             confidence=1.0,
             valid_at=None,
             subject_hint=subject,
+            attribute=attribute,
         )
-        for fact, subject in CHAT_FACTS
+        for fact, subject, attribute in CHAT_FACTS
     ]
     queries = [
         LabelledQuery(query, POSITIVE, frozenset({CHAT_FACTS[index][0]}))
         for query, index in CHAT_POSITIVES
     ]
     queries += [LabelledQuery(q, OFF_DOMAIN, frozenset()) for q in OFF_DOMAIN_NEGATIVES]
-    return Fixture(name="chat", session="calib-chat", candidates=candidates, queries=queries)
+    fixture = Fixture(name="chat", session="calib-chat", candidates=candidates, queries=queries)
+    _assert_positives_resolve(fixture)
+    return fixture
 
 
 # --- measurement ------------------------------------------------------------------
@@ -424,6 +472,7 @@ async def measure_variant(
                         query=labelled.query,
                         label=labelled.label,
                         top1_score=top.score if top else 0.0,
+                        top1_cosine=top.similarity if top else 0.0,
                         top1_fact=top.fact if top else None,
                         on_subject=bool(top and top.fact in labelled.on_subject_facts),
                         n_hits=len(hits),
@@ -459,7 +508,16 @@ def _summary(values: list[float]) -> dict[str, float]:
     }
 
 
-def sweep(observations: list[Observation], step: float = 0.01) -> list[FloorPoint]:
+GATE_QUANTITIES = ("fused", "cosine")
+
+
+def _quantity(observation: Observation, gate_on: str) -> float:
+    return observation.top1_cosine if gate_on == "cosine" else observation.top1_score
+
+
+def sweep(
+    observations: list[Observation], step: float = 0.01, gate_on: str = "fused"
+) -> list[FloorPoint]:
     positives = [o for o in observations if o.label == POSITIVE]
     hard = [o for o in observations if o.label == HARD_NEGATIVE]
     off = [o for o in observations if o.label == OFF_DOMAIN]
@@ -471,7 +529,7 @@ def sweep(observations: list[Observation], step: float = 0.01) -> list[FloorPoin
         hit = sum(
             1
             for o in rows
-            if o.top1_score >= floor and (o.on_subject or not require_on_subject)
+            if _quantity(o, gate_on) >= floor and (o.on_subject or not require_on_subject)
         )
         return hit / len(rows)
 
@@ -569,18 +627,20 @@ def build_report(
     notes: list[str],
     fpr_budget: float = 0.05,
     subject_check: bool = False,
+    gate_on: str = "fused",
 ) -> VariantReport:
     rows = [o for o in observations if o.variant == variant.name]
     by_regime: dict[str, list[Observation]] = {"pooled": rows}
     for row in rows:
         by_regime.setdefault(regime_of(row.fixture), []).append(row)
 
-    curves = {regime: sweep(subset) for regime, subset in by_regime.items()}
+    curves = {regime: sweep(subset, gate_on=gate_on) for regime, subset in by_regime.items()}
     fixtures = sorted({o.fixture for o in rows})
     return VariantReport(
         variant=variant.name,
         model=variant.model,
         use_prefixes=variant.use_prefixes,
+        gate_on=gate_on,
         subject_check=subject_check,
         counts={
             regime: {
@@ -606,6 +666,14 @@ def build_report(
             }
             for regime, subset in by_regime.items()
         },
+        cosine_summary={
+            regime: {
+                label: _summary([o.top1_cosine for o in subset if o.label == label])
+                for label in (POSITIVE, HARD_NEGATIVE, OFF_DOMAIN)
+                if any(o.label == label for o in subset)
+            }
+            for regime, subset in by_regime.items()
+        },
         curves=curves,
         recommendation=recommend(curves, fpr_budget=fpr_budget),
         at_default_floor={
@@ -624,7 +692,10 @@ def _point_line(label: str, point: FloorPoint) -> str:
 
 def print_report(report: VariantReport) -> None:
     flag = "  subject_check=ON" if report.subject_check else ""
-    print(f"\n=== {report.variant}  ({report.model}, prefixes={report.use_prefixes}){flag} ===")
+    print(
+        f"\n=== {report.variant}  ({report.model}, prefixes={report.use_prefixes}) "
+        f"gate_on={report.gate_on}{flag} ==="
+    )
     for regime, counts in report.counts.items():
         print(
             f"  {regime:<7} {counts[POSITIVE]} positive / {counts[HARD_NEGATIVE]} hard-negative "
@@ -652,8 +723,12 @@ def print_report(report: VariantReport) -> None:
     for fixture, stats in report.latency.items():
         if stats.get("n"):
             print(f"    {fixture:<38} p50 {stats['p50']:6.1f}ms   p95 {stats['p95']:6.1f}ms")
-    print("  top-1 score distribution")
-    for regime, labels in report.score_summary.items():
+    # The distribution of the quantity actually being swept, not always the fused one --
+    # otherwise a `gate_on=cosine` report prints numbers its own curves are not derived
+    # from, which is how a floor gets read off the wrong column.
+    summary = report.cosine_summary if report.gate_on == "cosine" else report.score_summary
+    print(f"  top-1 {report.gate_on} distribution")
+    for regime, labels in summary.items():
         if regime == "pooled":
             continue
         for label, stats in labels.items():
@@ -700,7 +775,12 @@ def reanalyze(path: Path, fpr_budget: float) -> list[VariantReport]:
     notes = payload.get("reports", [{}])[0].get("notes", [])
     reports = []
     for name in dict.fromkeys(o.variant for o in observations):
-        reports.append(build_report(VARIANTS[name], observations, notes, fpr_budget=fpr_budget))
+        for gate_on in GATE_QUANTITIES:
+            reports.append(
+                build_report(
+                    VARIANTS[name], observations, notes, fpr_budget=fpr_budget, gate_on=gate_on
+                )
+            )
     return reports
 
 
@@ -746,11 +826,16 @@ async def main_async(args: argparse.Namespace) -> None:
             subject_check=args.subject_check,
         )
         observations += rows
-        report = build_report(
-            variant, rows, notes, fpr_budget=args.fpr_budget, subject_check=args.subject_check
-        )
-        reports.append(report)
-        print_report(report)
+        # One measurement pass, both gate quantities. The scores are already in hand, so
+        # comparing them costs no embedding and no store round-trip -- and crucially both
+        # are scored on the SAME observations, so the comparison isolates the quantity.
+        for gate_on in GATE_QUANTITIES:
+            report = build_report(
+                variant, rows, notes, fpr_budget=args.fpr_budget,
+                subject_check=args.subject_check, gate_on=gate_on,
+            )
+            reports.append(report)
+            print_report(report)
 
     if args.out:
         path = Path(args.out)
