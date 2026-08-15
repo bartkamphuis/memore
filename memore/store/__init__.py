@@ -90,6 +90,12 @@ class ConsolidatingStore(MemoryStore, Protocol):
         RESULTS.md §11) pushed the model toward reusing coarse subjects with no way to
         say which slot it meant, which is how six independently true facts about one
         subject ended up superseding each other.
+
+        Slots from superseded facts stay listed, deliberately. A subject whose only
+        `capital city` fact is dead must still pull the *next* capital fact into that same
+        slot, or the correction never collides and both capitals stay live. The cost is
+        that a long session's line accumulates slots nothing currently occupies, which
+        matters because `extract.py` truncates the list at 40 subjects.
         """
         ...
 

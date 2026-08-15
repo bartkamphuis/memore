@@ -1060,10 +1060,24 @@ where an LLM can be asked to fix it; it does not eliminate it.
 
 ### What this does not fix
 
-Attribute identity now has the synonym problem subject identity has (`deploy target` vs
-`deployment environment` are two slots, and a contradiction between them is missed). It is
-narrower than the subject version — the candidate set is one subject's slots rather than
-the whole session — and `subject_slots` shows P1 the properties already held per subject
-so it can reuse one. Sorted-token normalization collapses word-order variants, as it does
-for subjects. Whether it needs the §10 document-frequency treatment is unmeasured; there
-is no corpus that would answer it, for the same reason there is none that shows the defect.
+Attribute identity has both of the identity errors subject identity has, and they are the
+residual failure modes of the design rather than incidental:
+
+- **Slot split** — two namings of one property (`deploy target` vs `deployment
+  environment`) become two slots, and the contradiction between them is missed. A stale
+  fact stays live. This is §3's synonym problem one level down.
+- **Slot collision** — two genuinely different properties get the same slot name, and the
+  newer one supersedes a fact that is still true. **This is the direction that loses
+  information**, and it is the one that survived into the measured run above: the
+  `creation location` case is not a one-off outlier, it is this failure mode's general
+  shape. Attribute-slotting narrows the over-superseding defect from "every fact about a
+  topic" to "facts P1 mislabels into one slot" — it does not close it.
+
+Slot split is the narrower problem of the two — the candidate set is one subject's slots
+rather than the whole session, `subject_slots` shows P1 the properties already held per
+subject so it can reuse one, and sorted-token normalization collapses word-order variants
+as it does for subjects. Slot collision has no such lever: nothing deterministic can tell
+that "born in" and "wrote it in" are different properties.
+
+Whether either needs the §10 document-frequency treatment is unmeasured, and there is no
+corpus that would answer it — for exactly the reason there is none that shows the defect.
