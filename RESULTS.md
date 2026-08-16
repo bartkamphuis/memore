@@ -1377,8 +1377,11 @@ would not catch a regression there.
 | one-subject coherent | **subject** split | 37/39 |
 
 Both attribute axes are clean at this length, including on deliberately long attribute names.
-So the harness **does not reproduce the live failure**, and this fix rests on the mechanism
-above plus the live stores, not on a moved number. Stated plainly rather than papered over: a
+Re-run after the fix: **17/17, 21/21, 37/39 — identical**. That is the expected result and it
+is worth stating as measured rather than predicted: the change is a no-op on this script in
+both directions, so it is confirmed not to have caused collisions while buying nothing here.
+The harness **does not reproduce the live failure**, and this fix rests on the mechanism above
+plus the live stores, not on a moved number. Stated plainly rather than papered over: a
 25-turn script is not a 50-turn session with long analytical assistant replies feeding P1, and
 closing that gap honestly needs a longer script.
 
