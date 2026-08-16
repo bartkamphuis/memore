@@ -133,12 +133,18 @@ class StoredFact:
     # every slot, which is what facts written before this field existed carry.
     #
     # Normalized through the same `normalize_subject` as `subject_key`, so it reads as
-    # sorted tokens ("latency lookup") and there is deliberately no `attribute_label`
-    # counterpart. The subject needed one because P1 is asked to reuse subject strings
-    # verbatim and a mangled one would confuse it; the attribute does not, because the
-    # same sorting makes reuse order-insensitive -- P1 rephrasing "latency lookup" back
-    # to "lookup latency" lands in the identical slot either way.
+    # sorted tokens: "lookup latency" is stored as "latency lookup".
     attribute: str = ""
+    # The first natural phrasing seen for this slot, exactly as `subject_label` is for
+    # `subject_key` -- and for exactly the same reason, which this file previously argued
+    # did not apply here. That argument held for MATCHING (sorting makes reuse
+    # order-insensitive, so a rephrasing still lands in the same slot) and was wrong for
+    # PROMPTING: `subject_slots` feeds these strings back to P1 with an instruction to
+    # reuse them verbatim, and what it was feeding back was "list todo", "issues medical",
+    # "city code favourite python write". Nobody reuses that, so P1 coined a fresh slot
+    # instead -- which is the slot-split failure of RESULTS.md §11 arriving by way of the
+    # hint list rather than the model's judgement.
+    attribute_label: str = ""
 
 
 @dataclass(frozen=True)

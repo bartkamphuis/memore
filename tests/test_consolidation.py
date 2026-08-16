@@ -370,3 +370,41 @@ async def test_subject_slots_shows_properties_back_to_p1(consolidator):
     await con.consolidate(SESSION, [candidate("uses GitHub Actions", "deploy setup",
                                               attribute="ci provider")])
     assert await store.subject_slots(SESSION) == ["deploy setup -> ci provider, deploy target"]
+
+
+async def test_attribute_label_keeps_the_natural_phrasing(consolidator):
+    """The key is sorted tokens; the label is what P1 gets shown back to reuse.
+
+    RESULTS.md §14: `subject_slots` was feeding the extractor the normalized key --
+    "list todo", "latency lookup", "city code favourite python write" -- with an
+    instruction to reuse it verbatim. Nobody reuses that, so P1 coined a fresh slot and
+    the contradiction never fired. Exactly why `subject_label` exists for subjects.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION,
+        [candidate("the user has 'Get dogfood' on their todo list", "the user",
+                   attribute="todo list")],
+    )
+    stored = next(iter(store.facts.values()))
+    assert stored.attribute == "list todo"          # sorted key decides identity
+    assert stored.attribute_label == "todo list"    # natural phrasing is what P1 sees
+    assert await store.subject_slots(SESSION) == ["the user -> todo list"]
+
+
+async def test_attribute_label_does_not_participate_in_matching(consolidator):
+    """The label is display-and-prompt only.
+
+    If it ever fed the competing-set check, identity would become order-sensitive again
+    and §11's tests would not catch it -- they pass attributes explicitly, so they never
+    exercise two phrasings of one slot.
+    """
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("deploys to staging", "the user",
+                                              attribute="deploy target")])
+    outcomes = await con.consolidate(
+        SESSION, [candidate("deploys to prod", "the user", attribute="target deploy")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert [f.fact for f in live] == ["deploys to prod"]

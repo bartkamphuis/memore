@@ -293,7 +293,7 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid AND f.subject_key = $key "
             "AND f.invalid_at IS NULL RETURN f.id, f.fact, f.subject_key, f.ordinal, "
-            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label, f.attribute "
+            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label "
             "ORDER BY f.ordinal DESC",
             {"sid": session_id, "key": subject_key},
         )
@@ -310,6 +310,7 @@ class FalkorStore:
                 source_episode_id=row[6] or "",
                 type=FactType(row[7]) if row[7] else FactType.STATE,
                 attribute=row[9] or "",
+                attribute_label=row[10] or row[9] or "",
             )
             for row in result.result_set
         ]
@@ -401,6 +402,7 @@ class FalkorStore:
             "source_episode_id": fact.source_episode_id,
             "type": fact.type.value,
             "attribute": fact.attribute,
+            "attribute_label": fact.attribute_label,
         }
         valid_at = _ts(fact.valid_at)
         invalid_at = _ts(fact.invalid_at)
@@ -430,7 +432,8 @@ class FalkorStore:
         await self.connect()
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
-            "RETURN f.subject_key, min(f.subject_label), collect(f.attribute)",
+            "RETURN f.subject_key, min(f.subject_label), "
+            "collect(coalesce(f.attribute_label, f.attribute))",
             {"sid": session_id},
         )
         lines = []
@@ -496,7 +499,7 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
             "RETURN f.id, f.fact, f.subject_key, f.ordinal, f.valid_at, f.invalid_at, "
-            "f.source_episode_id, f.type, f.subject_label, f.attribute ORDER BY f.ordinal",
+            "f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label ORDER BY f.ordinal",
             {"sid": session_id},
         )
         return [
@@ -512,6 +515,7 @@ class FalkorStore:
                 source_episode_id=row[6] or "",
                 type=FactType(row[7]) if row[7] else FactType.STATE,
                 attribute=row[9] or "",
+                attribute_label=row[10] or row[9] or "",
             )
             for row in result.result_set
         ]

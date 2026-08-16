@@ -129,7 +129,7 @@ class InMemoryStore:
                 continue
             labels.setdefault(f.subject_key, f.subject_label or f.subject_key)
             if f.attribute:
-                slots.setdefault(f.subject_key, set()).add(f.attribute)
+                slots.setdefault(f.subject_key, set()).add(f.attribute_label or f.attribute)
         return sorted(
             f"{label} -> {', '.join(sorted(slots[key]))}" if slots.get(key) else label
             for key, label in labels.items()
@@ -153,6 +153,7 @@ class InMemoryStore:
             source_episode_id=existing.source_episode_id,
             type=existing.type,
             attribute=existing.attribute,
+            attribute_label=existing.attribute_label,
         )
 
     async def count(self, session_id: str) -> int:

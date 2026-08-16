@@ -1304,3 +1304,87 @@ buys back `what am i called` at off-domain 0.051, and cosine at 0.52 gives chat 
 at off-domain 0.103. Neither meets the 5% budget `recommend()` enforces, which is why
 neither ships by default; on a personal console, where a spurious recalled fact costs
 almost nothing, 0.52 is a defensible local override.
+
+---
+
+## 14. The hint list was feeding P1 scrambled slot names
+
+Live testing across three parallel sessions made §11's two residual failure modes the
+dominant error. The three stores diverged sharply while consolidation itself was correct in
+every one — the variable was the attribute string P1 coined.
+
+The clearest case, same script, same model, same config:
+
+```
+session B   #15 superseded  preference technical   the user likes coding in Python
+            #17 live        preference technical   the user prefers Ruby        <- resolved
+
+session C   #13 live        language primary       the user likes coding in Python
+            #15 live        language preference    the user prefers Ruby
+            #16 live        affinity language      the user likes Python        <- 3 live
+```
+
+### The mechanism, and it is not the model's judgement
+
+`subject_slots` shows P1 the slots a subject already holds so it can reuse one. What it was
+showing was the **normalized key** — and the key is sorted content words. Every multi-word
+attribute in the live store came back scrambled:
+
+```
+  natural phrasing                        what P1 was shown to reuse
+  lookup latency                     ->   latency lookup
+  medical issues                     ->   issues medical
+  todo list                          ->   list todo
+  main office location               ->   location main office
+  favourite city to write python code->   city code favourite python write
+```
+
+The instruction says *"reuse that exact property string"*. Given `city code favourite python
+write`, no model does — it coins a fresh slot, and the contradiction never fires. This is the
+slot-split failure arriving through the hint list rather than through the model's judgement.
+
+`StoredFact.subject_label` exists for exactly this reason and its docstring says so. §11
+argued explicitly that attributes needed no counterpart, because sorting makes reuse
+order-insensitive. **That argument is right for matching and wrong for prompting**, and the
+old reasoning has been removed rather than left standing.
+
+### The fix
+
+`StoredFact.attribute_label` holds the first natural phrasing; `subject_slots` shows it. The
+key is untouched, so identity still decides on sorted tokens and a rephrasing still lands in
+the same slot. Verified end to end:
+
+```
+  the hint list P1 now receives          the keys that decide identity
+  the memory system -> lookup latency    memory system  'latency lookup'
+  the user -> todo list                  user           'list todo'
+  Supreme Data Systems ->                data supreme systems
+      main office location                              'location main office'
+```
+
+A test pins that the label never participates in matching — `deploy target` and
+`target deploy` must still collide — because §11's own tests pass attributes explicitly and
+would not catch a regression there.
+
+### The instrument, and what it could not show
+
+`memore/bench/slots.py` scores a fixed 25-turn script on three axes that move independently:
+
+| | measures | baseline (3 runs) |
+|---|---|---|
+| must-collide resolved | slot **split** | 17/17 |
+| must-coexist intact | slot **collision** | 21/21 |
+| one-subject coherent | **subject** split | 37/39 |
+
+Both attribute axes are clean at this length, including on deliberately long attribute names.
+So the harness **does not reproduce the live failure**, and this fix rests on the mechanism
+above plus the live stores, not on a moved number. Stated plainly rather than papered over: a
+25-turn script is not a 50-turn session with long analytical assistant replies feeding P1, and
+closing that gap honestly needs a longer script.
+
+What the harness *does* catch is subject splitting — `Lisa` versus `the user's sister Lisa`
+across runs of identical input. That is co-reference, not phrasing, and `attribute_label` does
+nothing for it. It is the next thing to attack.
+
+The three axes are reported separately on purpose. Making P1 reuse attributes harder fixes
+splits and causes collisions; a single "fragmentation" count would hide exactly that trade.

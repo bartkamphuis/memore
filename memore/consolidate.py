@@ -292,6 +292,9 @@ class DeterministicConsolidator:
                 source_episode_id="",
                 type=candidate.type,
                 attribute=normalize_subject(candidate.attribute),
+                # The raw phrasing, not the sorted key. This is what P1 gets shown back
+                # to reuse; the key is what decides identity. RESULTS.md §14.
+                attribute_label=candidate.attribute.strip(),
             )
             await self.store.add_fact(stored, vector)
             vocab.add(key)
