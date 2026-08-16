@@ -48,11 +48,12 @@ being stored under several names — `Lisa` / `the user's sister Lisa` / `the us
 the prompt asked for the shortest phrasing *and* for reuse, which conflict exactly when the
 stored label is long. Five ordered naming rules replace them; the slot harness grew nine
 turns and an over-merge refuse-list first. Rules 1–4 took subject coherence from **39/51 to
-51/51 with the refuse-list unmoved at 9/12**; rule 5 then traded 3 over-merges for 3 splits
-(**12/12 distinct, 48/51 coherent**), which is the shipped state and is argued in §15
-rather than hidden — the number against it is in the table. Two shapes of split existed and
-only one was reachable by a surface merge rule, which is why no merge rule was built — read
-§15 before proposing one.
+51/51 with the refuse-list unmoved at 9/12**. Rule 5 then went through two versions, and on
+the final 36-turn script the shipped one **dominates**: 18/18 collide, 33/33 coexist, 54/57
+coherent, **15/15 distinct** against v1's 12/15 at identical coherence. The apparent
+3-for-3 trade seen at 34 turns was an artifact of the script holding one fact about the
+merged-in entity. Two shapes of split existed and only one was reachable by a surface merge
+rule, which is why no merge rule was built — read §15 before proposing one.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
@@ -209,13 +210,13 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   refuse-list exists and why it is written *before* the fix, as in §3 and §10. The two
   are not equally bad — a split costs recall and both facts survive; a merge destroys a
   fact — so trading one for one is a regression, not a wash. RESULTS.md §15.
-- **A subject over-merge is CONTAINED by the attribute, not cured by it.** Merged
-  subjects only destroy a fact when the *attribute* collides too, so an over-merge can
-  measure as zero-cost — the `the memory system` / test-suite case did, with
-  must-coexist untouched. That zero is an artifact of how few facts the script holds
-  about the merged-in entity: the second such fact lands on an attribute the host
-  subject already uses and supersedes a true fact. Treat a measured-harmless over-merge
-  as a latent §11 defect, not a resolved one. RESULTS.md §15.
+- **A subject over-merge is CONTAINED by the attribute** — merged subjects only destroy
+  a fact when the *attribute* collides too, which is why the `the memory system` /
+  test-suite over-merge measured zero-cost with must-coexist untouched. It was predicted
+  that a second fact about the merged-in entity would collect the bill; a turn was added
+  to test it and **it did not happen** (33/33 under both rule-5 variants). Do not repeat
+  the latent-supersede claim as measured — it is a plausible mechanism that has been
+  looked for once and not found. RESULTS.md §15.
 - **Value comparison in consolidation is normalized-string equality, and `use_embedding_comparison` defaults to False.** Do not "improve" this by turning embedding similarity back on: a false DUPLICATE discards an update permanently, while a false CONTRADICTION keeps both facts with the right one live. Measured at 32k, sentence embeddings put real value changes ("rugby union"→"rugby", 0.982) *above* the threshold and genuine paraphrases (0.877) *below* real contradictions (0.849–0.911), so no threshold separates the cases. RESULTS.md §6.
 - `recall()` never raises. Store error or timeout → closed result, logged, turn proceeds.
 - `enabled=False` on either path → full no-op.

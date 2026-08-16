@@ -130,6 +130,20 @@ TURNS: list[str] = [
     #       hardest case here, and the one a merge rule keyed on a shared proper noun
     #       gets wrong by construction.
     "My neighbour Tom Bakker plays the trumpet",
+    # 34    The SECOND fact about the test suite, and the reason turn 32's over-merge is
+    #       a latent defect rather than a harmless one. On its own an over-merged subject
+    #       costs nothing -- turn 32 took its own attribute and superseded nothing. This
+    #       turn is the one that collects the bill: merged into `the memory system` it
+    #       asks for `implementation language`, which turn 6 already holds, and a true
+    #       fact dies. Paired with turn 6 on MUST_COEXIST so that death is a measured
+    #       number rather than a paragraph of reasoning.
+    "The test suite is written in pytest",
+    # 35    Restores what [3, 4] was built for and no longer tests. §11's case is two
+    #       properties of ONE subject sharing a VALUE, and it needs a subject that the
+    #       "is it a property or a part" rule cannot move: both of these are plainly
+    #       about the user, and neither has the "the X of Y" shape that sends a fact
+    #       elsewhere.
+    "I still live in Den Haag",
 ]
 
 # (earlier turn, later turn): the later fact MUST supersede the earlier one.
@@ -146,6 +160,11 @@ MUST_COEXIST: list[list[int]] = [
     [22, 24],         # favourite coding city vs deploy habit -- both the user, both true
     [26, 27],         # Tom: commit preference vs location
     [30, 31],         # Fien: age vs school
+    [6, 34],          # the system's language vs the TEST SUITE's language. Both true,
+                      # and both die into one slot if turn 34's subject over-merges into
+                      # the memory system -- which is precisely the bill turn 32 defers.
+    [3, 35],          # birth place vs current residence -- one subject, one value
+                      # ("Den Haag"), two properties. §11's case, restored.
 ]
 
 # Every turn in a group names ONE entity, so every fact must land on ONE subject key.
@@ -168,7 +187,17 @@ MUST_COREFER: list[list[int]] = [
     [25, 26, 27],      # Tom
     [28, 29],          # Miso
     [30, 31],          # Fien
+    [32, 34],          # the test suite -- both facts must land on it, not on the system
+    [3, 35],           # the user, twice, same value
 ]
+
+# `[3, 4]` above fails 3/3 under the shipped prompt and is KEPT failing on purpose.
+# "I wrote the memory system in Den Haag" now files under `memory system` rather than
+# `the user`, which is arguable either way -- and editing an assertion because a change
+# broke it is what RESULTS.md §3 and §10 refuse. It is left as a standing failure rather
+# than quietly relaxed, so read 3 known failures into the one-subject total. It also no
+# longer exercises §11's same-value-different-property case, which is why `[3, 35]` was
+# added rather than `[3, 4]` repaired. RESULTS.md §15.
 
 # (a, b): these two turns are about DIFFERENT entities and MUST NOT share a subject key.
 #
@@ -185,6 +214,9 @@ MUST_DISTINGUISH: list[tuple[int, int]] = [
     (6, 32),    # the memory system vs its test suite -- part-of, not identity
     (19, 29),   # Pixel the dog vs Miso the cat -- both are "the user's pet" if P1
                 # generalises the descriptor instead of using the proper name
+    (6, 34),    # the memory system vs its test suite, on the pair that actually costs a
+                # fact. (6, 32) catches the same over-merge one turn earlier, where it is
+                # still free; this one catches it after it has been paid for.
 ]
 
 

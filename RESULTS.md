@@ -1499,20 +1499,21 @@ measured separately below, because it moves two axes in opposite directions.
 
 ### Measured
 
-Three runs each, same 34-turn script, same model and config, extractor prompt the only
-variable:
+Three runs each, same **34-turn** script, same model and config, extractor prompt the only
+variable. (The script grew to 36 turns afterwards, to settle a question about rule 5; the
+next section re-measures both prompts on it and those totals are not comparable with
+these.)
 
-| | measures | before | rules 1–4 | + rule 5 refined |
-|---|---|---|---|---|
-| must-collide resolved | slot **split** | 17/17 | 18/18 | 18/18 |
-| must-coexist intact | slot **collision** | 27/27 | 27/27 | 27/27 |
-| one-subject coherent | subject **split** | **39/51** | **51/51** | 48/51 |
-| distinct kept apart | subject **over-merge** | 9/12 | 9/12 | **12/12** |
+| | measures | before | rules 1–4 |
+|---|---|---|---|
+| must-collide resolved | slot **split** | 17/17 | 18/18 |
+| must-coexist intact | slot **collision** | 27/27 | 27/27 |
+| one-subject coherent | subject **split** | **39/51** | **51/51** |
+| distinct kept apart | subject **over-merge** | 9/12 | 9/12 |
 
-The middle column is the co-reference fix on its own: every subject split closed, in all
-three runs, and **the refuse-list did not move** — it bought the split axis without
-spending anything on the axis built to catch its price. The subject vocabulary collapsed
-to one name per entity:
+Every subject split closed, in all three runs, and **the refuse-list did not move** — the
+fix bought the split axis without spending anything on the axis built to catch its price.
+The subject vocabulary collapsed to one name per entity:
 
 ```
 before   lisa | lisa sister user | sister user | colleague tom user | cat miso user |
@@ -1526,68 +1527,78 @@ keyed on a shared proper noun fails by construction. That is the argument for ha
 fixed this at P1 rather than with a matcher, stated as a measurement rather than a
 preference.
 
-### Rule 5, and the over-merge that shows what the two-level key is worth
+### Rule 5, measured twice, and a prediction that did not survive
 
-Rules 1–4 left `(6, 32)` failing exactly as it had before: P1 filed the test suite's
-runtime under `the memory system`, in all three runs, unchanged by the fix.
-
-What that over-merge cost is the interesting part, and on this script it is **nothing
-measurable**:
+Rules 1–4 left `(6, 32)` failing exactly as before: P1 filed the test suite's runtime
+under `the memory system`, in all three runs. What that over-merge cost on the 34-turn
+script was **nothing measurable**:
 
 ```
 memory system   latency lookup, implementation language, execution suite test time
 ```
 
 The fact landed in the wrong *subject* but in its own *attribute*, so it competed with
-nothing and must-coexist stayed 27/27. The `(subject, attribute)` key of §11 **contains**
-a subject over-merge: merging subjects only destroys a fact when the attribute collides
-too. That is a real property of the two-level design, and it is why a subject over-merge
-is not automatically the catastrophe the merge/split asymmetry treats it as.
+nothing and must-coexist stayed 27/27. That is a real property of the two-level key of
+§11: merging subjects only destroys a fact when the attribute collides too, so a subject
+over-merge is **contained** rather than automatically catastrophic.
 
-It is not a free pass either, and the zero here is an artifact of script length. One more
-turn — "the test suite is written in pytest" — would take attribute `implementation
-language` on subject `memory system` and supersede *the memory system is written in
-Python*. The over-merge is a **latent** §11 defect waiting for a second fact about the
-merged-in entity, not a permanent wart.
+Rule 5 was rewritten on the theory that the containment was luck running out slowly —
+that as first written it said "if you are about to write `the X of Y`, the subject is Y",
+which is right for a property (`the capital of the Netherlands` is a value the Netherlands
+has) and wrong for a part (`the test suite` has a runtime and a framework of its own).
+The predicted bill was concrete: **one more fact about the test suite would ask for
+`implementation language` under `memory system`, collide with "the memory system is
+written in Python", and kill a true fact.**
 
-That reading is what justified rewriting rule 5. As first written it said "if you are
-about to write `the X of Y`, the subject is Y" — right for a property (`the capital of the
-Netherlands` is a value the Netherlands has) and flatly wrong for a part (`the test suite
-of the memory system` is a thing with a runtime and a framework of its own). The rewrite
-splits that decision on value-versus-thing.
+Two turns were added to test exactly that, rather than leaving the claim as prose — turn
+34 `"The test suite is written in pytest"`, paired with turn 6 on both `MUST_COEXIST` and
+`MUST_DISTINGUISH`. Both prompts were then run against the same 36-turn script, three runs
+each:
 
-**It works, and it is not free** (third column above, three runs):
+| | rule 5 **v1** | rule 5 **v2** (shipped) |
+|---|---|---|
+| must-collide resolved | 18/18 | 18/18 |
+| must-coexist intact | **33/33** | **33/33** |
+| one-subject coherent | 54/57 | 54/57 |
+| distinct kept apart | 12/15 | **15/15** |
+| failing | `[32, 34]` ×3, `(6, 32)` ×3 | `[3, 4]` ×3 |
 
-```
-distinct       9/12 -> 12/12    (6,32) fixed in all three runs; `suite test` is now
-                                its own subject
-one-subject   51/51 -> 48/51    [3, 4] splits in all three runs:
-                                "I wrote the memory system in Den Haag" moves from
-                                subject `the user` to subject `memory system`
-```
+**The predicted supersede did not happen.** must-coexist is 33/33 under *both* prompts.
+Under v1, turn 34 took `the test suite` as its subject anyway — the sentence has no
+"the X of Y" shape for v1's rule to misfire on, so the trigger simply never fired. The
+latent-defect argument was wrong, and it is recorded here rather than quietly dropped
+because it was the argument this rule shipped on.
 
-A clean 3-for-3 trade, and which way it should go is not obvious. Against it: a split
-costs recall, and this one takes a fact off `the user`, the store's most-queried subject.
-For it: the split leaves both facts live and correctly filed, while the over-merge it
-removes is a latent supersede — and this project's standing asymmetry is that a merge
-destroys a fact and a split does not. The refined rule ships on that reading, with the
-number that argues against it recorded here rather than in a footnote.
+What the ablation *did* establish is better than what it was built to show. v1 does not
+merge turn 34 into the system — it **splits the test suite in two**, `memory system` for
+turn 32 and `suite test` for turn 34. So at 36 turns the two prompts tie on subject
+coherence at 54/57, and v2 wins the refuse-list outright, 15/15 against 12/15.
 
-The `[3, 4]` assertion was **not** relaxed to accommodate it, though the case is genuinely
-arguable — "I wrote the memory system in Den Haag" is about the system's origin as much as
-about the user. Editing an assertion after seeing a change fail it is what §3 and §10
-refuse, so it stands as a failure. If that pair should be reclassified, it is a decision
-about the original design intent and belongs in its own change.
+That also retires the trade recorded one column earlier. On the 34-turn script v2 looked
+like it cost 3 points of coherence for 3 points of distinctness; that apparent cost was an
+artifact of the script holding **one** fact about the test suite. Give the entity a second
+fact and v1's advantage disappears, because v1 is the prompt that cannot keep the entity
+together. v2 dominates on every axis at 36 turns, and ships on that rather than on the
+asymmetry argument.
 
-One instrument note, true regardless: `[3, 4]` was built as §11's same-value-different-
-property case, and now that its two facts land on different subjects it passes coexist
-trivially, since subjects that never meet cannot compete. That pair no longer tests what it
-was written to test.
+The `[3, 4]` assertion v2 breaks was **not** relaxed to accommodate it, though the case is
+genuinely arguable — "I wrote the memory system in Den Haag" is about the system's origin
+as much as about the user. Editing an assertion after seeing a change fail it is what §3
+and §10 refuse, so it stands as a standing failure, flagged in the harness source. It also
+stopped exercising §11's same-value-different-property case once its two facts landed on
+different subjects, since subjects that never meet cannot compete — so turn 35 (`"I still
+live in Den Haag"`, paired with turn 3) was added to restore that coverage on a subject
+rule 5 cannot move.
 
 ### What is still unfixed, stated plainly
 
 - The `lisa | user` shape — a fact about one entity filed under another — is addressed by
   rule 1 and did not recur in three runs. Three runs is not proof; it is what was measured.
 - `[3, 4]` splits 3/3 under the shipped prompt, as above.
+- A subject over-merge has now measured harmless **twice**, under both rule-5 variants,
+  and the mechanism by which it should eventually cost a fact was predicted and then not
+  observed. The containment argument in §11's two-level key is real; the claim that it
+  runs out with the second fact about the merged-in entity is **unproven**, and should
+  not be repeated as if it were measured.
 - Nothing here is validated on a store built from a real session with long assistant
-  replies. §14's caveat stands: 34 scripted turns is not a 50-turn working session.
+  replies. §14's caveat stands: 36 scripted turns is not a 50-turn working session.
