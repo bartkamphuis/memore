@@ -1391,3 +1391,203 @@ nothing for it. It is the next thing to attack.
 
 The three axes are reported separately on purpose. Making P1 reuse attributes harder fixes
 splits and causes collisions; a single "fragmentation" count would hide exactly that trade.
+
+---
+
+## 15. Subject co-reference — one entity, two names
+
+§14 closed with the honest observation that the slot harness caught only one thing:
+`Lisa` versus `the user's sister Lisa` on identical input, 2 failures in 39. That is
+co-reference, not phrasing, and no amount of attribute work touches it.
+
+The first move was **not** to fix it. It was to establish that the instrument could see
+it, because at 2-in-39 with a non-deterministic extractor, a move to 39/39 is
+indistinguishable from noise — and §11 is the standing lesson about fixing a defect the
+measurement is structurally blind to.
+
+### Read the failure before designing for it
+
+A clean baseline run of the 25-turn script produced **36/39** one-subject coherent, and
+the three failures were not one shape but two:
+
+```
+run 1   FAIL [14, 15]   SUBJECT-SPLIT   lisa | user
+run 2   FAIL [16, 17]   SUBJECT-SPLIT   lisa | lisa sister user
+run 3   FAIL [14, 15]   SUBJECT-SPLIT   lisa | user
+```
+
+That distinction decided the whole approach. `lisa` versus `lisa sister user` share the
+proper noun, so a surface merge rule could in principle reach it. `lisa` versus `user`
+share **nothing** — P1 filed a fact *about Lisa* under the subject *the user* — and no
+deterministic rule over subject keys recovers that. It is §9's wall from a third side.
+
+Two of the three failures were the unreachable shape. A matcher was the wrong build.
+
+### The instruction conflict
+
+`extract.py` had been telling P1 two incompatible things in one sentence:
+
+> `subject_hint` is the TOPIC the fact is about … **Prefer the shortest natural noun
+> phrase**, and **reuse a subject you have already used** rather than rephrasing it.
+
+Those clauses fight precisely when the stored label is long. Turn 14 ("My sister Lisa
+lives in Amsterdam") invites `the user's sister Lisa`; turn 17 ("Lisa's birthday is …")
+invites the shortest form, `Lisa`. Both instructions were followed; the store split.
+
+This is §14's shape exactly — P1 shown one thing and instructed toward another — and it
+takes §14's remedy: change what P1 is told, not what the store does afterwards.
+
+### Extending the harness first
+
+The 25-turn script could not carry the fix, for two independent reasons. One Lisa entity
+at 2 failures in 39 is noise-adjacent. And there was **no over-merge trap in it at all** —
+nothing like "Lisa's daughter Fien" — so `MUST_COREFER` alone would have scored a rule
+that merges everything at 100%.
+
+Nine turns and one axis were added before any prompt was touched:
+
+- three co-reference entities, not one: Tom (descriptor first, name later), Miso (name
+  first, descriptor later), Fien (introduced *through* Lisa);
+- `MUST_DISTINGUISH`, the refuse-list — pairs that must NOT share a subject: Lisa/Fien
+  (share a proper noun), Tom/Tom Bakker (share a first name), the memory system/its test
+  suite (part-of), Pixel/Miso (both "the user's pet" if the descriptor is generalised).
+
+Turns were **appended**, never interleaved, so every index above 24 is new and the
+collide/coexist numbers stay comparable with §11 and §14.
+
+The refuse-list is written before the fix on the precedent of §3 and §10, both of which
+hand-labelled the pairs a rule must decline before letting an aggregate score decide
+anything. The asymmetry is the same one `AliasConfig` records and it is not symmetric
+book-keeping: **a split costs recall and is recoverable — both facts are in the store,
+correctly filed. A merge destroys a fact permanently.** A fix that trades one over-merge
+for one recovered split is a regression, not a wash.
+
+The extended harness immediately showed how blind the old one had been. Where 25 turns
+gave 2 failures in 39 across three runs, 34 turns gave **12 in 51 — the same failures in
+every run**, plus an over-merge the old script could not express:
+
+```
+FAIL [25, 26, 27]     SUBJECT-SPLIT   colleague tom user | tom      3/3 runs
+FAIL [28, 29]         SUBJECT-SPLIT   cat miso user | user          3/3 runs
+FAIL [14,15,16,17]    SUBJECT-SPLIT   lisa | lisa sister user       3/3 runs
+FAIL (6, 32)          OVER-MERGED     memory system                 3/3 runs
+```
+
+Reproducible in every run, not intermittent. The defect had been real all along; the
+25-turn script was measuring one entity and calling the variance noise.
+
+### The fix: five ordered naming rules
+
+`subject_hint` now gets an ordered procedure instead of two competing preferences:
+
+1. name the entity the fact is **about**, never the person who mentioned it;
+2. the speaker is **always** "the user", even once you learn their name;
+3. any other named entity takes **that name alone** — `Lisa`, not `the user's sister
+   Lisa` — keeping whatever part of the name tells two bearers apart (`Tom Bakker`);
+4. an unnamed entity takes the shortest natural noun phrase;
+5. a subject is a thing, never a thing's property.
+
+Rule 2 exists because rule 3 without it is actively harmful: `My name is Bart` would make
+`Bart` a subject and split the store's single most-loaded one. That was caught by reading
+the rule against turn 0, before running anything.
+
+Rule 5 came from the live gateway store rather than the harness, which passes the case.
+The console's graph held `netherlands` **and** `capital netherlands` as separate subjects —
+the property absorbed into the subject, leaving four facts with an empty attribute and
+nothing for a correction to collide with. It went through two versions; the second is
+measured separately below, because it moves two axes in opposite directions.
+
+### Measured
+
+Three runs each, same 34-turn script, same model and config, extractor prompt the only
+variable:
+
+| | measures | before | rules 1–4 | + rule 5 refined |
+|---|---|---|---|---|
+| must-collide resolved | slot **split** | 17/17 | 18/18 | 18/18 |
+| must-coexist intact | slot **collision** | 27/27 | 27/27 | 27/27 |
+| one-subject coherent | subject **split** | **39/51** | **51/51** | 48/51 |
+| distinct kept apart | subject **over-merge** | 9/12 | 9/12 | **12/12** |
+
+The middle column is the co-reference fix on its own: every subject split closed, in all
+three runs, and **the refuse-list did not move** — it bought the split axis without
+spending anything on the axis built to catch its price. The subject vocabulary collapsed
+to one name per entity:
+
+```
+before   lisa | lisa sister user | sister user | colleague tom user | cat miso user |
+         dog pixel user | user
+after    the user | Lisa | Tom | Tom Bakker | Pixel | Miso | Fien | the memory system |
+         the Netherlands
+```
+
+`Tom` and `Tom Bakker` stayed apart in all three runs, which is the trap a merge rule
+keyed on a shared proper noun fails by construction. That is the argument for having
+fixed this at P1 rather than with a matcher, stated as a measurement rather than a
+preference.
+
+### Rule 5, and the over-merge that shows what the two-level key is worth
+
+Rules 1–4 left `(6, 32)` failing exactly as it had before: P1 filed the test suite's
+runtime under `the memory system`, in all three runs, unchanged by the fix.
+
+What that over-merge cost is the interesting part, and on this script it is **nothing
+measurable**:
+
+```
+memory system   latency lookup, implementation language, execution suite test time
+```
+
+The fact landed in the wrong *subject* but in its own *attribute*, so it competed with
+nothing and must-coexist stayed 27/27. The `(subject, attribute)` key of §11 **contains**
+a subject over-merge: merging subjects only destroys a fact when the attribute collides
+too. That is a real property of the two-level design, and it is why a subject over-merge
+is not automatically the catastrophe the merge/split asymmetry treats it as.
+
+It is not a free pass either, and the zero here is an artifact of script length. One more
+turn — "the test suite is written in pytest" — would take attribute `implementation
+language` on subject `memory system` and supersede *the memory system is written in
+Python*. The over-merge is a **latent** §11 defect waiting for a second fact about the
+merged-in entity, not a permanent wart.
+
+That reading is what justified rewriting rule 5. As first written it said "if you are
+about to write `the X of Y`, the subject is Y" — right for a property (`the capital of the
+Netherlands` is a value the Netherlands has) and flatly wrong for a part (`the test suite
+of the memory system` is a thing with a runtime and a framework of its own). The rewrite
+splits that decision on value-versus-thing.
+
+**It works, and it is not free** (third column above, three runs):
+
+```
+distinct       9/12 -> 12/12    (6,32) fixed in all three runs; `suite test` is now
+                                its own subject
+one-subject   51/51 -> 48/51    [3, 4] splits in all three runs:
+                                "I wrote the memory system in Den Haag" moves from
+                                subject `the user` to subject `memory system`
+```
+
+A clean 3-for-3 trade, and which way it should go is not obvious. Against it: a split
+costs recall, and this one takes a fact off `the user`, the store's most-queried subject.
+For it: the split leaves both facts live and correctly filed, while the over-merge it
+removes is a latent supersede — and this project's standing asymmetry is that a merge
+destroys a fact and a split does not. The refined rule ships on that reading, with the
+number that argues against it recorded here rather than in a footnote.
+
+The `[3, 4]` assertion was **not** relaxed to accommodate it, though the case is genuinely
+arguable — "I wrote the memory system in Den Haag" is about the system's origin as much as
+about the user. Editing an assertion after seeing a change fail it is what §3 and §10
+refuse, so it stands as a failure. If that pair should be reclassified, it is a decision
+about the original design intent and belongs in its own change.
+
+One instrument note, true regardless: `[3, 4]` was built as §11's same-value-different-
+property case, and now that its two facts land on different subjects it passes coexist
+trivially, since subjects that never meet cannot compete. That pair no longer tests what it
+was written to test.
+
+### What is still unfixed, stated plainly
+
+- The `lisa | user` shape — a fact about one entity filed under another — is addressed by
+  rule 1 and did not recur in three runs. Three runs is not proof; it is what was measured.
+- `[3, 4]` splits 3/3 under the shipped prompt, as above.
+- Nothing here is validated on a store built from a real session with long assistant
+  replies. §14's caveat stands: 34 scripted turns is not a 50-turn working session.

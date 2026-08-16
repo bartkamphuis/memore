@@ -43,6 +43,17 @@ with **zero** over-merges, reaching the score ungated subset-merging got while s
 refusing every merge §3 objected to. On by default; inert below 200 subjects, so
 conversational stores are untouched.
 
+Subject co-reference is fixed at P1, not with a matcher (RESULTS.md §15). One entity was
+being stored under several names — `Lisa` / `the user's sister Lisa` / `the user` — because
+the prompt asked for the shortest phrasing *and* for reuse, which conflict exactly when the
+stored label is long. Five ordered naming rules replace them; the slot harness grew nine
+turns and an over-merge refuse-list first. Rules 1–4 took subject coherence from **39/51 to
+51/51 with the refuse-list unmoved at 9/12**; rule 5 then traded 3 over-merges for 3 splits
+(**12/12 distinct, 48/51 coherent**), which is the shipped state and is argued in §15
+rather than hidden — the number against it is in the table. Two shapes of split existed and
+only one was reachable by a surface merge rule, which is why no merge rule was built — read
+§15 before proposing one.
+
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
@@ -73,6 +84,11 @@ uv run memore inspect --session <name> --query '...'
 # Step-0 spike (needs FalkorDB up and Ollama on the host)
 uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
 uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
+
+# Slot + subject fidelity (RESULTS.md §11, §14, §15). The instrument for any change to
+# the P1 prompt -- the FactConsolidation bench cannot express these failures at all.
+# Read the runs SEPARATELY: P1 varies at temperature 0 and the variance is the finding.
+MEMORE_GRAPH=memore_slots uv run python -m memore.bench.slots --runs 3
 
 # score_floor calibration -- re-run after ANY change to the embedder or the floor
 uv run python -m memore.bench.gen_calib_fixtures --write   # regenerate fixtures FIRST
@@ -180,6 +196,26 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   either way.** FactConsolidation is one-attribute-per-subject *by construction*, so the
   §11 defect is structurally inexpressible in it. Those runs are a regression guard only;
   the real fixtures are the trace-derived tests at the end of `tests/test_consolidation.py`.
+- **Subject naming is five ORDERED rules in the P1 prompt, and rule 2 is load-bearing.**
+  A named entity takes its bare name (`Lisa`, not `the user's sister Lisa`) — but the
+  *speaker* is always `the user`, never their name, or "My name is Bart" splits the
+  store's most-loaded subject in two. Do not "simplify" the rules to just "use the
+  proper name": that one deletion is the whole failure. RESULTS.md §15.
+- **Subject splitting and subject OVER-merging are two axes and both must be reported.**
+  `memore/bench/slots.py` scores four things, in two opposed pairs: slot split vs slot
+  collision, and subject split vs subject over-merge (`MUST_DISTINGUISH`, the
+  hand-written refuse-list). Every fix for splitting pushes toward merging. A rule that
+  merges everything scores 100% on the co-reference axis alone, which is why the
+  refuse-list exists and why it is written *before* the fix, as in §3 and §10. The two
+  are not equally bad — a split costs recall and both facts survive; a merge destroys a
+  fact — so trading one for one is a regression, not a wash. RESULTS.md §15.
+- **A subject over-merge is CONTAINED by the attribute, not cured by it.** Merged
+  subjects only destroy a fact when the *attribute* collides too, so an over-merge can
+  measure as zero-cost — the `the memory system` / test-suite case did, with
+  must-coexist untouched. That zero is an artifact of how few facts the script holds
+  about the merged-in entity: the second such fact lands on an attribute the host
+  subject already uses and supersedes a true fact. Treat a measured-harmless over-merge
+  as a latent §11 defect, not a resolved one. RESULTS.md §15.
 - **Value comparison in consolidation is normalized-string equality, and `use_embedding_comparison` defaults to False.** Do not "improve" this by turning embedding similarity back on: a false DUPLICATE discards an update permanently, while a false CONTRADICTION keeps both facts with the right one live. Measured at 32k, sentence embeddings put real value changes ("rugby union"→"rugby", 0.982) *above* the threshold and genuine paraphrases (0.877) *below* real contradictions (0.849–0.911), so no threshold separates the cases. RESULTS.md §6.
 - `recall()` never raises. Store error or timeout → closed result, logged, turn proceeds.
 - `enabled=False` on either path → full no-op.

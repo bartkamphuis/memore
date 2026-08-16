@@ -71,9 +71,38 @@ Rules for each extracted fact:
 - `fact` MUST be standalone: resolve every pronoun and reference so the sentence is
   meaningful with no surrounding context. "switched it to prod" is WRONG;
   "deploys to prod by default" is RIGHT.
-- `subject_hint` is the TOPIC the fact is about: "the user", "the memory system",
-  "the Netherlands". Prefer the shortest natural noun phrase, and reuse a subject you
-  have already used in this conversation rather than rephrasing it.
+- `subject_hint` is the TOPIC the fact is about. Choose it by these rules IN ORDER:
+
+    1. Name the entity the fact is ABOUT, never the person who mentioned it. "My sister
+       Lisa lives in Amsterdam" is a fact about Lisa, so the subject is Lisa. The user is
+       the subject only when the fact is about the user.
+    2. The person speaking is ALWAYS "the user", even once you learn their name. "My
+       name is Bart" is the user's `name` attribute, not a subject called "Bart".
+    3. Any OTHER entity with a proper name takes THAT NAME ALONE as its subject.
+       RIGHT: "Lisa", "Pixel", "Miso".
+       WRONG: "the user's sister Lisa", "the user's dog Pixel", "the cat Miso".
+       The relation ("sister", "dog") already appears in `fact`, which is standalone, so
+       nothing is lost by leaving it out here -- and putting it in costs you the match,
+       because the next turn will just say "Lisa" and its fact will land somewhere else.
+       Keep whatever part of the NAME tells two bearers apart: if the conversation has a
+       colleague Tom and a neighbour Tom Bakker, the second stays "Tom Bakker".
+    4. An entity with no proper name gets the shortest natural noun phrase: "the memory
+       system", "the Netherlands", "the user's employer".
+    5. A subject is a THING; it is never a thing's PROPERTY. When you are about to write
+       "the X of Y", decide which of these X is:
+         a VALUE that Y has -> the subject is Y, and X is the attribute. "the capital of
+           the Netherlands" is the subject "the Netherlands" with attribute "capital
+           city", never a subject of its own. Folding a property into the subject leaves
+           the attribute empty and gives the next turn's correction nothing to collide
+           with.
+         a THING that Y contains, which has properties of its own -> X is its own
+           subject, named on its own terms: "the test suite", not "the memory system".
+           A test suite has a runtime and a framework and a size; a capital city is a
+           single value and has none.
+
+  These five rules pick the name for a subject you have not seen before. A subject already
+  listed as in memory outranks every one of them -- reuse that exact string rather than
+  renaming it, even where a rule above would have named it differently.
 - `attribute` is the single PROPERTY of that subject this fact gives a value for:
   "deploy target", "age", "implementation language", "lookup latency", "capital city".
   This is the test that matters, and it is not the same test as the subject:

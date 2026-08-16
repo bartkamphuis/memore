@@ -10,16 +10,26 @@ measures the read path.
                     fact stays live. Measured here as the `must-collide` miss rate.
     slot COLLISION  two properties, one name. A true fact is superseded. Measured here as
                     the `must-coexist` false-supersede rate.
-    SUBJECT split   one entity, two names ("Lisa" and "the user's sister"). Facts scatter
-                    across two subjects, so they never compete and the split costs nothing
-                    a liveness check can see -- but recall then finds half an entity, and
-                    it is what made the three live stores diverge most visibly. Measured
-                    separately, because a coexist group can be fully live AND fully split.
+    SUBJECT split   one entity, two names ("Lisa" and "the user's sister Lisa"). Facts
+                    scatter across two subjects, so they never compete and the split costs
+                    nothing a liveness check can see -- but recall then finds half an
+                    entity, and it is what made the three live stores diverge most visibly.
+                    Measured separately, because a coexist group can be fully live AND
+                    fully split.
+    SUBJECT merge   two entities, one name ("Lisa" and "Lisa's daughter Fien"). The
+                    opposite error, and the worse one: merged subjects compete, so a true
+                    fact about one is superseded by a fact about the other and is gone.
 
-The two move in OPPOSITE directions, which is the whole reason both are measured. Making
-P1 reuse attributes harder fixes splits and causes collisions; making it coin freely does
-the reverse. A change that improves one number and wrecks the other is not an improvement,
-and a single "fragmentation" count would have hidden exactly that.
+Both pairs move in OPPOSITE directions, which is the whole reason all four are measured.
+Making P1 reuse attributes harder fixes slot splits and causes slot collisions; making it
+reuse SUBJECTS harder fixes subject splits and causes subject merges. A change that
+improves one number and wrecks its partner is not an improvement, and a single
+"fragmentation" count would have hidden exactly that.
+
+The two directions are not equally bad, and the harness does not pretend they are. A split
+costs recall and is recoverable -- both facts are still in the store, correctly. A merge
+destroys a fact permanently. That is the same asymmetry `AliasConfig` records, so a fix
+that trades one over-merge for one recovered split is a REGRESSION, not a wash.
 
 Run it three times, and read the runs separately rather than averaged. P1 is measurably
 non-deterministic even at `temperature=0.0`, and the variance IS the finding — the three
@@ -94,6 +104,32 @@ TURNS: list[str] = [
     # 23-24 COLLIDE on another multi-word property, phrased differently the second time.
     "I always deploy to the test environment before going live",
     "I have changed that, I now deploy straight to production",
+    # ---- appended for the co-reference axis. Deliberately APPENDED rather than
+    # ---- interleaved: every index above keeps its meaning, so the collide/coexist
+    # ---- numbers stay comparable with the runs recorded in RESULTS.md §11 and §14.
+    #
+    # 25-27 CO-REFER: an entity introduced with a descriptor, then named alone. This is
+    #       the measured baseline failure, reproduced on a second entity so one flaky
+    #       Lisa run cannot carry the axis on its own.
+    "My colleague Tom reviews all of my pull requests",
+    "Tom prefers small commits",
+    "Tom is based in Rotterdam",
+    # 28-29 CO-REFER the other way round: named first, described afterwards. The fix for
+    #       one direction is not automatically the fix for the other -- "prefer the
+    #       proper name" resolves 25-27 by shortening and 28-29 by refusing to lengthen.
+    "I have a cat called Miso",
+    "My cat Miso is 3 years old",
+    # 30-31 CO-REFER, and simultaneously the over-merge trap below: Fien is her own
+    #       entity, introduced through Lisa.
+    "Lisa's daughter Fien is 12 years old",
+    "Fien goes to school in Haarlem",
+    # 32    OVER-MERGE TRAP: a PART of a subject already in the store. The test suite is
+    #       not the memory system, and its runtime is not the system's lookup latency.
+    "The memory system's test suite takes 4 minutes to run",
+    # 33    OVER-MERGE TRAP: a second Tom, separated only by surname and relation. The
+    #       hardest case here, and the one a merge rule keyed on a shared proper noun
+    #       gets wrong by construction.
+    "My neighbour Tom Bakker plays the trumpet",
 ]
 
 # (earlier turn, later turn): the later fact MUST supersede the earlier one.
@@ -108,6 +144,47 @@ MUST_COEXIST: list[list[int]] = [
     [16, 17],         # Lisa: age vs birthday
     [18, 19, 20],     # Pixel: breed / age / gender
     [22, 24],         # favourite coding city vs deploy habit -- both the user, both true
+    [26, 27],         # Tom: commit preference vs location
+    [30, 31],         # Fien: age vs school
+]
+
+# Every turn in a group names ONE entity, so every fact must land on ONE subject key.
+#
+# Written out rather than derived from the two lists above, which is what the previous
+# version did. Derivation made the axis unreadable -- you could not see what was being
+# asserted without mentally unioning two other lists -- and it could not express the two
+# things this axis now needs: a group spanning a collide pair AND a coexist group (Lisa,
+# below), and groups with no liveness assertion at all.
+#
+# The first thirteen entries ARE the derived set, unchanged, so their count is directly
+# comparable with the 37/39 recorded in RESULTS.md §14.
+MUST_COREFER: list[list[int]] = [
+    [0, 1, 2], [3, 4], [5, 6], [10, 11], [16, 17], [18, 19, 20], [22, 24],
+    [7, 8], [9, 10], [12, 13], [14, 15], [21, 22], [23, 24],
+    # --- added with the co-reference turns ---
+    [14, 15, 16, 17],  # Lisa across all four. Strictly stronger than [14,15] + [16,17]:
+                       # both halves can be internally coherent and still disagree, which
+                       # is exactly what run 2 of the baseline did (lisa | lisa sister user).
+    [25, 26, 27],      # Tom
+    [28, 29],          # Miso
+    [30, 31],          # Fien
+]
+
+# (a, b): these two turns are about DIFFERENT entities and MUST NOT share a subject key.
+#
+# The axis that did not exist before, and the reason it has to. Every fix for subject
+# splitting pushes toward merging, and a merge is unrecoverable in the direction that
+# started this whole thread: merged subjects compete, competing facts supersede, and a
+# true fact is lost. `MUST_COREFER` alone would score a rule that merges everything at
+# 100%. These pairs are the refuse-list, written before the fix, per the precedent of
+# RESULTS.md §3 and §10 -- both of which hand-labelled the pairs a rule must decline
+# before letting the rule's aggregate score decide anything.
+MUST_DISTINGUISH: list[tuple[int, int]] = [
+    (15, 30),   # Lisa vs her daughter Fien -- Fien's subject contains "Lisa"
+    (26, 33),   # Tom the colleague vs Tom Bakker the neighbour -- same first name
+    (6, 32),    # the memory system vs its test suite -- part-of, not identity
+    (19, 29),   # Pixel the dog vs Miso the cat -- both are "the user's pet" if P1
+                # generalises the descriptor instead of using the proper name
 ]
 
 
@@ -160,15 +237,9 @@ class RunReport:
         return out
 
     def subject_results(self) -> list[tuple[list[int], str, str]]:
-        """Did every turn in a group land on ONE subject?
-
-        Checked over the coexist groups and the collide pairs alike: both assert that the
-        turns concern a single entity, and a split subject breaks that whether or not any
-        fact was superseded.
-        """
+        """Did every turn in a group land on ONE subject?"""
         out = []
-        groups = MUST_COEXIST + [list(pair) for pair in MUST_COLLIDE]
-        for group in groups:
+        for group in MUST_COREFER:
             subjects = {k[0] for i in group for k in self.turns[i].keys}
             if not subjects:
                 out.append((group, "UNMEASURABLE", "no facts written"))
@@ -176,6 +247,26 @@ class RunReport:
                 out.append((group, "OK", ""))
             else:
                 out.append((group, "SUBJECT-SPLIT", " | ".join(sorted(subjects))))
+        return out
+
+    def distinguish_results(self) -> list[tuple[tuple[int, int], str, str]]:
+        """Did two turns about DIFFERENT entities stay on different subjects?
+
+        Reported as a share of MEASURABLE pairs, like every other axis, and a pair where
+        either turn wrote nothing is measurable at neither end. Note the asymmetry with
+        the co-reference axis: a split is a recall loss, an over-merge destroys a fact.
+        A change that trades one for one is not neutral.
+        """
+        out = []
+        for a, b in MUST_DISTINGUISH:
+            keys_a = {k[0] for k in self.turns[a].keys}
+            keys_b = {k[0] for k in self.turns[b].keys}
+            if not keys_a or not keys_b:
+                out.append(((a, b), "UNMEASURABLE", "a turn wrote no facts"))
+            elif keys_a & keys_b:
+                out.append(((a, b), "OVER-MERGED", " | ".join(sorted(keys_a & keys_b))))
+            else:
+                out.append(((a, b), "OK", ""))
         return out
 
     def coexist_results(self) -> list[tuple[list[int], str, str]]:
@@ -235,7 +326,7 @@ async def run_once(run: int, graph: str) -> RunReport:
         await store.aclose()
 
 
-def print_run(report: RunReport) -> tuple[int, int, int, int, int, int]:
+def print_run(report: RunReport) -> tuple[int, ...]:
     print(f"\n=== run {report.run} ===")
     collide = report.collide_results()
     resolved = sum(1 for _, verdict, _ in collide if verdict == "RESOLVED")
@@ -261,6 +352,14 @@ def print_run(report: RunReport) -> tuple[int, int, int, int, int, int]:
         if verdict != "OK":
             print(f"    FAIL {str(group):<14} {verdict:<13} {detail}")
 
+    distinct = report.distinguish_results()
+    apart = sum(1 for _, verdict, _ in distinct if verdict == "OK")
+    measurable_d = sum(1 for _, verdict, _ in distinct if verdict != "UNMEASURABLE")
+    print(f"  distinct      {apart}/{measurable_d} kept apart")
+    for pair, verdict, detail in distinct:
+        if verdict != "OK":
+            print(f"    FAIL {str(pair):<14} {verdict:<13} {detail}")
+
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the
     # warning sign that precedes the failure. Keys, not raw strings -- the raw strings
@@ -272,13 +371,13 @@ def print_run(report: RunReport) -> tuple[int, int, int, int, int, int]:
     print("  slot keys coined")
     for subject, attributes in sorted(by_subject.items()):
         print(f"    {subject:<30} {', '.join(attributes)}")
-    return resolved, measurable_c, ok, measurable_x, whole, measurable_s
+    return resolved, measurable_c, ok, measurable_x, whole, measurable_s, apart, measurable_d
 
 
 async def main_async(runs: int) -> None:
     graph = os.environ.get("MEMORE_GRAPH", "memore")
     print(f"extractor={WritePathConfig().extractor_model}  graph={graph}  turns={len(TURNS)}")
-    totals = [0, 0, 0, 0, 0, 0]
+    totals = [0] * 8
     for run in range(1, runs + 1):
         report = await run_once(run, graph)
         for i, value in enumerate(print_run(report)):
@@ -288,7 +387,10 @@ async def main_async(runs: int) -> None:
         f"  must-collide resolved   {totals[0]}/{totals[1]}   (slot split)\n"
         f"  must-coexist intact     {totals[2]}/{totals[3]}   (slot collision)\n"
         f"  one-subject coherent    {totals[4]}/{totals[5]}   (subject split)\n"
-        "  read the runs separately -- variance across identical inputs is the finding."
+        f"  distinct kept apart     {totals[6]}/{totals[7]}   (subject OVER-merge)\n"
+        "  read the runs separately -- variance across identical inputs is the finding.\n"
+        "  the last two move against each other: any rule that merges harder improves\n"
+        "  one and costs the other, so neither number means anything without the other."
     )
 
 
