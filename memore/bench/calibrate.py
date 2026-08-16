@@ -773,9 +773,25 @@ def reanalyze(path: Path, fpr_budget: float) -> list[VariantReport]:
     payload = json.loads(path.read_text())
     observations = [Observation(**row) for row in payload["observations"]]
     notes = payload.get("reports", [{}])[0].get("notes", [])
+
+    # `top1_cosine` defaults to 0.0 so a pre-§13 file still loads -- but scoring the
+    # cosine arm off those zeros would report a floor of 0.0 opening on nothing, which
+    # reads as a real curve rather than as missing data. Refuse instead: a wrong answer
+    # that looks like a right one is the worst thing this harness could produce.
+    quantities = GATE_QUANTITIES
+    if any(o.top1_score > 0.0 for o in observations) and not any(
+        o.top1_cosine > 0.0 for o in observations
+    ):
+        quantities = ("fused",)
+        print(
+            f"  {path.name} predates RESULTS.md §13 and carries no un-fused cosine; "
+            "reporting the fused arm only. Re-run the measurement to compare gate "
+            "quantities."
+        )
+
     reports = []
     for name in dict.fromkeys(o.variant for o in observations):
-        for gate_on in GATE_QUANTITIES:
+        for gate_on in quantities:
             reports.append(
                 build_report(
                     VARIANTS[name], observations, notes, fpr_budget=fpr_budget, gate_on=gate_on

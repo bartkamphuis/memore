@@ -50,6 +50,11 @@ with chain expansion on) after calibrating `score_floor` over a real query set a
 switching the embedder — RESULTS.md §5. The open weakness is wrong-subject recall, not
 latency: see the scalar-floor limit below.
 
+**§5's calibration is superseded by §13.** The shipped pairing is now `gate_on="cosine"`
+with floor **0.57**, not the fused score at 0.48. §5's numbers were measured against
+calibration fixtures that had drifted from the write path and have since been regenerated
+from the real extractor, so read §12 and §13 before quoting any gate figure from §5.
+
 ## Commands
 
 ```bash
@@ -72,7 +77,10 @@ uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
 # score_floor calibration -- re-run after ANY change to the embedder or the floor
 uv run python -m memore.bench.gen_calib_fixtures --write   # regenerate fixtures FIRST
 uv run python -m memore.bench.calibrate --configs all --reingest
-uv run python -m memore.bench.calibrate --analyze data/results/calibration.json  # re-score, no re-embed
+# --analyze re-scores stored observations. Point it at a run from §13 or later: earlier
+# JSON has no `top1_cosine`, which defaults to 0.0 and silently scores the cosine arm as
+# if it were the fused one -- a wrong answer that looks like a right one.
+uv run python -m memore.bench.calibrate --analyze data/results/calibration_gate.json
 
 # Multi-hop (RESULTS.md §8). --via-recall routes through the real recall stage (gate +
 # budget) instead of raw top-k; with --expansion-hops 0 that isolates the gate's
