@@ -133,8 +133,11 @@ Rules for each extracted fact:
            "age", "capital city", "deploy target", "favourite programming language",
            "employer", "date of birth". A country has one capital.
     false  the subject can have SEVERAL of these at the same time, all true together.
-           "likes", "interests", "skills", "office locations", "todo list items".
+           "likes", "interests", "skills", "languages spoken", "allergies".
            Liking beer does not stop someone liking films.
+
+  This answer NEVER changes which subject the fact belongs to. Pick the subject by the
+  rules above first, then answer this about the attribute you gave it.
 
   Answer for the ATTRIBUTE, not for this one sentence. "Bud likes beer" is false --
   not because Bud might change his mind, but because a person's likes are a collection
