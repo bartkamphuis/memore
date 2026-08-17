@@ -65,6 +65,13 @@ looked obvious — canonicalising drifting attribute names the way §10 canonica
 — was measured against that run and **refused**; §16.5 has the numbers, and also corrects
 the reading that attribute drift happens within a session at all.
 
+§16 left one defect open and §17 closes it: the assistant's reply was inside the block P1
+was told to extract from, so on question turns the model stored things the user never said
+— four of the run's seven DUPLICATEs are the exact string recall injected on that same
+turn, and one turn stored a *join* over two of them. The channel was isolated by a
+three-arm control (the hint list is not one; prior turns cannot be, at
+`extract_window_turns=3`) and closed by moving text rather than adding a rule.
+
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
@@ -96,7 +103,7 @@ uv run memore inspect --session <name> --query '...'
 uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
 uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
 
-# Slot + subject fidelity (RESULTS.md §11, §14, §15). The instrument for any change to
+# Slot + subject fidelity (RESULTS.md §11, §14, §15, §17). The instrument for any change to
 # the P1 prompt -- the FactConsolidation bench cannot express these failures at all.
 # Read the runs SEPARATELY: P1 varies at temperature 0 and the variance is the finding.
 MEMORE_GRAPH=memore_slots uv run python -m memore.bench.slots --runs 3
@@ -236,6 +243,23 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   containment branches deliberately: REFINEMENT and the restatement branch are decided by
   what the strings say and need no ordering, and the exact-DUPLICATE scan must still fire
   or the fix trades a mislabelled fact for a second copy. RESULTS.md §16.
+- **The assistant's reply is CONTEXT in the P1 prompt, never part of the turn to extract
+  from.** It sat inside `THE TURN TO EXTRACT FROM:` with equal standing to the user's own
+  words, so the reader — which holds the whole conversation, against the three messages P1
+  is shown — could launder anything from anywhere into "what this turn asserts". Measured:
+  question turns emitted 2 facts with the reply inside the block and 0 with it demoted,
+  2/2 each way, while a genuine user assertion carrying a reply still extracted. The hint
+  list was ruled out as a channel by the same experiment, and prior turns by
+  `extract_window_turns=3`. Do not "fix" a recurrence by adding a rule to `_SYSTEM` —
+  that was measured (arm E) and bought nothing, and every word there can perturb §15's
+  five naming rules. Do not reach for a question-suppressor either: §12a. RESULTS.md §17.
+- **`slots.py` scores FIVE axes now, and the fifth is meaningless alone.**
+  `MUST_NOT_EXTRACT` (turns 36–37) is passed 2/2 by anything that mutes P1 — a salience
+  change, a stricter confidence floor, a question-suppressor — while destroying the store.
+  Turn 38 (a real assertion delivered with a leaky reply, paired with 24 on `MUST_COLLIDE`)
+  and the four existing axes are the guard. `REPLIES` is deliberately empty for turns 0–35
+  so those numbers stay comparable with §11/§14/§15; do not give them replies.
+  RESULTS.md §17.4.
 - **`consolidate(session, candidates)` is ONE UTTERANCE, not a throughput batch.** Facts
   that arrived separately must go in separate calls or they silently stop resolving against
   each other. Both bench harnesses had been ingesting in chunks of 50 to batch the embedder,

@@ -166,11 +166,34 @@ class OllamaExtractor:
                 "fact into a property it does not belong to:\n"
                 f"{listed}\n\n"
             )
+        # The assistant's reply is CONTEXT, not part of the turn to extract from, and the
+        # distinction is structural rather than stylistic. The reply is generated *after*
+        # the user's message, so unlike prior turns it can never be needed to resolve the
+        # user's references -- while the reader that produced it holds the entire
+        # conversation, against the three messages P1 is shown. Sitting inside "THE TURN
+        # TO EXTRACT FROM" with equal standing to the user's own words, it let anything
+        # from anywhere in the session launder into "what this turn asserts".
+        #
+        # Measured, RESULTS.md §17: on the real turn 23 of the console run ("When is my
+        # flight to lisbon?"), P1 emitted 2 facts from the reply on both attempts with the
+        # reply inside the block, and 0 on both with it demoted here -- while a genuine
+        # user assertion carrying a reply still extracted correctly. The hint list was
+        # ruled out as a channel by the same experiment.
+        #
+        # Note where this fix is NOT: `_SYSTEM` is untouched. No rule was added, because
+        # the prompt already said "extract only what THIS turn asserts" and the reply was
+        # inside "this turn". Restating the rule harder was measured (arm E) and added
+        # nothing over moving the text.
         prompt = (
             (f"Prior turns (context only, for resolving references):\n{context}\n\n" if context else "")
             + subjects
             + f"THE TURN TO EXTRACT FROM:\nuser: {user_message}\n"
-            + (f"assistant: {assistant_response}\n" if assistant_response else "")
+            + (
+                "\nThe assistant's reply to that turn (context only, NOT a source of "
+                f"facts):\nassistant: {assistant_response}\n"
+                if assistant_response
+                else ""
+            )
         )
         payload = await self.llm.chat_json(
             [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}],

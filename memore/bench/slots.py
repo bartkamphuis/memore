@@ -144,10 +144,53 @@ TURNS: list[str] = [
     #       about the user, and neither has the "the X of Y" shape that sends a fact
     #       elsewhere.
     "I still live in Den Haag",
+    # ---- appended for the assistant-reply axis (RESULTS.md §17). Appended, again, so
+    # ---- every index above keeps the meaning the §11/§14/§15 runs measured.
+    #
+    # 36-37 QUESTION turns whose REPLY restates memory. This is the channel: the reader
+    #       holds the whole conversation, P1 holds three messages, so a reply can assert
+    #       anything from anywhere and P1 reads it as "what this turn asserts". Measured
+    #       on the 2026-08-17 console run at turn 23, where a question stored a JOIN over
+    #       two facts that no single turn or fact contained.
+    "What is my favourite city to write Python code?",
+    "Where does Lisa live?",
+    # 38    The other direction, and the reason this axis cannot be passed by muting the
+    #       reply channel entirely: a real user assertion, delivered WITH a reply that
+    #       also restates old memory. The new fact must still land (paired with 24 on
+    #       MUST_COLLIDE) while the restatement must not.
+    "I've moved my deploys back to the staging environment",
 ]
 
+# The assistant's reply for a turn, when the turn has one. Absent means `""`, which is
+# what turns 0-35 were measured with -- do not give them replies, or the collide/coexist
+# numbers stop being comparable with the runs in §11, §14 and §15.
+#
+# These are written the way the console's reader actually answers: correct, helpful, and
+# freely restating stored facts the user did not mention this turn.
+REPLIES: dict[int, str] = {
+    36: "Lisbon is your favourite city to write Python code. You deploy straight to "
+        "production these days, and you're a software engineer specialising in memory "
+        "systems for LLMs.",
+    37: "Lisa lives in Den Haag — she moved there from Amsterdam. She's 45, and her "
+        "birthday is on the 24th of August.",
+    38: "Got it, staging is your deploy target again. Previously you deployed straight "
+        "to production, and your favourite city to write Python code is Lisbon.",
+}
+
+# Turns that MUST yield no candidates at all: the user asserts nothing durable, and
+# everything durable in earshot comes from the assistant's reply.
+#
+# The refuse-list of this axis, written before the fix, per §3/§10/§15. Note what it is
+# NOT: a rule that drops every candidate on a question turn would score 2/2 here and walk
+# straight back into §12a, where an explicit "remember that X" was silently refused. Turn
+# 38 is the guard against that, and the four existing axes are the rest of it.
+MUST_NOT_EXTRACT: list[int] = [36, 37]
+
 # (earlier turn, later turn): the later fact MUST supersede the earlier one.
-MUST_COLLIDE: list[tuple[int, int]] = [(7, 8), (9, 10), (12, 13), (14, 15), (21, 22), (23, 24)]
+MUST_COLLIDE: list[tuple[int, int]] = [
+    (7, 8), (9, 10), (12, 13), (14, 15), (21, 22), (23, 24),
+    (24, 38),   # deploy target again -- turn 38 carries a reply, and must still land.
+]
 
 # Every turn in a group MUST still be live: they are different properties.
 MUST_COEXIST: list[list[int]] = [
@@ -301,6 +344,31 @@ class RunReport:
                 out.append(((a, b), "OK", ""))
         return out
 
+    def not_extracted_results(self) -> list[tuple[int, str, str]]:
+        """Did a turn that asserts nothing stay silent, whatever its reply restated?
+
+        Always measurable, unlike the other four axes: "wrote no facts" is the assertion
+        here rather than the thing that makes a pair unscorable.
+
+        Which is exactly why this number is meaningless alone. Anything that mutes P1 --
+        a salience change, a stricter confidence floor, a question-suppressor -- scores
+        2/2 here while destroying the store, and §12a records that failure happening for
+        real. Read it next to turn 38 (a user assertion delivered WITH a leaky reply) and
+        the four axes above, never on its own.
+        """
+        out = []
+        for index in MUST_NOT_EXTRACT:
+            row = self.turns[index]
+            if not row.slots:
+                out.append((index, "OK", ""))
+            else:
+                out.append((
+                    index,
+                    "LEAKED",
+                    " | ".join(f"{s}::{a}" for s, a in row.slots),
+                ))
+        return out
+
     def coexist_results(self) -> list[tuple[list[int], str, str]]:
         out = []
         for group in MUST_COEXIST:
@@ -335,7 +403,8 @@ async def run_once(run: int, graph: str) -> RunReport:
         results: list[TurnResult] = []
         history: list[Message] = []
         for index, turn in enumerate(TURNS):
-            outcome = await write_path.run(session, turn, "", list(history))
+            reply = REPLIES.get(index, "")
+            outcome = await write_path.run(session, turn, reply, list(history))
             row = TurnResult(index=index, turn=turn)
             for item in outcome.outcomes:
                 row.ordinals.append(item.ordinal)
@@ -347,7 +416,9 @@ async def run_once(run: int, graph: str) -> RunReport:
                 row.cases.append(item.case.value)
             results.append(row)
             history.append(Message(role="user", content=turn))
-            history.append(Message(role="assistant", content="Understood."))
+            # "Understood." where the turn has no reply, so turns 0-35 see exactly the
+            # history the earlier runs saw.
+            history.append(Message(role="assistant", content=reply or "Understood."))
 
         facts = await store.facts_in_session(session)
         live = {f.ordinal: f.invalid_at is None for f in facts}
@@ -392,6 +463,13 @@ def print_run(report: RunReport) -> tuple[int, ...]:
         if verdict != "OK":
             print(f"    FAIL {str(pair):<14} {verdict:<13} {detail}")
 
+    silent = report.not_extracted_results()
+    quiet = sum(1 for _, verdict, _ in silent if verdict == "OK")
+    print(f"  no-reply-leak {quiet}/{len(silent)} silent")
+    for index, verdict, detail in silent:
+        if verdict != "OK":
+            print(f"    FAIL [{index}]          {verdict:<13} {detail}")
+
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the
     # warning sign that precedes the failure. Keys, not raw strings -- the raw strings
@@ -403,13 +481,14 @@ def print_run(report: RunReport) -> tuple[int, ...]:
     print("  slot keys coined")
     for subject, attributes in sorted(by_subject.items()):
         print(f"    {subject:<30} {', '.join(attributes)}")
-    return resolved, measurable_c, ok, measurable_x, whole, measurable_s, apart, measurable_d
+    return (resolved, measurable_c, ok, measurable_x, whole, measurable_s,
+            apart, measurable_d, quiet, len(silent))
 
 
 async def main_async(runs: int) -> None:
     graph = os.environ.get("MEMORE_GRAPH", "memore")
     print(f"extractor={WritePathConfig().extractor_model}  graph={graph}  turns={len(TURNS)}")
-    totals = [0] * 8
+    totals = [0] * 10
     for run in range(1, runs + 1):
         report = await run_once(run, graph)
         for i, value in enumerate(print_run(report)):
@@ -420,6 +499,7 @@ async def main_async(runs: int) -> None:
         f"  must-coexist intact     {totals[2]}/{totals[3]}   (slot collision)\n"
         f"  one-subject coherent    {totals[4]}/{totals[5]}   (subject split)\n"
         f"  distinct kept apart     {totals[6]}/{totals[7]}   (subject OVER-merge)\n"
+        f"  no reply leak           {totals[8]}/{totals[9]}   (assistant-reply channel)\n"
         "  read the runs separately -- variance across identical inputs is the finding.\n"
         "  the last two move against each other: any rule that merges harder improves\n"
         "  one and costs the other, so neither number means anything without the other."

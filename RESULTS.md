@@ -1785,16 +1785,153 @@ inside one conversation. The one genuine within-session split in 48 turns is c1'
 
 ### 16.6 Still open
 
-- **The write path re-ingests its own output.** `WritePath.run` receives `assistant_response`
-  and `recent` alongside the user turn, so a fact the reader was *shown* can come back as a
-  fact to store. Turn 23 c1, a pure question ("When is my flight to lisbon?"), stored
-  `NEW [the user's trip to Lisbon|coincides with] :: coincides with Lisa's birthday` — a join
-  present in neither turn 23 nor the store. c2, whose recall surfaced only the Lisbon fact,
-  wrote nothing. Turn 6 *did* state the join, so history is an alternative channel and the
-  two have not been separated. Not fixed here.
+- **The write path re-ingests what the model was shown.** On question turns where recall
+  fires, P1 re-emits recalled facts *verbatim* — 4 of the run's 7 DUPLICATEs are the exact
+  string recall injected on that same turn (t23 and t24 in c1, t19 and t24 in c2), and t24
+  fired in both columns. The only thing containing it is the exact-normalized-string
+  DUPLICATE scan, which catches neither a paraphrase nor a *join over two* recalled facts.
+  Turn 23 c1, a pure question ("When is my flight to lisbon?"), stored
+  `NEW [the user's trip to Lisbon|coincides with] :: coincides with Lisa's birthday`.
+  Not fixed here — measured properly in §17.
+
+  Corrected from the first draft of this section, which claimed history was an alternative
+  channel: `extract_window_turns` is **3**, and it slices *messages*, so at turn 23 the
+  window is roughly turns 21–22 and turn 6 (which did state the join) is 19 turns outside
+  it. History is ruled out. The same draft called the join "present in neither turn 23 nor
+  the store", which overstates it — both components are stored (Lisbon trip Aug 29, Lisa's
+  birthday Aug 29), so it is derivable from the store even though no single fact holds it.
 - **Latency**: recall median 99ms (c1) / 105ms (c2), consistent with §5. c1's p95 is **202ms**,
   at the §14 budget rather than under it — a cold-start artifact (turns 1–2 at 202/213ms,
   everything after at 87–120ms) over a 24-sample window where p95 is near the worst sample.
   Reported as measured.
 - Gate decisions were **identical per-turn across both columns** (19/24 open, same turns)
   despite the stores having diverged — the gate is stable under store drift.
+
+## 17. The assistant's reply was inside the turn being extracted from
+
+§16.6 left this open: on question turns, P1 was storing things the user never said. It is
+one channel, it is structural, and it is closed by moving text rather than by adding a rule.
+
+### 17.1 What the console run actually shows
+
+Not one fabrication — a loop that ran on every question turn where recall fired. Four of
+the run's seven DUPLICATEs are the **exact string recall injected on that same turn**:
+
+```
+t23 c1   recalled "the user has a trip to Lisbon on August 29th, 2026" (0.791)  -> DUPLICATE
+t24 c1   recalled "Lisa likes red tulips"                              (0.541)  -> DUPLICATE
+t24 c2   same fact, same score                                                  -> DUPLICATE
+t19 c2   recalled "Lisa leaves Amsterdam at 3:00 PM on Tuesday, ..."             -> DUPLICATE
+```
+
+The only thing containing that is the exact-normalized-string DUPLICATE scan, which catches
+neither a paraphrase nor a **join over two** recalled facts. Turn 23 c1 is the join:
+`NEW [the user's trip to Lisbon|coincides with] :: coincides with Lisa's birthday`.
+
+### 17.2 Isolating the channel
+
+Three candidates: prior turns, the `subject -> properties` hint list, and the assistant's
+reply. Prior turns fall out on inspection — `extract_window_turns` is **3**, and it slices
+*messages*, so at turn 23 the window is roughly turns 21–22 while turn 6 (which did state
+the join) is nineteen turns outside it.
+
+The other two were separated by running the real extractor on the real turn-23 text, with
+the hint list reconstructed from c1's write log as it stood entering that turn, twice each:
+
+```
+A  bare turn, no hints, no reply                    0 facts, 0 facts
+B  turn + hint list + real 3-message window         0 facts, 0 facts
+C  B + an assistant reply stating the join          2 facts, 2 facts
+     [the user|upcoming trip schedule] the user's flight to Lisbon is on August 29th, 2026
+     [Lisa|birthday]                   Lisa's birthday is on August 29th
+```
+
+The hint list is **not** a channel — B is silent. The reply is, deterministically.
+
+Note what C's two facts would have done downstream. `"the user's flight to Lisbon is on
+August 29th, 2026"` lands on the slot already holding `"the user has a trip to Lisbon on
+August 29th, 2026"`; not string-equal, no containment, so **CONTRADICTION** — a question
+turn silently retiring the user's own phrasing in favour of the model's. The second is
+saved only by §16.3: `"Lisa's birthday is on August 29th"` is a strict substring of the
+stored `"...August 29th, 2026"`, so it now coexists where before it would have retired the
+year.
+
+### 17.3 Why it happened, and the fix
+
+`assistant_response` sat inside `THE TURN TO EXTRACT FROM:` with equal standing to the
+user's own words, while prior turns were explicitly labelled "context only". So the prompt's
+existing rule — *"extract only what THIS turn asserts"* — was being obeyed. The reply **was**
+this turn.
+
+That is the asymmetry: the reply is generated *after* the user's message, so unlike prior
+turns it can never be needed to resolve the user's references, and the reader that produced
+it holds the entire conversation against the three messages P1 is shown. Anything from
+anywhere in the session could launder into "what this turn asserts".
+
+The fix moves the reply into its own labelled context block. `_SYSTEM` is **untouched** — no
+rule was added, and adding one was measured and discarded:
+
+```
+C  reply inside the extraction block   question turn: 2, 2      learn turn: 1, 1
+D  reply demoted to context            question turn: 0, 0      learn turn: 1, 1
+E  D + an explicit system rule         question turn: 0, 0      learn turn: 1, 1
+```
+
+E buys nothing over D, and every word added to `_SYSTEM` is a word that can perturb §15's
+five naming rules. D ships. The learn-turn column is the control that the fix does not
+simply mute the channel: a genuine user assertion delivered *with* a reply still extracts.
+
+### 17.4 The harness could not express this, so it was extended first
+
+`slots.py` called `write_path.run(session, turn, "", history)` — assistant response always
+empty, history always `"Understood."`. Per §13's rule, a fixture that cannot express the
+failure cannot measure the fix, so the harness was extended **before** the change, as §15
+did with its refuse-list:
+
+- `REPLIES`, per-turn and only on the new turns. Turns 0–35 keep `""`, so the collide,
+  coexist, subject and distinct numbers stay comparable with §11, §14 and §15.
+- turns 36–37, questions whose replies restate stored memory, scored by `MUST_NOT_EXTRACT`.
+- turn 38, a real user assertion delivered with a leaky reply, paired with 24 on
+  `MUST_COLLIDE`. This is the guard that stops the axis being passed by muting P1: a
+  question-suppressor would score 2/2 on the new axis and walk straight back into §12a,
+  where an explicit "remember that X" was silently refused.
+
+```
+                          before          after       §15 reference
+  must-collide resolved   18/21           18/21       18/18 on the original 6 pairs
+  must-coexist intact     31/33           33/33       33/33
+  one-subject coherent    54/57           54/57       54/57
+  distinct kept apart     15/15           15/15       15/15
+  no reply leak            3/6             6/6        (new axis)
+```
+
+Stable rather than marginal: 2/2 silent in each of the three runs, where the baseline leaked
+in three of six.
+
+**The recovery on must-coexist is the real cost of the leak, and it was not predicted.**
+31/33 → 33/33 because turn 37's reply ("She's 45, and her birthday is on the 24th of
+August") was re-extracted and collided with the facts turns 16 and 17 had already stored —
+`[16, 17] COLLIDED, 1 superseded — lisa::age, lisa::birthday`. The channel was not merely
+adding noise; it was destroying a true fact through the ordinary slot machinery. Closing it
+restored §15's number exactly.
+
+### 17.5 A new standing failure, left standing
+
+`(24, 38)` reports SPLIT in **all three runs before the fix and all three after**:
+`user::deployment workflow` vs `user::deploy target`. It is ordinary attribute-naming
+variance — turn 38's text says "deploys", turn 24's said "deploy straight to production" —
+and it measures nothing about the reply channel, since it is identical on both sides. Left
+failing rather than relaxed, next to `[3, 4]`, per §3 and §10: an assertion edited because a
+change broke it stops being evidence. Read two known failures into the collide total.
+
+### 17.6 What this does not fix
+
+- **Only the reply channel is closed.** Nothing prevents the *user* restating a fact the
+  model just showed them, and that is indistinguishable from the user asserting it — as it
+  should be.
+- **Facts the assistant alone asserts are now never stored.** That is deliberate and it is
+  a scope decision, not an oversight: nothing in the console run wanted it, and the reply
+  is by construction downstream of everything the user said.
+- **The write path still runs P1 on every turn**, question or not, at 2.1s a turn. The
+  salience gate is doing its job (turns 14/15/17/20 stored nothing), but the cost is paid
+  before the gate is consulted.
