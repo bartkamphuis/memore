@@ -17,12 +17,18 @@ SESSION = "s1"
 
 
 def candidate(
-    fact: str, subject: str, confidence: float = 0.9, attribute: str = ""
+    fact: str,
+    subject: str,
+    confidence: float = 0.9,
+    attribute: str = "",
+    single_valued: bool = True,
 ) -> CandidateFact:
     """`attribute` defaults to "" -- unspecified, colliding with every slot.
 
     That default is why the tests written before RESULTS.md §11 still pin exactly what
-    they pinned: an extractor that names no slot gets the pre-§11 behaviour.
+    they pinned: an extractor that names no slot gets the pre-§11 behaviour. `single_valued`
+    defaults True for the same reason and RESULTS.md §18's: an extractor that answers
+    nothing gets the pre-§18 behaviour.
     """
     return CandidateFact(
         fact=fact,
@@ -31,6 +37,7 @@ def candidate(
         valid_at=None,
         subject_hint=subject,
         attribute=attribute,
+        single_valued=single_valued,
     )
 
 
@@ -669,3 +676,94 @@ async def test_facts_written_without_a_batch_keep_the_old_supersede_behaviour(co
     assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
     live = await store.live_facts_for_subject(SESSION, subject)
     assert [f.fact for f in live] == ["a brand new claim"]
+
+
+async def test_a_multi_valued_slot_accumulates_instead_of_superseding(consolidator):
+    """RESULTS.md §18: the defect, and the field that answers it.
+
+    Four preferences of one subject, arriving on four SEPARATE turns so the §16 same-batch
+    guard cannot be what saves them, all landing in the one slot P1 actually names them
+    with (`preference` -- a category, not a property). Before `single_valued` each retired
+    the last and three true facts were presented as SUPERSEDED.
+    """
+    con, store = consolidator
+    for text in (
+        "Bud likes Lisa",
+        "Bud likes beer",
+        "Bud likes the first Matrix movie",
+        "Bud likes red gaming chairs",
+    ):
+        outcomes = await con.consolidate(
+            SESSION, [candidate(text, "Bud", attribute="preference", single_valued=False)]
+        )
+        assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert {f.fact for f in live} == {
+        "Bud likes Lisa",
+        "Bud likes beer",
+        "Bud likes the first Matrix movie",
+        "Bud likes red gaming chairs",
+    }
+
+
+async def test_a_single_valued_slot_still_resolves(consolidator):
+    """The refuse-list, as a test rather than a harness pair.
+
+    A favourite IS a preference and it holds one value at a time. Any fix that keys on the
+    fact's TYPE or on words like "likes"/"prefers" -- the `COLLECTION_TYPES` shape §18.6
+    refuses -- passes the test above and fails this one, leaving a slot that can never
+    resolve. That is the FactConsolidation task failing.
+    """
+    con, store = consolidator
+    slot = "favourite programming language"
+    await con.consolidate(
+        SESSION,
+        [candidate("Bud's favourite programming language is Go", "Bud", attribute=slot)],
+    )
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("Bud's favourite programming language is Rust", "Bud", attribute=slot)],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert [f.fact for f in live] == ["Bud's favourite programming language is Rust"]
+
+
+async def test_a_multi_valued_slot_still_rejects_an_exact_duplicate(consolidator):
+    """Withholding CONTRADICTION must not also withhold DUPLICATE.
+
+    The check sits below the exact-duplicate scan deliberately: a collection that
+    accumulates copies of the same sentence is the store bloat writepath §2.2 case 2
+    exists to prevent, and nothing about a slot holding several values makes a repeat of
+    one of them news.
+    """
+    con, store = consolidator
+    for _ in range(2):
+        await con.consolidate(
+            SESSION,
+            [candidate("Bud likes beer", "Bud", attribute="preference", single_valued=False)],
+        )
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("Bud likes beer", "Bud", attribute="preference", single_valued=False)],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.DUPLICATE]
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert [f.fact for f in live] == ["Bud likes beer"]
+
+
+async def test_an_extractor_that_never_answers_gets_the_pre_18_behaviour(consolidator):
+    """Inertness, the same argument `attribute == ""` makes.
+
+    The bench's cached subject extraction (`bench/extract.py`) constructs CandidateFacts
+    without this field, so every §3 oracle number must be reproducible unchanged. The
+    default is True, and True is exactly the old code path.
+    """
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("the user likes tea", "the user")])
+    outcomes = await con.consolidate(SESSION, [candidate("the user likes coffee", "the user")])
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert [f.fact for f in live] == ["the user likes coffee"]

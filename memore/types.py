@@ -97,6 +97,22 @@ class CandidateFact:
     of those supersedes the last. Empty means unspecified, which collides with everything
     on the subject -- the pre-attribute behaviour, kept so old stores and the bench (which
     supplies no attribute) are unaffected. RESULTS.md §11.
+
+    `single_valued` answers the one question the attribute NAME was being asked to carry
+    implicitly, and could not: can this subject hold only one value for this attribute at
+    a time? RESULTS.md §18 measured P1 naming a slot after the fact's CATEGORY
+    (`preference` -- a `FactType` value) in every run of both scripts, which put four
+    simultaneously-true facts in one slot where they retired each other. The judgment is
+    not recoverable from the strings: "the capital of the Netherlands is Amsterdam /
+    Den Haag" and "Bud likes Lisa / beer" are structurally identical pairs, which is the
+    same wall §16 hit with surface rules and §6 hit with embeddings. So it is asked of the
+    only component allowed to judge, and consumed by `_classify` as a field lookup -- the
+    consolidation decision stays a deterministic function of its inputs, and P1's output
+    has always been one of those inputs.
+
+    Defaults True, which is what keeps this inert: a store written before the field, and
+    the bench's cached extraction (`bench/extract.py`), supply nothing and get exactly the
+    pre-§18 behaviour. Same argument as `attribute = ""`.
     """
 
     fact: str
@@ -105,6 +121,7 @@ class CandidateFact:
     valid_at: datetime | None
     subject_hint: str
     attribute: str = ""
+    single_valued: bool = True
 
 
 @dataclass(frozen=True)

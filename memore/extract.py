@@ -30,8 +30,12 @@ _SCHEMA = {
                     "confidence": {"type": "number"},
                     "subject_hint": {"type": "string"},
                     "attribute": {"type": "string"},
+                    "single_valued": {"type": "boolean"},
                 },
-                "required": ["fact", "type", "confidence", "subject_hint", "attribute"],
+                "required": [
+                    "fact", "type", "confidence", "subject_hint", "attribute",
+                    "single_valued",
+                ],
             },
         }
     },
@@ -122,6 +126,20 @@ Rules for each extracted fact:
   you have already used for that subject rather than rephrasing it -- matching is exact,
   so "deploy target" and "deployment environment" are two different properties and the
   contradiction between them is never noticed.
+- `single_valued` asks ONE thing about the attribute you just named: can this subject
+  have only ONE value for it at a time?
+
+    true   a new value REPLACES the old one, because the subject cannot have two at once.
+           "age", "capital city", "deploy target", "favourite programming language",
+           "employer", "date of birth". A country has one capital.
+    false  the subject can have SEVERAL of these at the same time, all true together.
+           "likes", "interests", "skills", "office locations", "todo list items".
+           Liking beer does not stop someone liking films.
+
+  Answer for the ATTRIBUTE, not for this one sentence. "Bud likes beer" is false --
+  not because Bud might change his mind, but because a person's likes are a collection
+  and a new one is added to it rather than replacing it. "Bud's favourite beer is
+  Guinness" is true: he has one favourite at a time.
 - `confidence` is your own 0..1 confidence that this is a durable fact.
 """
 
@@ -225,6 +243,10 @@ class OllamaExtractor:
                     # `_competing` treats that as colliding with everything, which is
                     # exactly the behaviour of every extractor written before this field.
                     attribute=(item.get("attribute") or "").strip(),
+                    # Absent defaults TRUE -- the pre-§18 behaviour, so a model that
+                    # ignores the field changes nothing. Only an explicit `false`
+                    # withholds a contradiction.
+                    single_valued=item.get("single_valued", True) is not False,
                 )
             )
         return out

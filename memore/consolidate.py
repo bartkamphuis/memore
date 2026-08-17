@@ -317,6 +317,26 @@ class DeterministicConsolidator:
         if incumbent.id in batch_ids:
             return ConsolidationCase.NEW, None, []
 
+        # Same subject, same slot, different value -- and the slot holds SEVERAL values at
+        # once, so there is nothing to decide. Freshness is the right tiebreak between two
+        # claims that cannot both hold; it is the wrong tool entirely when they can.
+        #
+        # This sits with the same-batch guard and for the same reason: only CONTRADICTION
+        # rests on recency, so only CONTRADICTION is withheld. Everything above -- the
+        # exact-DUPLICATE scan, REFINEMENT, the containment branch -- is decided by what
+        # the strings say and is just as valid in a multi-valued slot. In particular the
+        # DUPLICATE scan must still fire here, or a collection accumulates copies.
+        #
+        # No LLM runs in this decision. `single_valued` is a field on the candidate, read
+        # like `attribute` and `subject_hint` are, and `_classify` stays a pure function of
+        # its arguments -- `test_no_llm_in_the_consolidation_decision` still holds. What
+        # changed is where the judgment is made, not whether it is deterministic: P1 is
+        # asked the question directly instead of being asked to encode the answer in the
+        # attribute's NAME, which RESULTS.md §18 measured it failing to do in every run of
+        # both scripts.
+        if not candidate.single_valued:
+            return ConsolidationCase.NEW, None, []
+
         # The money case: the higher freshness ordinal wins, and the candidate always has
         # it, because it is arriving now.
         return ConsolidationCase.CONTRADICTION, incumbent, _supersede_targets(incumbent, competing)
