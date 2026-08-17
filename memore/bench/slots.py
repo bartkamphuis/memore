@@ -9,7 +9,14 @@ measures the read path.
     slot SPLIT      one property, two names. The contradiction never fires and a stale
                     fact stays live. Measured here as the `must-collide` miss rate.
     slot COLLISION  two properties, one name. A true fact is superseded. Measured here as
-                    the `must-coexist` false-supersede rate.
+                    the `must-coexist` false-supersede rate. Its worst form is the
+                    CATEGORY attribute: P1 names a slot after the fact's TYPE
+                    (`preference`, `interests`, `likes`) rather than the property it gives
+                    a value for, and every simultaneously-true fact of that type then
+                    lands in one slot and retires the last. The hint list amplifies it --
+                    `subject_slots` shows the category back to P1 and the prompt asks for
+                    exact reuse -- so a bad first naming is self-reinforcing for the rest
+                    of the session. Turns 39-41. RESULTS.md §18.
     SUBJECT split   one entity, two names ("Lisa" and "the user's sister Lisa"). Facts
                     scatter across two subjects, so they never compete and the split costs
                     nothing a liveness check can see -- but recall then finds half an
@@ -159,6 +166,53 @@ TURNS: list[str] = [
     #       also restates old memory. The new fact must still land (paired with 24 on
     #       MUST_COLLIDE) while the restatement must not.
     "I've moved my deploys back to the staging environment",
+    # ---- appended for the CATEGORY-ATTRIBUTE defect (RESULTS.md §18). Appended again, so
+    # ---- every index above keeps the meaning §11/§14/§15/§17 measured. No replies: these
+    # ---- turns measure how P1 NAMES a slot, and a reply would confound that with §17.
+    #
+    # 39-41 The defect, measured at 5-of-6 on a replay of the 2026-08-17 console run. P1
+    #       names Bud's first preference with the bare CATEGORY `preference` -- a fact
+    #       TYPE, not a property -- and the hint list then does the rest: `subject_slots`
+    #       shows `Bud -> preference, ...` and the prompt tells P1 to reuse the exact
+    #       property string for a listed property, so every later preference snaps to the
+    #       same slot and retires the last. Three separate turns ON PURPOSE: inside one
+    #       utterance the §16 same-batch guard already withholds CONTRADICTION, so a
+    #       single-turn version of this would pass while the defect stood.
+    #
+    #       Four disjoint domains (beer / film / furniture / language, below) so that no
+    #       two of these can legitimately compete. If they collapse into one slot it is
+    #       the category magnet, not a real disagreement.
+    "My colleague Bud likes beer",
+    "Bud likes the first Matrix movie",
+    "Bud likes red gaming chairs",
+    # 42-43 The paired refuse-list for the axis above, written before the fix per
+    #       §3/§10/§15 -- and specifically shaped against the fix that will suggest itself
+    #       first. "Never supersede a preference" (a COLLECTION_TYPES keyword list in the
+    #       consolidator) scores 3/3 on 39-41 and breaks THIS pair, because a favourite is
+    #       a preference that genuinely holds one value at a time. A slot that can never
+    #       resolve is the FactConsolidation task failing, which is the one thing this
+    #       project may not trade away.
+    "Bud's favourite programming language is Go",
+    "Bud has changed his mind, his favourite programming language is Rust",
+    # 44    §16's same-batch guard, which had no fixture here at all. ONE utterance, three
+    #       facts, all true: before the guard "does not like milk in their tea" and "likes
+    #       green tea" retired each other in both columns of the 2026-08-17 console run,
+    #       because candidates from one extraction differ in ordinal only by their position
+    #       in P1's output array. Scored as a one-index coexist group -- every fact this
+    #       single turn writes must still be live.
+    "I like milk in my coffee but not in my tea, and I drink a lot of green tea",
+    # 45    Bud's seating, which §16's containment branch was written for -- and which is
+    #       here as ONE turn, not two, because the two-turn version does not work and the
+    #       reason is worth recording. A second turn saying only "Bud sits on the red
+    #       chair" was tried and P1 emitted NOTHING for it in 3 runs of 3: a pure
+    #       restatement asserts no new fact, and P1's salience gate is right to drop it.
+    #       So the containment branch is not reachable from a restatement that merely
+    #       repeats; it needs one that reads as news while saying less, which no scripted
+    #       turn here produced. A group that cannot express the failure cannot guard
+    #       against it, so the pair was removed rather than left scoring two easy passes.
+    #       The branch stays guarded where it can be constructed directly -- the
+    #       trace-derived tests at the end of tests/test_consolidation.py. RESULTS.md §18.
+    "Bud sits on the red chair in the Whangarei office",
 ]
 
 # The assistant's reply for a turn, when the turn has one. Absent means `""`, which is
@@ -190,6 +244,8 @@ MUST_NOT_EXTRACT: list[int] = [36, 37]
 MUST_COLLIDE: list[tuple[int, int]] = [
     (7, 8), (9, 10), (12, 13), (14, 15), (21, 22), (23, 24),
     (24, 38),   # deploy target again -- turn 38 carries a reply, and must still land.
+    (42, 43),   # Bud's favourite language. A scalar preference: it MUST still resolve, and
+                # it is the pair that any "preferences never supersede" rule breaks.
 ]
 
 # `(24, 38)` above fails 3/3 both before and after the §17 fix, exactly as `[3, 4]` fails
@@ -216,6 +272,14 @@ MUST_COEXIST: list[list[int]] = [
                       # the memory system -- which is precisely the bill turn 32 defers.
     [3, 35],          # birth place vs current residence -- one subject, one value
                       # ("Den Haag"), two properties. §11's case, restored.
+    # --- added with the category-attribute turns (RESULTS.md §18) ---
+    [39, 40, 41, 43], # Bud: beer / film / furniture / language. Four disjoint domains, all
+                      # true at once. 43 is included deliberately: it is the SURVIVOR of
+                      # the (42, 43) collide, so if the category magnet swallows the
+                      # favourite-language slot too, the later correction retires the three
+                      # preferences as well and this group catches it. The measured defect
+                      # fails this 5 runs out of 6.
+    [44],             # one utterance, several true facts -- §16's same-batch guard.
 ]
 
 # Every turn in a group names ONE entity, so every fact must land on ONE subject key.
@@ -240,6 +304,13 @@ MUST_COREFER: list[list[int]] = [
     [30, 31],          # Fien
     [32, 34],          # the test suite -- both facts must land on it, not on the system
     [3, 35],           # the user, twice, same value
+    # --- added with the category-attribute turns ---
+    [39, 40, 41, 42, 43, 45],  # Bud, across all six. Turn 39 introduces him with a
+                       # descriptor ("my colleague Bud") and every later turn names him
+                       # alone, so this is rule 3 of §15 as well: the subject is `Bud`, not
+                       # `the user's colleague Bud`. A split here would also make the
+                       # coexist group above pass for the wrong reason -- facts scattered
+                       # across two subject keys never compete, so nothing supersedes.
 ]
 
 # `[3, 4]` above fails 3/3 under the shipped prompt and is KEPT failing on purpose.
@@ -477,6 +548,20 @@ def print_run(report: RunReport) -> tuple[int, ...]:
     for index, verdict, detail in silent:
         if verdict != "OK":
             print(f"    FAIL [{index}]          {verdict:<13} {detail}")
+
+    # DIAGNOSTIC, not an axis: turns that asserted something durable and stored nothing.
+    # Deliberately unscored, because one observation does not make a rate and a
+    # MUST_EXTRACT list would be over-fitted to it -- but it must be VISIBLE, because
+    # every axis above is silent about it. A coexist group whose member wrote no fact
+    # still reads OK (there is no dead ordinal to find), so a change that quietly mutes
+    # P1 improves `no-reply-leak` and disturbs nothing else. Measured on the 2026-08-17
+    # replay: "Bud likes red gaming chairs" was dropped in 6 runs out of 6 while the same
+    # turn's "$560" landed every time. RESULTS.md §18.
+    dropped = [
+        row.index for row in report.turns
+        if not row.slots and row.index not in MUST_NOT_EXTRACT
+    ]
+    print(f"  wrote nothing {dropped}   (diagnostic only -- not scored)")
 
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the

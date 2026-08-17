@@ -72,6 +72,14 @@ turn, and one turn stored a *join* over two of them. The channel was isolated by
 three-arm control (the hint list is not one; prior turns cannot be, at
 `extract_window_turns=3`) and closed by moving text rather than adding a rule.
 
+RESULTS.md §18 opens a defect it does **not** close: P1 names a slot after the fact's
+*category* (`preference` — literally a `FactType` value) instead of the property it gives a
+value for, so several simultaneously-true facts land in one slot and retire each other.
+§18 adds the instrument (`slots.py` turns 39-45) and the refuse-list, nothing more. Read it
+before proposing a fix — the obvious one is measured-and-refused, the rate is ~2/3 so
+`--runs 3` cannot tell "fixed" from "lucky", and the console run that surfaced it was
+running a memore four commits stale.
+
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
@@ -103,7 +111,7 @@ uv run memore inspect --session <name> --query '...'
 uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
 uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
 
-# Slot + subject fidelity (RESULTS.md §11, §14, §15, §17). The instrument for any change to
+# Slot + subject fidelity (RESULTS.md §11, §14, §15, §17, §18). The instrument for any change to
 # the P1 prompt -- the FactConsolidation bench cannot express these failures at all.
 # Read the runs SEPARATELY: P1 varies at temperature 0 and the variance is the finding.
 MEMORE_GRAPH=memore_slots uv run python -m memore.bench.slots --runs 3
@@ -258,8 +266,35 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   change, a stricter confidence floor, a question-suppressor — while destroying the store.
   Turn 38 (a real assertion delivered with a leaky reply, paired with 24 on `MUST_COLLIDE`)
   and the four existing axes are the guard. `REPLIES` is deliberately empty for turns 0–35
-  so those numbers stay comparable with §11/§14/§15; do not give them replies.
-  RESULTS.md §17.4.
+  so those numbers stay comparable with §11/§14/§15; do not give them replies — nor turns
+  39–45, which measure *naming* and would otherwise confound §18 with §17. The
+  `wrote nothing [...]` line is a **diagnostic, not a sixth axis**: unscored on purpose,
+  because every scored axis is blind to a turn that stored nothing (a coexist group with a
+  missing member still reads OK, there being no dead ordinal to find). Do not promote it
+  to an axis on one observation. RESULTS.md §17.4, §18.8.
+- **An attribute names a PROPERTY, never the fact's category, and P1 gets this wrong about
+  two thirds of the time.** `preference` / `interests` / `likes` are `FactType` values, not
+  slots; naming a slot that way puts every simultaneously-true fact of that type in one
+  place, where they retire each other. The hint list amplifies it — `subject_slots` shows
+  the category back to P1 and the prompt asks for exact reuse — so one bad first naming is
+  self-reinforcing for the rest of the session. Measured: the bare category is coined 12/12
+  and reused 8/12. Three things follow. **Do not fix it with a rule in `_SYSTEM`** — the
+  rule is already there verbatim ("Could BOTH facts be true at the same time? YES →
+  different attributes") and P1 violated it four times in one column; that is arm E.
+  **Do not fix it with a `COLLECTION_TYPES` keyword list in the consolidator** — it scores
+  3/3 on turns 39–41 and breaks `(42, 43)`, because a favourite is a preference holding one
+  value at a time, and a slot that can never resolve is the FactConsolidation task failing.
+  **Do not judge a candidate fix on `--runs 3`** — at a ~2/3 rate, two consecutive baselines
+  scored 2/3 and 1/3 on identical turns. RESULTS.md §18.
+- **A gateway console trace is evidence only after you check the installed revision.**
+  `llm_gateway` pins `memore @ git+…`, so the console can run a memore days behind the
+  working tree; the 2026-08-17 run was four commits stale and 7 of its 11 wrong supersedes
+  were already fixed. `source_episode_id == ""` on every fact is the fingerprint of a
+  pre-§16 install. Reinstall with an explicit `--python .venv/bin/python`: with
+  `VIRTUAL_ENV` unset, `uv pip install` does not discover `./.venv` and silently targets
+  the default interpreter while reporting the right git sha. Verify by grepping the
+  installed file — `dist-info/direct_url.json` kept showing the old commit id after a
+  successful reinstall. RESULTS.md §18.2.
 - **`consolidate(session, candidates)` is ONE UTTERANCE, not a throughput batch.** Facts
   that arrived separately must go in separate calls or they silently stop resolving against
   each other. Both bench harnesses had been ingesting in chunks of 50 to batch the embedder,

@@ -1935,3 +1935,228 @@ change broke it stops being evidence. Read two known failures into the collide t
 - **The write path still runs P1 on every turn**, question or not, at 2.1s a turn. The
   salience gate is doing its job (turns 14/15/17/20 stored nothing), but the cost is paid
   before the gate is consulted.
+
+## 18. The attribute was named after the fact's TYPE, not the property
+
+A second typed console run on 2026-08-17 (two columns, 27 turns, identical input, fresh
+graph) showed Bud's preferences retiring each other:
+
+```
+#36 SUPERSEDED (preference) Bud likes Lisa.
+#37 SUPERSEDED (preference) Bud likes beer.
+#38 SUPERSEDED (preference) Bud likes the first Matrix movie.
+#39 live       (preference) Bud likes red gaming chairs.
+```
+
+Nothing was deleted — all four are in the store and surface to recall marked `SUPERSEDED`,
+per the invariant. But three true facts are presented as no-longer-true, which the reader
+will act on, so the cost is real.
+
+**P2 did exactly what the slot told it.** The defect is upstream: `preference` is a fact
+*category* — it is literally a `FactType` enum value — not a property that holds one value
+at a time. The prompt already contains the test that rules it out ("Could BOTH facts be
+true at the same time? YES -> different attributes"), and P1 violated it four times.
+
+### 18.1 The other column is the proof
+
+Same model, same temperature, same 27 turns, and c2 named the same four slots differently:
+
+| fact | c1 | c2 |
+|---|---|---|
+| likes Lisa | `preference` | `likes` |
+| likes beer | `preference` | `beverage preference` |
+| Matrix movie | `preference` | `interests` |
+| red gaming chairs | `preference` | `interests` |
+| **wrong supersedes** | **3** | **1** |
+
+No code differs between the columns. This is P1 naming variance, and it is the whole
+finding — a consolidator rule cannot be the cause of a divergence that has no code in it.
+
+### 18.2 That run was measuring stale code — check the install first
+
+`llm_gateway` pins `memore @ git+https://github.com/bartkamphuis/memore`, and the console
+was running commit `37593fa`: no §16 same-batch guard, no §16 containment branch, no §17
+reply demotion. The fingerprint is visible in the store — `source_episode_id` is `""` on
+every fact, and §16 writes a batch id there.
+
+So **7 of the run's 11 wrong supersedes were already fixed and merely not installed**. Do
+this before reading any console trace as evidence:
+
+```bash
+uv pip install --python /home/marvin/code/llm_gateway/.venv/bin/python \
+  --no-deps --force-reinstall "memore @ git+https://github.com/bartkamphuis/memore"
+```
+
+Note the `--python`: with `VIRTUAL_ENV` unset (which is how you work around this machine's
+stale `memo_re` export), `uv pip install` does **not** discover `./.venv` — it silently
+targets the default interpreter and reports success with the correct git sha. Verify by
+grepping the installed file, not by reading `dist-info/direct_url.json`, which kept showing
+the old commit id after a successful reinstall.
+
+### 18.3 The replay — 27 turns, six samples, HEAD
+
+The console run's assistant replies were never persisted (`logs/memore/*.jsonl` records
+`memory.turn` / `recall` / `write` only; every `llm_audit.ndjson` row in the window has
+`output_text: None`). So the replay holds the one thing that can be held fixed — the 27
+user turns, verified byte-identical across both columns — and re-runs the write path at
+HEAD with `assistant_response=""`, six independent sessions.
+
+```
+sample     facts   NEW  CONTRA   DUP
+replay-1      41    41       0     0     <- outlier
+replay-2      45    41       3     1
+replay-3      44    40       3     1
+replay-4      44    40       3     1
+replay-5      44    40       3     1
+replay-6      44    40       3     1
+```
+
+**§16 holds.** Zero recurrence in 6/6 for every same-utterance case:
+
+| original defect | replay |
+|---|---|
+| blue lollies -> green lollies | 0/6 |
+| milk-in-tea -> green tea (§16's own example) | 0/6 |
+| Matrix -> gaming chairs, same turn | 0/6 |
+| Python -> Ruby, same turn | 0/6 |
+
+The guard is visible in the trace — same turn, same slot, both stored:
+
+```
+replay-4 turn=3 NEW ord=12 attr='tea preference' | the user does not like milk in their tea
+replay-4 turn=3 NEW ord=13 attr='tea preference' | the user likes green tea
+```
+
+Two further cases from the console run also did not recur — Lisa `location` (lives vs
+works) and Memore `development origin` (authorship vs conception place), both 0/6. **Not
+because anything fixed them**: P1 simply named the slots apart every time
+(`location` vs `employer` / `employer/location relation`). They were one-off naming
+collisions, and grouping them with Bud in the first analysis was wrong.
+
+**Bud is systematic.** 5 of 6 samples reproduce it, 2 wrong supersedes each. Net across
+the six: 15 supersedes, 5 correct (all `capital city` Amsterdam -> Den Haag), 10 wrong (all
+`Bud::preference`).
+
+### 18.4 The mechanism: the hint list is a magnet
+
+`subject_slots` returns `label -> attr1, attr2` and the prompt tells P1 that if the turn
+"gives a new value for a property already listed under that subject, reuse that exact
+property string too, so the two collide". That instruction is right, and it is what §14
+built. But it has no way to tell a *property* from a *category*, so once `preference`
+enters a subject's vocabulary it is recommended back to P1 for every later preference on
+that subject, and they all land in one slot.
+
+The split between the two halves is sharp:
+
+```
+first Bud preference named `preference`          12 of 12   (6 replay + 6 slots runs)
+that name then REUSED for a later preference      8 of 12
+```
+
+P1 does not sometimes get this right and sometimes wrong. It coins the bare category
+**every time**; what varies is only whether it then escapes by coining something specific
+for the next one.
+
+### 18.5 The rate is ~2/3, and `--runs 3` cannot see it
+
+Six `slots.py` runs (two baselines of three) failed `[39, 40, 41, 43]` three times; six
+replay samples failed five times. Combined **8 of 12**. But the two slots baselines,
+differing only by two trailing turns that come *after* the ones under test, scored 2/3 and
+1/3. A three-run sample cannot distinguish "fixed" from "got lucky" at this rate. Any
+candidate fix for this defect needs more runs than the standard three, and the two
+baselines above are the reason.
+
+### 18.6 The harness turns, and the refuse-list written before the fix
+
+Appended as turns 39-45, indices 0-38 untouched, so §11/§14/§15/§17 numbers stay
+comparable. No replies on the new turns: they measure how P1 *names* a slot, and a reply
+would confound that with §17.
+
+```
+39-41  MUST_COEXIST [39,40,41,43]   Bud likes beer / the first Matrix movie / red gaming
+                                     chairs. Three SEPARATE turns -- inside one utterance
+                                     §16's guard already withholds CONTRADICTION, so a
+                                     single-turn version passes while the defect stands.
+                                     Four disjoint domains, so nothing here can compete
+                                     legitimately.
+42-43  MUST_COLLIDE (42, 43)         Bud's favourite programming language, Go -> Rust.
+44     MUST_COEXIST [44]             one utterance, several true facts -- §16's guard.
+45     MUST_COREFER                  Bud's seating.
+```
+
+`(42, 43)` is the refuse-list, and it is shaped against the fix that suggests itself
+first. A `COLLECTION_TYPES` keyword list in the consolidator — "never supersede a
+preference" — scores 3/3 on 39-41 and **breaks this pair**, because a favourite is a
+preference that holds exactly one value at a time. It resolves 3/3 today, so the axis is
+live. Three further reasons that fix is refused: it puts hand-written English in the
+deterministic core (the shape §16.5 already refused); the bench carries `attribute=""`, so
+a rule keyed on the attribute string is inert on the corpus that guards every other
+regression; and a slot that can *never* resolve is the FactConsolidation task failing,
+which is the one thing this project may not trade away.
+
+`43` sits inside the coexist group deliberately: it is the survivor of the collide pair, so
+if the magnet swallows the favourite-language slot too, the later correction retires the
+three preferences with it and the group catches that.
+
+Baseline, three runs, read separately:
+
+```
+                      run 1   run 2   run 3   total
+must-collide          7/8     7/8     7/8     21/24   (2 known standing failures)
+must-coexist         12/13   13/13   13/13    38/39
+one-subject          19/20   19/20   19/20    57/60
+distinct              5/5     5/5     5/5     15/15
+no reply leak         2/2     2/2     2/2       6/6
+```
+
+The single coexist failure is the defect:
+
+```
+FAIL [39, 40, 41, 43] COLLIDED  1 superseded --
+     bud::preference, bud::preference, bud::chairs gaming preference, bud::favourite language programming
+```
+
+### 18.7 A fixture that was removed for being vacuous
+
+§16's containment branch (a restatement that says LESS must coexist) was first fixtured as
+two turns — "Bud sits on the red chair in the Whangarei office", then "Bud sits on the red
+chair". P1 emitted **nothing** for the second in 3 runs of 3. A pure restatement asserts no
+new fact and the salience gate is right to drop it, so the branch is not reachable from a
+turn that merely repeats; it needs one that reads as news while saying less, which no
+scripted turn here produced. The pair was scoring two easy passes and testing nothing, so
+it was removed rather than kept — a fixture that cannot express the failure cannot guard
+against it, the same argument §13 makes about the calibration fixtures. The branch stays
+guarded where it can be constructed directly: the trace-derived tests at the end of
+`tests/test_consolidation.py`.
+
+### 18.8 A P1 salience finding, deliberately not made into an axis
+
+On the replay, "Bud likes red gaming chairs" was dropped by P1 in **6 runs of 6**, while
+the same turn's "the red gaming chair cost $560" landed every time. One observation of one
+turn does not justify a `MUST_EXTRACT` axis — it would be over-fitted to exactly this
+sentence. But it must be *visible*, because every existing axis is blind to it: a coexist
+group whose member wrote no fact still reads OK, since there is no dead ordinal to find. So
+a change that quietly mutes P1 improves `no-reply-leak` and disturbs nothing else, which is
+§17.4's warning with no instrument behind it. `print_run` now prints an unscored line:
+
+```
+wrote nothing []   (diagnostic only -- not scored)
+```
+
+### 18.9 What this does not fix, and what is still open
+
+- **Nothing here fixes the defect.** §18 adds the instrument and the refuse-list; the fix
+  is unbuilt. `git diff 37593fa..HEAD -- memore/extract.py` touches only §17's reply
+  demotion — `_SYSTEM` and the hint list are unchanged, so nothing shipped today affects
+  category naming.
+- **Do not fix it by adding a rule to `_SYSTEM`.** The rule is already there verbatim and
+  P1 violated it four times in one column. That is arm E, which §17 measured and recorded
+  as buying nothing, and every word added there can perturb §15's five naming rules.
+- **The replay does not exercise §17 at all.** No replies exist to demote, so the DUPLICATE
+  re-ingestions cannot reproduce either way. That needs a live console run against a
+  correctly installed memore.
+- **The replay script is confounded by its own source.** Turn 10 pastes the previous run's
+  store dump verbatim and turn 13 describes this defect in words; both sit inside
+  `extract_window_turns=3` for turns 14-16, which are the turns that name Bud's slots.
+  Faithful to the original, but it means P1 is measured on a script that warns it about the
+  failure mid-way. The `slots.py` turns are the clean instrument.
