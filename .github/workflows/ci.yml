@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Both ends of the declared floor. 3.11 is not decoration: `96a247f` lowered
+        # `requires-python` to 3.11 so llm_gateway could install this package, and the
+        # console imports memore on a 3.11 interpreter. Until this matrix existed, that
+        # combination was never run anywhere -- memore's own venv is 3.13. Validated by
+        # hand on 2026-08-18 (105 passed on both) before the workflow was written; this
+        # keeps it validated.
+        python-version: ["3.11", "3.13"]
+    services:
+      # The store. Every test in test_store_integration.py errors without it, and the
+      # signature is a redis connection error -- the same 2 failed / 94 passed / 9 errors
+      # on either interpreter, so do not read a down store as a Python problem.
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev extras
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check memore/ tests/
+
+      - name: Pytest
+        # tests/ only, deliberately. The bench harnesses are NOT run here: they need
+        # `data/Conflict_Resolution.parquet` (fetched by hand, not in the repo) and a
+        # host Ollama serving gemma4:26b + mxbai-embed-large, neither of which exists on
+        # a runner. The suite itself needs no LLM -- the store tests embed through
+        # `StubEmbedder`, so FalkorDB above is the only service required.
+        run: pytest tests/ -q
