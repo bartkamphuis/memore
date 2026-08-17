@@ -24,6 +24,33 @@ pytestmark = pytest.mark.integration
 DIM = 8
 
 
+def _ollama_reachable() -> bool:
+    """Whether the configured Ollama is answering.
+
+    Every test here runs on `StubEmbedder` and needs only FalkorDB -- except
+    `test_irrelevant_query_stays_below_the_gate_floor`, whose whole claim is about real
+    semantic distance and so cannot be made with stub vectors. CI has FalkorDB (a service
+    container) and no Ollama: the models are served on Marvin's GPUs, not on a runner.
+
+    Probed rather than env-flagged so a local run never skips silently while Ollama is up.
+    A reachable-but-broken Ollama still FAILS the test, which is the point -- this only
+    distinguishes "not installed here" from "wrong answer".
+    """
+    import httpx
+
+    from memore.config import EmbedConfig
+
+    try:
+        return httpx.get(f"{EmbedConfig.from_env().ollama_url}/api/tags", timeout=2.0).is_success
+    except Exception:
+        return False
+
+
+needs_ollama = pytest.mark.skipif(
+    not _ollama_reachable(), reason="needs a live Ollama for real embeddings; CI has none"
+)
+
+
 async def drop_graph(falkor: FalkorStore) -> None:
     """Delete the throwaway graph itself, not just the facts in it.
 
@@ -271,6 +298,7 @@ async def test_embedder_dimension_mismatch_fails_at_connect():
         await first.aclose()
 
 
+@needs_ollama
 async def test_irrelevant_query_stays_below_the_gate_floor():
     """The precision regression this pins (§6 is the differentiator: inject only when
     the store actually has something relevant).

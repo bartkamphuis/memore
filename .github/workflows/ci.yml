@@ -48,6 +48,12 @@ jobs:
         # tests/ only, deliberately. The bench harnesses are NOT run here: they need
         # `data/Conflict_Resolution.parquet` (fetched by hand, not in the repo) and a
         # host Ollama serving gemma4:26b + mxbai-embed-large, neither of which exists on
-        # a runner. The suite itself needs no LLM -- the store tests embed through
-        # `StubEmbedder`, so FalkorDB above is the only service required.
+        # a runner.
+        #
+        # Expect 104 passed, 1 skipped. Every store test embeds through `StubEmbedder`
+        # and needs only the FalkorDB service above; the one exception is
+        # `test_irrelevant_query_stays_below_the_gate_floor`, whose claim is about real
+        # semantic distance and is meaningless over stub vectors. It probes for Ollama
+        # and skips here. A run reporting 105 passed means a runner grew an Ollama;
+        # a run reporting 2+ skipped means something else went quiet -- check which.
         run: pytest tests/ -q
