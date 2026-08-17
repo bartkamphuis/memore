@@ -48,9 +48,17 @@ async def main_async(args: argparse.Namespace) -> None:
         store, embedder, ConsolidationConfig(alias=alias)
     )
     counts = {c.value: 0 for c in ConsolidationCase}
+    # Chunked for the EMBEDDER, consolidated one fact at a time. Every FactConsolidation
+    # fact is its own turn with a real arrival order, and `consolidate()` reads a batch as
+    # one utterance whose candidates cannot supersede each other (RESULTS.md §16) -- so
+    # handing it 50 at a time silently asserted a simultaneity the corpus does not have.
+    # It cost 16 supersedes at 32k and 18 at 6k before this was split.
     for i in range(0, len(candidates), 50):
-        for outcome in await consolidator.consolidate(session, candidates[i : i + 50]):
-            counts[outcome.case.value] += 1
+        chunk = candidates[i : i + 50]
+        await consolidator.prewarm([c.fact for c in chunk])
+        for candidate in chunk:
+            for outcome in await consolidator.consolidate(session, [candidate]):
+                counts[outcome.case.value] += 1
 
     live = await store.live_fact_texts(session)
     # The SAME alias config the ingest ran with. Scoring groups the store never built

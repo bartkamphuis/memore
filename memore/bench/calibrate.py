@@ -450,8 +450,23 @@ async def measure_variant(
                 await store.clear_session(fixture.session)
                 consolidator = DeterministicConsolidator(store, embedder)
                 started = time.perf_counter()
+                # One call per candidate: the fixtures are EXACTLY one fact per turn
+                # (`gen_calib_fixtures`), and a `consolidate()` batch means one utterance
+                # whose candidates cannot supersede each other (RESULTS.md §16). Chunking
+                # 50 turns into one call would leave superseded facts live and quietly
+                # recalibrate the floor against a store the write path never builds.
+                # `prewarm` keeps the embedder batched, which is all the chunk was for.
+                #
+                # This does NOT owe a recalibration. Before the same-batch guard existed,
+                # chunks of 50 and one-at-a-time produced identical stores, so the shipped
+                # 0.57 was measured against the right one; this restores that behaviour
+                # rather than changing it. The `score_floor`/embedder/`gate_on` invariant
+                # is about changes that move the store, and this one is written to not.
                 for i in range(0, len(fixture.candidates), 50):
-                    await consolidator.consolidate(fixture.session, fixture.candidates[i : i + 50])
+                    window = fixture.candidates[i : i + 50]
+                    await consolidator.prewarm([c.fact for c in window])
+                    for candidate in window:
+                        await consolidator.consolidate(fixture.session, [candidate])
                 stored = await store.count(fixture.session)
                 print(
                     f"  [{variant.name}] {fixture.name}: ingested {len(fixture.candidates)} "

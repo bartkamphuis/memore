@@ -408,3 +408,264 @@ async def test_attribute_label_does_not_participate_in_matching(consolidator):
     assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
     live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
     assert [f.fact for f in live] == ["deploys to prod"]
+
+
+# ---------------------------------------------------------------------------
+# Same-batch collisions and subsumption
+# ---------------------------------------------------------------------------
+#
+# Trace-derived, like the §11 block above, and from the same kind of source: the
+# two-column gateway console run of 2026-08-17, 24 turns per column against identical
+# input. The FactConsolidation bench cannot express any of this either -- it feeds one
+# fact per turn, so a batch is always of size one and a same-batch collision cannot
+# occur. The candidate texts below are copied from that run's write log verbatim.
+#
+# The two defects are opposite in shape and both cost a live fact:
+#
+#   same-batch supersede   one utterance, two independently-true facts, one slot. The
+#                          second retired the first on an ordinal that only recorded its
+#                          position in P1's output array. Fired in BOTH columns.
+#   subsumption inversion  a shorter restatement of a stored fact retired the longer
+#                          original on recency, dropping the detail it did not repeat.
+
+
+async def test_same_batch_siblings_do_not_supersede_each_other(consolidator):
+    """Turn 4, verbatim, both columns: "I like milk in my coffee, but not in my tea.
+    I like Green tea".
+
+    P1 emitted both tea facts under one `tea preference` slot. Both are true. They
+    arrived in one `consolidate()` call, so nothing orders them -- ordinal 11 vs 12 is
+    array position, not chronology. Before the guard the second retired the first and
+    the reader was handed a still-true fact labelled SUPERSEDED.
+    """
+    con, store = consolidator
+    outcomes = await con.consolidate(
+        SESSION,
+        [
+            candidate("the user likes milk in their coffee", "the user",
+                      attribute="coffee preference"),
+            candidate("the user does not like milk in their tea", "the user",
+                      attribute="tea preference"),
+            candidate("the user likes green tea", "the user", attribute="tea preference"),
+        ],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW] * 3
+    assert all(o.superseded_fact_id is None for o in outcomes)
+
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert {f.fact for f in live} == {
+        "the user likes milk in their coffee",
+        "the user does not like milk in their tea",
+        "the user likes green tea",
+    }
+
+
+async def test_the_guard_is_per_batch_not_per_slot(consolidator):
+    """The money case must survive the fix.
+
+    Same subject, same slot, different values, but two SEPARATE calls -- which is a real
+    freshness ordering and must still resolve. A guard written against the slot rather
+    than the batch would disarm the primitive this project exists to test.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION, [candidate("the user likes green tea", "the user", attribute="tea preference")]
+    )
+    outcomes = await con.consolidate(
+        SESSION, [candidate("the user hates green tea", "the user", attribute="tea preference")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert [f.fact for f in live] == ["the user hates green tea"]
+
+
+async def test_same_batch_refinement_is_still_allowed(consolidator):
+    """Subsumption needs no ordering, so the guard must not block it.
+
+    This is why the guard sits AFTER the two containment branches rather than before
+    them: REFINEMENT is justified by what the strings say, CONTRADICTION by which
+    arrived later. Only the second is unavailable inside a batch.
+    """
+    con, store = consolidator
+    outcomes = await con.consolidate(
+        SESSION,
+        [
+            candidate("Lisa leaves Amsterdam at 3:00 PM", "Lisa", attribute="departure"),
+            candidate("Lisa leaves Amsterdam at 3:00 PM on Tuesday, August 18th", "Lisa",
+                      attribute="departure"),
+        ],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW, ConsolidationCase.REFINEMENT]
+    live = await store.live_facts_for_subject(SESSION, subject_key("Lisa"))
+    assert [f.fact for f in live] == ["Lisa leaves Amsterdam at 3:00 PM on Tuesday, August 18th"]
+
+
+async def test_same_batch_duplicate_still_collapses(consolidator):
+    """The guard withholds superseding, not the duplicate scan.
+
+    Two identical candidates in one extraction must still store one copy, or the guard
+    trades a mislabelled fact for store bloat.
+    """
+    con, store = consolidator
+    outcomes = await con.consolidate(
+        SESSION,
+        [
+            candidate("Lisa likes red tulips", "Lisa", attribute="preference"),
+            candidate("Lisa likes red tulips", "Lisa", attribute="preference"),
+        ],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW, ConsolidationCase.DUPLICATE]
+    assert await store.count(SESSION) == 1
+
+
+async def test_a_restatement_that_says_less_does_not_supersede(consolidator):
+    """Turns 11 and 16, column 2, verbatim.
+
+    The arriving fact is a strict substring of the stored one: it disagrees about
+    nothing. Before the containment branch it fell through to CONTRADICTION and won on
+    recency, and "in the Whangarei office" left the live set. Both stay live now -- see
+    the next test for why the shorter one is not discarded instead.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION,
+        [candidate("Bud sits in the Red chair in the Whangarei office", "Bud",
+                   attribute="seating")],
+    )
+    outcomes = await con.consolidate(
+        SESSION, [candidate("Bud sits in the red chair", "Bud", attribute="seating")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    assert outcomes[0].superseded_fact_id is None
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert "Bud sits in the Red chair in the Whangarei office" in {f.fact for f in live}
+
+
+async def test_a_narrowing_update_is_not_discarded_as_a_restatement(consolidator):
+    """Why the containment branch coexists instead of answering DUPLICATE.
+
+    The only containment pair in sh_32k's 2310 facts is a real value change, and it has
+    exactly the same surface shape as the Whangarei restatement above. Answering
+    DUPLICATE would drop the update permanently -- the unrecoverable direction
+    `ConsolidationConfig` documents -- so both facts stay live and the reader gets both.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION,
+        [candidate("flanker is associated with the sport of rugby union", "flanker",
+                   attribute="sport")],
+    )
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("flanker is associated with the sport of rugby", "flanker",
+                   attribute="sport")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    live = {f.fact for f in await store.live_facts_for_subject(SESSION, subject_key("flanker"))}
+    assert "flanker is associated with the sport of rugby" in live
+
+
+async def test_the_containment_branch_is_inert_without_a_slot(consolidator):
+    """No attribute means no "same property", so the branch must not fire.
+
+    This is what keeps the bench and pre-§11 graphs on exactly the behaviour they were
+    measured with: `bench/extract.py` supplies no attribute, so every FactConsolidation
+    run takes the CONTRADICTION path it always took.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION, [candidate("flanker is associated with the sport of rugby union", "flanker")]
+    )
+    outcomes = await con.consolidate(
+        SESSION, [candidate("flanker is associated with the sport of rugby", "flanker")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("flanker"))
+    assert [f.fact for f in live] == ["flanker is associated with the sport of rugby"]
+
+
+async def test_a_changed_value_is_not_mistaken_for_a_restatement(consolidator):
+    """The containment branch must not swallow an update.
+
+    Containment in that direction is safe precisely because a changed value is not a
+    substring of the fact it changes -- this pins that, since a false DUPLICATE
+    discards the update permanently (see `ConsolidationConfig`).
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION, [candidate("Bud sits in the red chair", "Bud", attribute="seating")]
+    )
+    outcomes = await con.consolidate(
+        SESSION, [candidate("Bud sits in the blue chair", "Bud", attribute="seating")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert [f.fact for f in live] == ["Bud sits in the blue chair"]
+
+
+async def test_a_later_contradiction_spares_the_incumbents_batch_siblings(consolidator):
+    """The bill for letting two facts coexist in one slot, and why it is not paid.
+
+    Turn 4 leaves `tea preference` holding two live facts on purpose. A correction two
+    turns later contradicts one of them. Superseding "everything in the slot" -- the
+    pre-fix self-healing rule -- would collect the milk fact as collateral, which is the
+    original defect arriving one turn late instead of being fixed.
+    """
+    con, store = consolidator
+    await con.consolidate(
+        SESSION,
+        [
+            candidate("the user does not like milk in their tea", "the user",
+                      attribute="tea preference"),
+            candidate("the user likes green tea", "the user", attribute="tea preference"),
+        ],
+    )
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("the user hates green tea", "the user", attribute="tea preference")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+
+    live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
+    assert {f.fact for f in live} == {
+        "the user does not like milk in their tea",
+        "the user hates green tea",
+    }
+
+
+async def test_facts_written_without_a_batch_keep_the_old_supersede_behaviour(consolidator):
+    """Inertness on a graph written before `source_episode_id` carried a batch.
+
+    Same argument as `attribute == ""` in `_competing`: with no batch information the
+    safe error is to over-supersede, so a pre-fix store behaves exactly as it did rather
+    than silently acquiring a rule its data cannot support.
+    """
+    from datetime import UTC, datetime
+
+    from memore.types import StoredFact
+
+    con, store = consolidator
+    subject = subject_key("the user")
+    for i, text in enumerate(("old fact one", "old fact two"), start=1):
+        await store.add_fact(
+            StoredFact(
+                id=f"legacy-{i}",
+                session_id=SESSION,
+                fact=text,
+                subject_key=subject,
+                subject_label="the user",
+                ordinal=i,
+                valid_at=datetime.now(UTC),
+                invalid_at=None,
+                source_episode_id="",
+                attribute=subject_key("tea preference"),
+            ),
+            [0.0] * 8,
+        )
+
+    outcomes = await con.consolidate(
+        SESSION, [candidate("a brand new claim", "the user", attribute="tea preference")]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject)
+    assert [f.fact for f in live] == ["a brand new claim"]

@@ -114,11 +114,17 @@ async def run_deterministic(
 
     started = time.perf_counter()
     # Facts arrive in serial order; the ordinal is arrival order, never read from input.
+    # The chunk batches the EMBEDDER only -- consolidation is one fact at a time, because
+    # a `consolidate()` batch means "one utterance" and withholds contradictions inside
+    # itself (RESULTS.md §16). Every fact here is its own turn.
     chunk = 50
     counts: dict[str, int] = {c.value: 0 for c in ConsolidationCase}
     for i in range(0, len(candidates), chunk):
-        for outcome in await consolidator.consolidate(session, candidates[i : i + chunk]):
-            counts[outcome.case.value] += 1
+        window = candidates[i : i + chunk]
+        await consolidator.prewarm([c.fact for c in window])
+        for candidate in window:
+            for outcome in await consolidator.consolidate(session, [candidate]):
+                counts[outcome.case.value] += 1
     result.ingest_seconds = time.perf_counter() - started
     result.cases = counts
     result.facts_ingested = len(candidates)

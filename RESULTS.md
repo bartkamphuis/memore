@@ -1602,3 +1602,199 @@ rule 5 cannot move.
   not be repeated as if it were measured.
 - Nothing here is validated on a store built from a real session with long assistant
   replies. §14's caveat stands: 36 scripted turns is not a 50-turn working session.
+
+## 16. Two ways a live fact got mislabelled, and one rule that was refused
+
+Source: the two-column gateway console run of **2026-08-17** — 24 turns per column,
+identical input, two independent stores (`logs/memore/console-c1-*.jsonl`, `-c2-*`). It is
+the first trace from a real typed session rather than a scripted harness, and it surfaced
+two defects that §11's slot work left standing. Both cost a live fact. Neither is
+expressible in FactConsolidation, for the same structural reason §11 gives: the bench feeds
+one fact per turn, so a batch is always of size one.
+
+Nothing was ever deleted — supersede-never-delete held throughout, and both facts came back
+from recall. The damage in both cases is a **still-true fact labelled SUPERSEDED**, which
+hands the reader a false temporal claim ("Lisa *used to* live in Amsterdam"). Mislabelling,
+not loss.
+
+### 16.1 Same-batch supersede — the ordinal that meant nothing
+
+Turn 4 fired in **both columns**, which is what makes it the headline: it is deterministic,
+not P1 variance. One `consolidate()` call, three candidates:
+
+```
+NEW           [the user|tea preference] ord=11  the user does not like milk in their tea
+CONTRADICTION [the user|tea preference] ord=12  the user likes green tea      -> retires 11
+```
+
+Both are true. Turn 3 in c2 is the same shape (`lolly preference`, blue/green).
+
+The mechanism is that `consolidate()` writes through per candidate, so candidate *n+1* sees
+candidate *n* in `live`. Their ordinals differ only by **position in P1's output array**,
+which carries no information about which the user meant later. The freshness primitive was
+being applied where freshness does not exist.
+
+The guard withholds `CONTRADICTION` when the incumbent was written by the same batch, and
+sits **after** the containment branches on purpose: `REFINEMENT` and the restatement branch
+below are decided by what the strings say, which needs no ordering and is just as valid
+between batch siblings. Only `CONTRADICTION` rests on recency, so only `CONTRADICTION` is
+withheld. The exact-`DUPLICATE` scan is untouched, or the fix would trade a mislabelled
+fact for a second copy.
+
+### 16.2 The bill for coexistence, paid before it arrived
+
+Letting two facts share a slot breaks the one-live-fact-per-slot invariant on purpose, and
+that invariant was load-bearing elsewhere: a `CONTRADICTION` superseded the *whole*
+competing set, justified as self-healing against corruption. Left alone, that turns the fix
+into a one-turn delay —
+
+```
+turn  4   "no milk in tea" + "likes green tea"    coexist, both live       (the fix)
+turn 30   "I hate green tea now"                  retires BOTH             (the bill)
+```
+
+So a contradiction now retires the incumbent plus any live fact from a **different** batch.
+The incumbent's own batch siblings were never ordered against it, so disagreeing with the
+incumbent says nothing about them. `source_episode_id` — the spec's field for exactly this
+(`Episode`, writepath §3), previously written empty — carries the batch id.
+
+Facts with `source_episode_id == ""` fall back to the old wholesale behaviour, on the same
+argument `_competing` makes for `attribute == ""`: with no batch information, over-
+superseding is the safe error, and pre-existing graphs and the bench keep the behaviour
+they were measured with rather than silently acquiring a rule their data cannot support.
+
+### 16.3 Subsumption inversion — a restatement that said less and won
+
+Cross-turn, column 2, and a separate mechanism:
+
+```
+turn 11  [Bud|seating]  Bud sits in the Red chair in the Whangarei office
+turn 16  [Bud|seating]  Bud sits in the red chair          CONTRADICTION -> retires turn 11
+```
+
+The arriving fact is a strict substring of the stored one. It disagrees about nothing, and
+"in the Whangarei office" left the live set on recency alone. `REFINEMENT` already handled
+the other direction (incumbent ⊂ candidate); this direction fell through to the money case.
+
+**It coexists rather than answering DUPLICATE, and that is measured, not cautious.**
+Containment this way round does *not* imply "adds nothing". Scanning both corpora for
+same-subject pairs where a later fact is strictly contained in an earlier one:
+
+```
+sh_6k    455 facts, 303 subjects    0 pairs
+sh_32k  2310 facts, 1559 subjects   1 pair
+    "flanker is associated with the sport of rugby union"  ->  "... of rugby"
+```
+
+That single pair is a real value change — the same one §6 records the embedding threshold
+swallowing at cos 0.982. A `DUPLICATE` verdict there discards an update permanently, the
+unrecoverable direction `ConsolidationConfig` exists to warn about. And no surface rule
+separates it from the Whangarei case: both are strict prefixes, differing only in whether
+the trailing phrase opens with a preposition. A closed-class preposition test tuned on two
+examples is exactly the kind of threshold §6 refused. So neither fact is retired and neither
+is dropped — both stay live, the detail survives, and the reader gets both instead of one
+wrong one.
+
+The branch additionally requires a real slot on **both** sides. With no attribute there is
+no "same property" for a restatement to be a restatement *of*, which is also what keeps the
+bench inert: `bench/extract.py` supplies no attribute, so FactConsolidation takes the path
+it always took.
+
+### 16.4 The bench was asserting a simultaneity the corpus does not have
+
+The guards were expected to be inert on FactConsolidation — no attribute, no containment
+pairs at 6k, and one fact per turn. They were not, and the reason is worth more than the
+regression check it came out of.
+
+Both harnesses ingested in **chunks of 50**:
+
+```python
+for i in range(0, len(candidates), 50):
+    await consolidator.consolidate(session, candidates[i : i + 50])
+```
+
+That chunk exists to batch the *embedder*. But a `consolidate()` batch is a semantic unit —
+after §16.1 it means "one utterance, no internal freshness order" — so handing it 50
+independent turns declared 50 facts simultaneous. Any two facts about one subject landing in
+the same chunk stopped superseding each other:
+
+```
+             baseline (alias015)      chunks of 50        one at a time
+sh_6k        NEW 301  CONTRA 154      NEW 319  CONTRA 136  NEW 301  CONTRA 154
+sh_32k       NEW 1523 CONTRA 787      NEW 1539 CONTRA 771  NEW 1523 CONTRA 787
+```
+
+18 supersedes lost at 6k, 16 at 32k — purely from where the chunk boundaries fell. Note what
+this did *not* move: oracle accuracy stayed 0.990 and 0.960 either way, and
+`gold_fact_superseded` stayed 0. A harness bug of exactly this shape was invisible to the
+score, which is the same lesson §11 records about aggregates.
+
+The harnesses now prewarm the embedder over the chunk and consolidate one fact at a time
+(`DeterministicConsolidator.prewarm`), which restores the batching where it belongs and
+makes the arrival order the corpus actually has explicit. With that:
+
+```
+sh_6k   0.990 (99/100)   NEW 301  CONTRADICTION 154   >1 live fact per group: 0
+sh_32k  0.960 (96/100)   NEW 1523 CONTRADICTION 787   >1 live fact per group: 0
+```
+
+— identical to the alias015 baselines in every field. So the bench is a regression guard
+here and nothing more: an unchanged number is evidence of nothing breaking, not evidence the
+fixes work. The tests that carry that load are trace-derived, at the end of
+`tests/test_consolidation.py`, built from the console run's verbatim candidate texts.
+
+**Anyone adding a caller must know this.** `consolidate(session, candidates)` is one
+utterance. Facts that genuinely arrived separately go in separate calls, or they silently
+stop resolving against each other.
+
+### 16.5 The rule that was refused: snapping attribute names
+
+The obvious third fix was to canonicalise drifting slot names the way §10 canonicalises
+subjects — merge two attributes of one subject that differ only by generic relation words,
+gated on document frequency. It was measured against this run's own attribute vocabulary
+and **refused**, on two independent grounds.
+
+**The df gate is degenerate at conversational scale.** The session produced 30–34 distinct
+attributes. Every token appearing even once reads as ratio 0.029–0.033 — above the 0.015
+threshold `AliasConfig` ships. Not "unreliable"; there is no vocabulary in which any token
+is rare. This is §10's `min_subjects` lesson arriving on a second axis, and it says the same
+thing: a relative threshold fires hardest exactly where its evidence is weakest.
+
+**Its only reachable action in 24 turns would have been the bug.** The single
+subset pair among same-subject attributes in either column is on Lisa in c1:
+
+```
+location  ⊂  work location        extra token "work", df 1, ratio 0.029 > 0.015 -> merge
+```
+
+Merging those makes "Lisa lives in Amsterdam" compete with "Lisa works in Amsterdam" — which
+is precisely the fact that ended up mislabelled in c2. A rule whose one available move
+reproduces the defect being fixed is refuted, not untuned. Every other multi-slot pair in
+the run (`the red chair | position` vs `location`, `Bud | seating` vs `preference`,
+`the user | programming language preference 1` vs `2`) is two genuinely different properties
+that must stay apart.
+
+**And the premise was partly wrong.** Attribute drift is **between runs, not within a
+session**. Within c2, `Bud|seating` was correctly reused across turns 11 and 16 — the
+`subject_slots` feedback loop worked. The pairs that look like drift (`chair`/`seating`,
+`database architecture`/`database stack`) are *cross-column*: two independent stores, each
+internally consistent. That is run-to-run variance in P1 at temperature 0 — the finding §15
+already records — and it matters for reproducing an experiment, not for answering a question
+inside one conversation. The one genuine within-session split in 48 turns is c1's
+`Bud|chair` → `Bud|location` at turn 16.
+
+### 16.6 Still open
+
+- **The write path re-ingests its own output.** `WritePath.run` receives `assistant_response`
+  and `recent` alongside the user turn, so a fact the reader was *shown* can come back as a
+  fact to store. Turn 23 c1, a pure question ("When is my flight to lisbon?"), stored
+  `NEW [the user's trip to Lisbon|coincides with] :: coincides with Lisa's birthday` — a join
+  present in neither turn 23 nor the store. c2, whose recall surfaced only the Lisbon fact,
+  wrote nothing. Turn 6 *did* state the join, so history is an alternative channel and the
+  two have not been separated. Not fixed here.
+- **Latency**: recall median 99ms (c1) / 105ms (c2), consistent with §5. c1's p95 is **202ms**,
+  at the §14 budget rather than under it — a cold-start artifact (turns 1–2 at 202/213ms,
+  everything after at 87–120ms) over a 24-sample window where p95 is near the worst sample.
+  Reported as measured.
+- Gate decisions were **identical per-turn across both columns** (19/24 open, same turns)
+  despite the stores having diverged — the gate is stable under store drift.

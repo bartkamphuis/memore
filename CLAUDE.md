@@ -55,6 +55,16 @@ coherent, **15/15 distinct** against v1's 12/15 at identical coherence. The appa
 merged-in entity. Two shapes of split existed and only one was reachable by a surface merge
 rule, which is why no merge rule was built — read §15 before proposing one.
 
+Consolidation was corrected twice more in RESULTS.md §16, from the first trace of a real
+typed session (a two-column gateway console run, 24 turns per column, identical input).
+Both defects mislabelled a **still-true** fact SUPERSEDED — nothing was deleted — and
+neither is expressible in FactConsolidation, which feeds one fact per turn: candidates from
+one utterance were superseding each other on an ordinal that recorded array position, and a
+shorter restatement was retiring the fuller fact it was contained in. The third fix that
+looked obvious — canonicalising drifting attribute names the way §10 canonicalises subjects
+— was measured against that run and **refused**; §16.5 has the numbers, and also corrects
+the reading that attribute drift happens within a session at all.
+
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
@@ -218,6 +228,44 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   the latent-supersede claim as measured — it is a plausible mechanism that has been
   looked for once and not found. RESULTS.md §15.
 - **Value comparison in consolidation is normalized-string equality, and `use_embedding_comparison` defaults to False.** Do not "improve" this by turning embedding similarity back on: a false DUPLICATE discards an update permanently, while a false CONTRADICTION keeps both facts with the right one live. Measured at 32k, sentence embeddings put real value changes ("rugby union"→"rugby", 0.982) *above* the threshold and genuine paraphrases (0.877) *below* real contradictions (0.849–0.911), so no threshold separates the cases. RESULTS.md §6.
+- **Freshness does not exist inside a batch, so CONTRADICTION is withheld there.** One
+  `consolidate()` call is one extraction of one utterance; its candidates' ordinals differ
+  only by position in P1's output array. Before the guard, "the user does not like milk in
+  their tea" and "the user likes green tea" — one sentence, both true — retired each other
+  in **both** columns of the 2026-08-17 console run. The guard sits *after* the two
+  containment branches deliberately: REFINEMENT and the restatement branch are decided by
+  what the strings say and need no ordering, and the exact-DUPLICATE scan must still fire
+  or the fix trades a mislabelled fact for a second copy. RESULTS.md §16.
+- **`consolidate(session, candidates)` is ONE UTTERANCE, not a throughput batch.** Facts
+  that arrived separately must go in separate calls or they silently stop resolving against
+  each other. Both bench harnesses had been ingesting in chunks of 50 to batch the embedder,
+  which after the guard above declared 50 independent turns simultaneous and lost 18
+  supersedes at 6k and 16 at 32k — while oracle accuracy stayed 0.990/0.960 and
+  `gold_fact_superseded` stayed 0, so the score hid it completely. Use
+  `DeterministicConsolidator.prewarm(texts)` to batch the embedder instead. RESULTS.md §16.4.
+- **A slot may now hold several live facts on purpose, so a contradiction no longer
+  retires the whole slot.** It retires the incumbent plus any live fact from a *different*
+  batch — the incumbent's own batch siblings were never ordered against it. Without this,
+  the same-batch guard is only a one-turn delay: the next correction collects both facts.
+  `source_episode_id` carries the batch id (it was written empty before); facts with `""`
+  fall back to retiring the whole competing set, the same inertness argument
+  `attribute == ""` makes in `_competing`. RESULTS.md §16.
+- **A restatement that says LESS coexists — it must not be answered DUPLICATE.** Candidate
+  strictly contained in the incumbent, same named slot, is not news and must not supersede
+  on recency ("Bud sits in the red chair" retired "…in the Whangarei office"). But
+  containment that way round does not imply "adds nothing": the one such pair in sh_32k's
+  2310 facts is `"…the sport of rugby union"` → `"…of rugby"`, a real update, and no
+  surface rule separates the two — both are strict prefixes differing only in whether the
+  trailing phrase opens with a preposition. DUPLICATE there would discard an update
+  permanently. Both facts stay live instead. Requires a real attribute on both sides, which
+  is what keeps the bench inert. RESULTS.md §16.
+- **Attribute-name snapping was measured and REFUSED; do not build it as "§10 for slots".**
+  At conversational scale the df gate is degenerate — 30–34 distinct attributes means every
+  token appearing once reads 0.029–0.033, above the 0.015 threshold — and the only subset
+  pair it could act on in 48 turns was `location` ⊂ `work location` on one subject, whose
+  merge reproduces the exact defect being fixed. Note also the premise it rested on is
+  wrong: attribute drift is **between runs, not within a session**; `subject_slots` reuse
+  works inside one store. RESULTS.md §16.5.
 - `recall()` never raises. Store error or timeout → closed result, logged, turn proceeds.
 - `enabled=False` on either path → full no-op.
 - `inject_token_budget` is a hard cap, not a target.
