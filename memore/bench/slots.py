@@ -199,7 +199,12 @@ TURNS: list[str] = [
     #       green tea" retired each other in both columns of the 2026-08-17 console run,
     #       because candidates from one extraction differ in ordinal only by their position
     #       in P1's output array. Scored as a one-index coexist group -- every fact this
-    #       single turn writes must still be live.
+    #       single turn writes must still be live. Verified non-vacuous: it yields THREE
+    #       facts in 3 runs of 3 (`coffee preference`, `preference tea`, `beverage
+    #       preference`). A one-fact turn cannot collide with itself and would be as empty
+    #       a fixture as the pair removed at turn 45, so re-check the count if P1 ever
+    #       starts folding this utterance into one fact -- it does exactly that to the
+    #       lolly turn on some samples ("likes blue lollies and hates green ones").
     "I like milk in my coffee but not in my tea, and I drink a lot of green tea",
     # 45    Bud's seating, which §16's containment branch was written for -- and which is
     #       here as ONE turn, not two, because the two-turn version does not work and the

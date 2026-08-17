@@ -277,8 +277,10 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   slots; naming a slot that way puts every simultaneously-true fact of that type in one
   place, where they retire each other. The hint list amplifies it — `subject_slots` shows
   the category back to P1 and the prompt asks for exact reuse — so one bad first naming is
-  self-reinforcing for the rest of the session. Measured: the bare category is coined 12/12
-  and reused 8/12. Three things follow. **Do not fix it with a rule in `_SYSTEM`** — the
+  self-reinforcing for the rest of the session. Measured: the bare category is coined in
+  **every run of both scripts** (replay 6/6, slots 3/3 and 3/3); it is then *reused* 5/6,
+  2/3 and 1/3 — read per script, never pooled, because the two slots baselines ran against
+  different fixture versions. Three things follow. **Do not fix it with a rule in `_SYSTEM`** — the
   rule is already there verbatim ("Could BOTH facts be true at the same time? YES →
   different attributes") and P1 violated it four times in one column; that is arm E.
   **Do not fix it with a `COLLECTION_TYPES` keyword list in the consolidator** — it scores

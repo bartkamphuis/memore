@@ -2046,25 +2046,34 @@ built. But it has no way to tell a *property* from a *category*, so once `prefer
 enters a subject's vocabulary it is recommended back to P1 for every later preference on
 that subject, and they all land in one slot.
 
-The split between the two halves is sharp:
+The split between the two halves is sharp, and the rates are kept per script rather than
+pooled — the two `slots.py` baselines ran against different fixture versions (47 turns and
+then 46, after §18.7 removed a pair), so a single denominator over all twelve would hide
+which run each observation came from:
 
 ```
-first Bud preference named `preference`          12 of 12   (6 replay + 6 slots runs)
-that name then REUSED for a later preference      8 of 12
+                                                  replay      slots A     slots B
+                                                 (27 turns)   (47 turns)  (46 turns)
+first Bud preference named `preference`             6/6          3/3         3/3
+that name then REUSED for a later preference        5/6          2/3         1/3
 ```
 
 P1 does not sometimes get this right and sometimes wrong. It coins the bare category
-**every time**; what varies is only whether it then escapes by coining something specific
-for the next one.
+**every time, in every run of both scripts**; what varies is only whether it then escapes
+by coining something specific for the next one. Note that escaping is not all-or-nothing
+either — slots B run 1 reuses `preference` once and then escapes on the third preference
+(`preference, preference, chairs gaming preference`), which is why that run still fails the
+coexist group with one superseded fact rather than two.
 
 ### 18.5 The rate is ~2/3, and `--runs 3` cannot see it
 
-Six `slots.py` runs (two baselines of three) failed `[39, 40, 41, 43]` three times; six
-replay samples failed five times. Combined **8 of 12**. But the two slots baselines,
-differing only by two trailing turns that come *after* the ones under test, scored 2/3 and
-1/3. A three-run sample cannot distinguish "fixed" from "got lucky" at this rate. Any
-candidate fix for this defect needs more runs than the standard three, and the two
-baselines above are the reason.
+The replay failed 5 of 6. The two `slots.py` baselines failed `[39, 40, 41, 43]` **2 of 3
+and then 1 of 3** — and they differ only by two trailing turns that come *after* every turn
+under test, so nothing in that edit can reach turns 39-43. That spread is P1's
+temperature-0 variance and it is wide enough to swallow a fix: at this rate a three-run
+sample cannot distinguish "fixed" from "got lucky". Any candidate fix needs more runs than
+the standard three, and the two baselines are the reason. Do not read the shipped 1/3 as
+the defect being milder than §18.1 showed; read it as the sample being too small.
 
 ### 18.6 The harness turns, and the refuse-list written before the fix
 
