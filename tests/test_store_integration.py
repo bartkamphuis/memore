@@ -24,6 +24,24 @@ pytestmark = pytest.mark.integration
 DIM = 8
 
 
+async def drop_graph(falkor: FalkorStore) -> None:
+    """Delete the throwaway graph itself, not just the facts in it.
+
+    `MATCH (f:Fact) DELETE f` empties a graph but leaves the *key*, and an empty graph
+    is not free: FalkorDB keeps per-graph schema and index structures for it. Every
+    fixture instance in this suite mints a fresh `test_<hex>` name, so each run leaked
+    one shell per test -- 740 zero-node graphs had piled up before anyone ran
+    `GRAPH.LIST`. Call this in teardown, before `aclose()` closes the connection.
+
+    Best-effort like `aclose()`: a failure here must not mask the assertion that
+    actually failed.
+    """
+    try:
+        await falkor._graph.delete()
+    except Exception:  # noqa: BLE001 -- teardown is best-effort
+        pass
+
+
 @pytest.fixture
 async def store():
     # StubEmbedder emits 8-dim vectors; use a throwaway graph so the dimension of the
@@ -33,6 +51,7 @@ async def store():
     await falkor.connect()
     yield falkor
     await falkor._q("MATCH (f:Fact) DELETE f")
+    await drop_graph(falkor)
     await falkor.aclose()
 
 
@@ -245,7 +264,10 @@ async def test_embedder_dimension_mismatch_fails_at_connect():
         await again.connect()
         await again.aclose()
     finally:
+        # All three stores share one graph name, so drop it once via the handle that is
+        # known to have connected -- `mismatched` is expected to have raised.
         await first._q("MATCH (f:Fact) DELETE f")
+        await drop_graph(first)
         await first.aclose()
 
 
@@ -294,4 +316,5 @@ async def test_irrelevant_query_stays_below_the_gate_floor():
         assert all(h.score < floor for h in irrelevant)
     finally:
         await real._q("MATCH (f:Fact) DELETE f")
+        await drop_graph(real)
         await real.aclose()
