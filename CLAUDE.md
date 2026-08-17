@@ -79,9 +79,10 @@ required boolean in the P1 schema, consumed by `_classify` as a field lookup. Me
 `--runs 9` (three is not enough at this defect's rate), all nine runs identical, and the
 only two failures anywhere in them are the two pre-existing standing ones — `(24, 38)` and
 `[3, 4]`. The fix also removed the *variance*: pre-fix, identical input scored 2/3 then
-1/3; post-fix, nine identical runs. Not settled: it is measured on a 46-turn script, not a
-live console run, and the bench is argued inert (default True + a unit test) rather than
-re-run.
+1/3; post-fix, nine identical runs. Confirmed live in §18.14 — the same 27-turn console
+script through the real gateway path, both columns, **zero wrong supersedes** against the
+original run's 13, with §16/§17/§18 exercised together for the first time. Still not
+settled: the bench is argued inert (default True + a unit test) rather than re-run.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and

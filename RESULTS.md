@@ -2304,3 +2304,83 @@ for looked good is exactly what that invariant forbids.
   scored separately so the numbers above stay comparable.
 - **`(24, 38)` and `[3, 4]` are still failing**, unchanged, as they were before this work
   and for reasons that have nothing to do with it. §15 and §17.5.
+
+### 18.14 The live two-column run — §16, §17 and §18 together, on real traffic
+
+§18.13 listed "measured on a 46-turn script, not a live console run" as the open item.
+This closes it. The same 27 user turns, driven through `POST /chat/stream` with
+`memore: true` against a console restarted on a fresh graph (`memore_gateway4`) and a
+verified `2a7097d` install — so the reader generated genuine replies and the write path
+saw them. That is the first run to exercise §17 as well: the original run's replies were
+never persisted, so every replay before this one passed `assistant_response=""`.
+
+```
+                        ORIGINAL RUN (37593fa)        THIS RUN (2a7097d)
+                        c1          c2                c1          c2
+CONTRADICTION            9           6                 1           1
+  of which correct       2           2                 1           1
+  of which WRONG         7           4                 0           0
+DUPLICATE                3           1                 5           2
+facts stored            48          46                49          50
+```
+
+**Zero wrong supersedes in either column.** The single contradiction per column is the
+capital of the Netherlands, Amsterdam -> Den Haag, which is the one genuine correction in
+the script.
+
+The defect that started this, in both columns:
+
+```
+[Bud]  <-- 1 slot(s) with >1 live: likes
+  #35 live (likes) Bud likes Lisa.
+  #36 live (likes) Bud likes beer
+  #37 live (likes) Bud likes the first Matrix movie
+  #38 live (likes) Bud likes red gaming chairs
+```
+
+Note the slot is still named `likes` — a category, exactly as §18.4 predicted P1 would
+name it. The fix does not stop that and was never meant to: `single_valued` makes the
+naming stop mattering, which is why it was preferred over trying to make P1 name better.
+
+The tea and lolly facts are all live in both columns (§16's same-batch guard), as are
+Lisa's `location` and the Memore origin facts that collided once each in the original run.
+
+**The DUPLICATEs are not §17 recurrences.** All five in c1 fire at one instant, 21:05:51,
+alongside the two NEW facts of the same turn — turn 18, where the *user pastes the store
+dump verbatim* into their message. P1 re-extracted the user's own text and consolidation
+correctly answered DUPLICATE. §17.6 says this explicitly: nothing prevents the user
+restating a fact the model showed them, and that is indistinguishable from the user
+asserting it, as it should be. The remaining DUPLICATEs are turns 21-22 restating Den Haag.
+No question turn stored anything in either column.
+
+**A correction to §18.2's count.** The original run's `memory tools` supersede was scored
+CORRECT there and it is not. Turn 25 ("I've turned on another set of memory tools that can
+be used in parallel") and turn 26 ("they are separate for now... it is currently separate")
+are compatible — one is about enabling a second set, the other about their sync state — so
+retiring the first was wrong in both columns. The original run's tally is therefore
+**2 correct / 13 wrong**, not 4 / 11. In this run they coexist, in c1 under one slot and in
+c2 on two subjects.
+
+### 18.15 What the live run shows that the harness does not
+
+The opposite-axis pressure is now visible in a real session, and it is worth recording
+because `slots.py` scores it but this is the first time it has been seen outside the
+fixture:
+
+- **Slot split, c1.** Bud's seating is stored twice — `#34 (chair) Bud sits in the Red
+  chair in the Whangarei office.` and `#40 (seating_assignment) Bud sits on the Red chair
+  in the Whangarei office.` Near-identical text, two slot names, both live. Lisa has the
+  same shape: `#28 (employer) Lisa works for DDS in Amsterdam.` and `#29 (location work)
+  Lisa works at the DDS office in Amsterdam.` A split costs recall and keeps both facts,
+  which is the recoverable direction, but it is the cost side of §18 and it is real.
+- **Subject split, c1.** `the red gaming chair` (#39, cost) and `the red chair` (#47,
+  position) are one object under two subject keys.
+- **A corrupted proper noun.** c1 #41 reads "Bud's work location is the **Whangacia**
+  office." The turn says Whangarei and every other fact in both columns spells it
+  correctly. This is a reader/extractor transcription error, nothing to do with
+  consolidation, and it is the kind of defect no axis in `slots.py` can see — the fact is
+  live, well-slotted, on the right subject, and wrong.
+
+None of these is a consolidation failure. All three are arguments for the same thing: the
+harness measures what it was built to measure, and a live run still surfaces classes of
+error it cannot express.
