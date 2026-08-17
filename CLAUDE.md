@@ -72,13 +72,16 @@ turn, and one turn stored a *join* over two of them. The channel was isolated by
 three-arm control (the hint list is not one; prior turns cannot be, at
 `extract_window_turns=3`) and closed by moving text rather than adding a rule.
 
-RESULTS.md §18 opens a defect it does **not** close: P1 names a slot after the fact's
-*category* (`preference` — literally a `FactType` value) instead of the property it gives a
-value for, so several simultaneously-true facts land in one slot and retire each other.
-§18 adds the instrument (`slots.py` turns 39-45) and the refuse-list, nothing more. Read it
-before proposing a fix — the obvious one is measured-and-refused, the rate is ~2/3 so
-`--runs 3` cannot tell "fixed" from "lucky", and the console run that surfaced it was
-running a memore four commits stale.
+RESULTS.md §18 found P1 naming a slot after the fact's *category* (`preference` — literally
+a `FactType` value) instead of the property, so several simultaneously-true facts landed in
+one slot and retired each other. It is **fixed**: `CandidateFact.single_valued` is a
+required boolean in the P1 schema, consumed by `_classify` as a field lookup. Measured over
+`--runs 9` (three is not enough at this defect's rate), all nine runs identical, and the
+only two failures anywhere in them are the two pre-existing standing ones — `(24, 38)` and
+`[3, 4]`. The fix also removed the *variance*: pre-fix, identical input scored 2/3 then
+1/3; post-fix, nine identical runs. Not settled: it is measured on a 46-turn script, not a
+live console run, and the bench is argued inert (default True + a unit test) rather than
+re-run.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
@@ -277,17 +280,29 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   slots; naming a slot that way puts every simultaneously-true fact of that type in one
   place, where they retire each other. The hint list amplifies it — `subject_slots` shows
   the category back to P1 and the prompt asks for exact reuse — so one bad first naming is
-  self-reinforcing for the rest of the session. Measured: the bare category is coined in
-  **every run of both scripts** (replay 6/6, slots 3/3 and 3/3); it is then *reused* 5/6,
-  2/3 and 1/3 — read per script, never pooled, because the two slots baselines ran against
-  different fixture versions. Three things follow. **Do not fix it with a rule in `_SYSTEM`** — the
-  rule is already there verbatim ("Could BOTH facts be true at the same time? YES →
-  different attributes") and P1 violated it four times in one column; that is arm E.
-  **Do not fix it with a `COLLECTION_TYPES` keyword list in the consolidator** — it scores
-  3/3 on turns 39–41 and breaks `(42, 43)`, because a favourite is a preference holding one
-  value at a time, and a slot that can never resolve is the FactConsolidation task failing.
-  **Do not judge a candidate fix on `--runs 3`** — at a ~2/3 rate, two consecutive baselines
-  scored 2/3 and 1/3 on identical turns. RESULTS.md §18.
+  self-reinforcing for the rest of the session. Naming cannot carry the judgment, so P1 is
+  asked it directly: **`CandidateFact.single_valued` is a required boolean in the P1 schema
+  and `_classify` reads it as a field lookup.** No LLM enters the decision — the field is
+  read exactly as `attribute` and `subject_hint` are, `_classify` stays a pure function of
+  its arguments, and `test_no_llm_in_the_consolidation_decision` still pins the
+  collaborators. Four things must not be undone. It **defaults True**, which is the pre-§18
+  code path, and that is what keeps old graphs and the bench inert — do not flip the default
+  to False "for safety", it would silently stop every contradiction the bench measures. It
+  sits **below the exact-DUPLICATE scan**, or a collection accumulates copies of one
+  sentence. It replaces two dead ends: a rule in `_SYSTEM` is arm E (the rule is already
+  there verbatim and P1 violated it four times in one column), and a `COLLECTION_TYPES`
+  keyword list scores 3/3 on turns 39–41 while breaking `(42, 43)`, because a favourite is
+  a preference holding one value at a time. And **judge any change here on `--runs 9`, not
+  3** — pre-fix, identical input scored 2/3 then 1/3. RESULTS.md §18.
+- **The `single_valued` examples in `_SYSTEM` must not be collections held by an OWNER.**
+  The first version listed "office locations" and "todo list items", and P1 generalised the
+  shape: "I have a cat called Miso" filed as `the user :: pets` instead of subject `Miso`,
+  splitting `[28, 29]` in 9 runs out of 9 while every other axis held. §15's rule 5 — a
+  thing Y *contains*, with properties of its own, is its own subject — was being actively
+  contradicted by an example in the same prompt. Keep the examples attributes of the
+  subject itself ("languages spoken", "allergies"). This is the concrete form of the
+  general warning above: every word in `_SYSTEM` can perturb §15, and an example does it
+  faster than a rule. RESULTS.md §18.12.
 - **A gateway console trace is evidence only after you check the installed revision.**
   `llm_gateway` pins `memore @ git+…`, so the console can run a memore days behind the
   working tree; the 2026-08-17 run was four commits stale and 7 of its 11 wrong supersedes

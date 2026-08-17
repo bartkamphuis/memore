@@ -2169,3 +2169,138 @@ wrote nothing []   (diagnostic only -- not scored)
   `extract_window_turns=3` for turns 14-16, which are the turns that name Bud's slots.
   Faithful to the original, but it means P1 is measured on a script that warns it about the
   failure mid-way. The `slots.py` turns are the clean instrument.
+
+### 18.10 The fix — ask P1 the question instead of inferring it from the name
+
+The judgment that separates the two cases is not in the strings. "The capital of the
+Netherlands is Amsterdam / Den Haag" and "Bud likes Lisa / beer" are structurally
+identical pairs — same subject, same slot, different value, neither containing the other.
+§16 hit that wall with surface rules and §6 hit it with embeddings, and §18.6 is the third
+form of it: a `COLLECTION_TYPES` keyword list cannot separate "likes beer" from "favourite
+beer is Guinness" either.
+
+So it is asked of the only component allowed to judge. `CandidateFact.single_valued` is a
+required boolean in the P1 schema:
+
+```
+- `single_valued` asks ONE thing about the attribute you just named: can this subject
+  have only ONE value for it at a time?
+    true   "age", "capital city", "deploy target", "favourite programming language"
+    false  "likes", "interests", "skills", "languages spoken", "allergies"
+```
+
+`_classify` consumes it as a field lookup, placed with the same-batch guard and for the
+same reason — only CONTRADICTION rests on recency, so only CONTRADICTION is withheld:
+
+```python
+if not candidate.single_valued:
+    return ConsolidationCase.NEW, None, []
+```
+
+**No LLM runs in the consolidation decision.** The field is read exactly as `attribute` and
+`subject_hint` are, `_classify` remains a pure function of its arguments, and
+`test_no_llm_in_the_consolidation_decision` — which asserts the consolidator's
+collaborators are `{store, embedder, config}` — still holds unchanged. What moved is
+*where the judgment is made*, not whether the decision is deterministic. P1's output has
+always been an input to this function; this adds one more field to it.
+
+It sits **below** the exact-DUPLICATE scan deliberately. A collection that accumulates
+copies of the same sentence is the store bloat writepath §2.2 case 2 exists to prevent,
+and nothing about a slot holding several values makes a repeat of one of them news.
+
+**Defaults True**, which is the pre-§18 code path exactly. A store written before the
+field, and the bench's cached extraction (`bench/extract.py`, which supplies no such
+field), behave as they always did — so every §3 oracle number stays reproducible. Same
+inertness argument as `attribute == ""`.
+
+### 18.11 Nine runs, and the standing failures are the only failures
+
+`--runs 9` rather than the usual 3, because §18.5 established that at this defect's rate a
+three-run sample cannot tell a fix from luck.
+
+```
+                        BEFORE (3 runs)              AFTER (9 runs)
+must-coexist            12/13, 13/13, 13/13          13/13  x9      117/117
+must-collide             7/8,   7/8,   7/8            7/8   x9       63/72
+one-subject             19/20, 19/20, 19/20          19/20  x9      171/180
+distinct                 5/5,   5/5,   5/5            5/5   x9       45/45
+no reply leak            2/2,   2/2,   2/2            2/2   x9       18/18
+```
+
+All nine runs are identical, and **the only two failures anywhere in them are the two
+pre-existing standing failures** — `(24, 38)` on collide and `[3, 4]` on one-subject, both
+documented in §15 and §17.5 and both unchanged in text. No new failure appeared on any
+axis.
+
+Read the *before* column as the two separate baselines it is: the defect fired 2/3 on the
+47-turn fixture version and 1/3 on the shipped 46-turn one (§18.5), and 9 runs of new code
+against 3 of old is an asymmetric comparison. What survives that caveat is the direction
+and the spread — the pre-fix runs disagreed with each other and the post-fix runs do not.
+
+The number that decides this is **`must-collide`, not `must-coexist`.** The fix can only
+ever *withhold* CONTRADICTION, so `[39, 40, 41, 43]` reaching 13/13 proves nothing on its
+own: `single_valued: false` on every fact would score that perfectly while destroying the
+store. `(42, 43)` resolving 9 times out of 9 is what says otherwise — a favourite IS a
+preference, it holds one value at a time, and it still supersedes. That pair was written
+into the harness *before* the fix, for exactly this.
+
+A second thing the nine runs show, unprompted: the fix removed the **variance**, not only
+the failures. Pre-fix, identical input scored 2/3 and then 1/3; post-fix, nine identical
+runs. Encoding the judgment in the attribute's *name* left it to P1's phrasing, which
+varies at temperature 0; answering a boolean does not.
+
+### 18.12 The first version of the bullet caused a subject split, 9 times out of 9
+
+The first `false` example list was `"likes", "interests", "skills", "office locations",
+"todo list items"`. Nine runs with it:
+
+```
+must-coexist  13/13 x9        <- target axis, already clean
+must-collide   7/8  x9        <- held
+distinct       5/5  x9        <- held
+one-subject   18/20 x8, 17/20 x1     <- REGRESSION, was 19/20
+```
+
+One group, failing 9 times out of 9:
+
+```
+FAIL [28, 29]  SUBJECT-SPLIT  miso | user
+user -> ..., pets, ...
+```
+
+"I have a cat called Miso" filed as `the user :: pets`; "My cat Miso is 3 years old" filed
+under `Miso`. The cause is in the example list: *"office locations"* and *"todo list
+items"* are both collections **on the owner**, and P1 generalised the shape to a pet. That
+is §15's rule 5 — a thing Y *contains*, which has properties of its own, is its own
+subject — being pulled sideways by an example that contradicts it.
+
+Replacing them with attributes belonging to the subject itself (`"languages spoken"`,
+`"allergies"`), plus one sentence stating the answer never changes which subject a fact
+belongs to, restored `one-subject` to 19/20 in all nine runs.
+
+Note what that sentence is **not**: another restatement of a rule P1 is already ignoring,
+which is arm E and which §17 measured as buying nothing. The subject rules were being
+actively *contradicted* by an example in the same prompt, and the fix is to stop
+contradicting them. That distinction is the difference between this working and arm E not.
+
+The trade was also refused on principle, not only because it was cheap to fix. A split is
+the recoverable direction — both facts survive and recall finds half an entity — against a
+collision that leaves a true fact marked SUPERSEDED. §15 is explicit that trading one for
+one is a regression rather than a wash, and banking a 9/9 split because the axis it paid
+for looked good is exactly what that invariant forbids.
+
+### 18.13 What this does not settle
+
+- **`slots.py` is not the console.** The defect was found in a real typed session and the
+  fix is measured on a 46-turn script. It needs a live two-column run against a correctly
+  installed memore — which would also exercise §17, something no replay here could.
+- **The bench numbers were argued inert, not re-measured.** `single_valued` defaults True
+  and `bench/extract.py` supplies no such field, so the §3 oracle path is the pre-§18 code
+  path by construction, and there is a test pinning it. That is an argument plus a unit
+  test, not a re-run of sh_6k/sh_32k.
+- **Nothing here measures a non-English turn.** `slots.py` is 46 English turns. The
+  `single_valued` judgement and §15's subject rules both lean on English cues, so a report
+  that another language "works" is not evidence either way until it has its own axis,
+  scored separately so the numbers above stay comparable.
+- **`(24, 38)` and `[3, 4]` are still failing**, unchanged, as they were before this work
+  and for reasons that have nothing to do with it. §15 and §17.5.
