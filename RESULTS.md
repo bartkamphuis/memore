@@ -2384,3 +2384,168 @@ fixture:
 None of these is a consolidation failure. All three are arguments for the same thing: the
 harness measures what it was built to measure, and a live run still surfaces classes of
 error it cannot express.
+
+## 19. Temporal expiry — spec, harness turns and refuse-list. Nothing built.
+
+A fact can stop being *upcoming* without anybody contradicting it. "The user has a trip to
+Lisbon on 29 August 2026" is true on the 17th and misleading on the 30th, and no later turn
+will ever correct it — the correction is the calendar. Consolidation cannot see this:
+freshness ordinals order *arrivals*, and nothing arrived.
+
+This section specifies the fix and puts the assertions on record. **No code is written**,
+by the §18 pattern: the instrument and the refuse-list first, the fix after.
+
+### 19.1 Why it fits, and where it must NOT go
+
+The comparison is arithmetic — a stored date against `now` — so it is legal in recall A–D
+under the no-LLM invariant, exactly as `single_valued` is legal in `_classify`.
+
+**It is a READ-time label, never a write-time state change.** A fact does not become false
+when its date passes; its relation to *now* changes, and *now* is different on every read.
+Storing an `expired` flag bakes in the moment it was computed and is wrong on the next
+lookup. It would also collide with `invalid_at`, which means *superseded* — a specific
+claim that a newer fact replaced this one, which is not what happened here.
+
+So the label belongs in `assemble.py:27-29`, beside the two that exist:
+
+```
+[SUPERSEDED - was valid <from> to <to>]     # exists -- a newer fact replaced this
+[valid as of <day>]                         # exists
+[PAST - occurred <day>]                     # proposed -- the calendar moved, not the store
+```
+
+**PAST must not shut the gate, drop the fact, or reduce its score.** "Where did I go in
+August?" needs that trip. Expiry that suppresses recall is deletion wearing a different
+hat, and supersede-never-delete is the invariant this project is built on. The only thing
+that changes is the framing handed to the reader.
+
+### 19.2 The fields
+
+Two, both answered by P1, both consumed mechanically — the `single_valued` shape:
+
+```
+occurs_at   ISO-8601 date, or null. The date the fact's EVENT happens. Null when the
+            fact is not about a dated event -- which includes every standing property,
+            and every fact whose text merely contains a number that looks like a year.
+recurring   true when the event repeats (birthday, monthly renewal, weekly retro).
+            A recurring event has no single date and can never be PAST.
+```
+
+The label applies when `occurs_at` is non-null **and** `recurring` is false **and**
+`occurs_at < today`. Anything else is untouched.
+
+Both default to the inert value — `null` and `false` — so a store written before the
+fields, and the bench's cached extraction, behave exactly as they do now. Same argument as
+`attribute == ""` and `single_valued = True`.
+
+### 19.3 Why a field and not a parse of the fact text
+
+Because the text varies, and that is measured. The 2026-08-17 live run gave one column each
+way from **the same turn**:
+
+```
+c1  #18 (trip upcoming)      the user has a trip to Lisbon on 29th August 2026
+c2  #47 (visiting_schedule)  Lisa is visiting the user on 2026-08-18      <- from "tomorrow"
+```
+
+c2 resolved a relative date to ISO; c1 left prose. That is the same failure as naming a
+slot `preference` — the information exists, it is in a string, and the string varies. n=1
+each way, so it is an argument rather than a rate.
+
+The encouraging half: **P1 already resolves "tomorrow" against the turn**, and already
+distinguishes recurring from one-shot implicitly — in *both* columns the birthday carried
+no year and the trip did. The judgement is available; only its shape is unreliable.
+
+### 19.4 The harness turns, and the rule that governs them
+
+`slots.py` turns 46-50, appended, indices 0-45 untouched. **Nothing is scored yet** and
+that is deliberate: `occurs_at` does not exist, so scoring written today would be scoring
+against an interface nobody has seen output from — which is exactly what made the turn-45
+containment pair vacuous (§18.7).
+
+```
+46-47  MUST_BE_PAST      "I'm flying to Porto on 12 May 2026"
+                         "My passport expires on 4 April 2026"
+48-50  MUST_NOT_BE_PAST  "My gym membership renews on the 1st of every month"
+                         "Our team retro is on the last Friday of every month"
+                         "My car is a 2019 Subaru"
+   3   MUST_NOT_BE_PAST  "I was born in Den Haag"   (reused -- undated, permanently true)
+```
+
+`MUST_BE_PAST` is the direct analogue of `(42, 43)` in §18 and the reason this refuse-list
+is not one-sided. Without a turn that must fire, `occurs_at: null` on every fact scores a
+**perfect** refuse-list while implementing nothing — the same hole that made
+`[39, 40, 41, 43]` meaningless on its own. Both turns are durable and both were framed as
+upcoming when asserted, which is the case the feature exists for.
+
+**THE DATE RULE, and it governs every turn ever added to this axis:**
+
+> `MUST_BE_PAST` turns carry a FIXED date that is safely historical, so their verdict never
+> changes. `MUST_NOT_BE_PAST` turns are RECURRING or UNDATED, never fixed-future.
+
+A fixed future date expires eventually, and the harness would then start failing on a
+calendar rather than on a code change. This is why turn 5 ("trip to Lisbon on the 29th
+August 2026") and turn 17 ("Lisa's birthday is on the 24th of August") are *not* used here
+despite being the obvious candidates: both are fixed dates that age, and turn 17 flips from
+future to past on 24 August.
+
+Turn 50 is the trap for the cheap implementation: a rule that scrapes four digits out of
+the fact text reads "2019" as an event date and marks a Subaru PAST forever.
+
+### 19.5 The open question — do not resolve it in `_SYSTEM`
+
+**Should a completed, durable event carry PAST?** "The user started at DDS on 1 February
+2026" is a dated event whose date has gone, and both readings are defensible:
+
+- **Yes** — it is factually past, the label is accurate, and the reader gains the tense.
+- **No** — it is a biographical record that is permanently true, and PAST framing invites
+  the reader to treat it as stale the way SUPERSEDED does.
+
+This is a decision, not a derivation. It is written here rather than settled because
+committing a tentative answer as an *example* in `_SYSTEM` is precisely how §18.12 happened
+— two innocuous example attributes split a subject in 9 runs out of 9. Decide it with a
+measurement, then write the example.
+
+### 19.6 Two smaller things that need stating, not defaulting
+
+- **Day boundaries.** The user is in NZ (UTC+12/+13); "tomorrow" in the live run resolved
+  to NZ-local. A date-only `occurs_at` compared against a UTC `now` is wrong by up to a
+  day at the boundary, in the direction of marking things PAST early. The comparison needs
+  a stated timezone rule, not whatever `datetime.now()` happens to give.
+- **The motivating case is partly deferred scope.** "A new session past that date" is
+  cross-session recall, which `recall-poc-spec.md` §5 defers; v1 is session-scoped. Within
+  v1 this lands on long-running or resumed sessions. Worth knowing before it is built for
+  a scenario the read path cannot reach yet.
+
+### 19.7 What the pre-fix diagnostic does and does not tell you
+
+`print_run` now prints the temporal turns and what P1 stored for them. It measures whether
+a date survives into the fact text and in what shape — **not** `occurs_at`, which does not
+exist. Do not read it as a baseline for the field itself.
+
+Three runs, and the output was **identical in all three**:
+
+```
+[ 3] must-NOT-past  the user was born in Den Haag
+[46] must-be-PAST   the user is flying to Porto on 12 May 2026
+[47] must-be-PAST   the user's passport expires on 4 April 2026
+[48] must-NOT-past  the user's gym membership renews on the 1st of every month
+[49] must-NOT-past  the team retro occurs on the last Friday of every month
+[50] must-NOT-past  the user's car is a 2019 Subaru
+```
+
+Two things worth carrying into the build:
+
+- **All six turns extract, 3/3.** The fixtures are not vacuous — the check that removed the
+  turn-45 pair (§18.7) passes here before any code is written. Turn 50 in particular
+  survives P1's salience gate, so the "2019 is not an event date" trap is live rather than
+  theoretical.
+- **P1 passes explicit dates through as prose and normalises only when it must resolve.**
+  Every date here stayed in the user's phrasing ("12 May 2026", "the 1st of every month"),
+  where the live run's c2 emitted ISO for *"tomorrow"* — a relative date it had no choice
+  but to compute. That refines §19.3: the variance is not random, it tracks whether P1 had
+  to do arithmetic. Neither shape is a date the read path can compare, which is the point.
+
+The five scored axes were unmoved by the new turns — `21/24, 39/39, 57/60, 15/15, 6/6`
+across the three runs, with the same two standing failures and nothing else. Appending at
+the end kept every earlier index meaning what it meant.

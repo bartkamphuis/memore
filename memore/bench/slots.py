@@ -218,6 +218,37 @@ TURNS: list[str] = [
     #       The branch stays guarded where it can be constructed directly -- the
     #       trace-derived tests at the end of tests/test_consolidation.py. RESULTS.md §18.
     "Bud sits on the red chair in the Whangarei office",
+    # ---- appended for TEMPORAL EXPIRY (RESULTS.md §19). Turns and assertions only --
+    # ---- there is no scoring for this axis yet and deliberately so: `occurs_at` does
+    # ---- not exist, and writing scoring against an unbuilt interface locks in its shape
+    # ---- before anyone has seen P1's output. That is what made the turn-45 pair vacuous.
+    # ---- These five turns exist now so the pre-fix diagnostic below has something to
+    # ---- report, and so the refuse-list is on record BEFORE the fix, per §3/§10/§15/§18.
+    #
+    # THE DATE RULE, and it governs every turn added to this axis ever:
+    #   MUST_BE_PAST turns carry a FIXED date that is safely historical, so their verdict
+    #   never changes.  MUST_NOT_BE_PAST turns are RECURRING or UNDATED, never
+    #   fixed-future -- a fixed future date expires eventually and the harness would begin
+    #   failing on a calendar rather than on a code change.
+    #   This is why turn 5 ("trip to Lisbon on the 29th August 2026") and turn 17 ("Lisa's
+    #   birthday is on the 24th of August") are NOT used here despite being the obvious
+    #   candidates. Both are fixed dates that age.
+    #
+    # 46-47 MUST BE PAST. The pair that proves the rule can FIRE, and the direct analogue
+    #       of `(42, 43)` in §18: without it, `occurs_at: null` on every fact scores a
+    #       perfect refuse-list while doing nothing at all. Both are durable and both were
+    #       framed as upcoming when asserted, which is the case the feature exists for.
+    "I'm flying to Porto on 12 May 2026",
+    "My passport expires on 4 April 2026",
+    # 48-49 RECURRING, must never read PAST however many times the date has come round.
+    #       The trap is an implementation that resolves "the 1st of every month" to a
+    #       concrete date -- the most recent one is always in the past.
+    "My gym membership renews on the 1st of every month",
+    "Our team retro is on the last Friday of every month",
+    # 50    A YEAR THAT IS NOT AN EVENT DATE. `occurs_at` must be null here; a rule that
+    #       scrapes four digits out of the fact text marks this PAST in 2020 terms and is
+    #       wrong forever after.
+    "My car is a 2019 Subaru",
 ]
 
 # The assistant's reply for a turn, when the turn has one. Absent means `""`, which is
@@ -347,6 +378,26 @@ MUST_DISTINGUISH: list[tuple[int, int]] = [
 ]
 
 
+# --- TEMPORAL EXPIRY (RESULTS.md §19) -- assertions on record, NOT yet scored ---------
+#
+# No axis reads these yet. `occurs_at` does not exist, so any verdict today would be a
+# verdict about an interface nobody has seen output from. They are here because a
+# refuse-list is worth nothing written after the fix -- §3 rejected a rule despite a better
+# score on exactly this basis -- and because `print_run` reports what P1 does with the
+# turns today, which is the honest pre-fix baseline.
+#
+# Read the two lists as one opposed pair, the way MUST_COLLIDE / MUST_COEXIST are read.
+
+# Fact must read PAST: a durable, upcoming-framed event whose fixed date has gone.
+MUST_BE_PAST: list[int] = [46, 47]
+
+# Fact must NEVER read PAST. Recurring or undated only -- see THE DATE RULE above.
+# Turn 3 ("I was born in Den Haag") is included from the original set: a permanently true
+# fact with no date at all must come out `occurs_at: null` and be untouchable by this
+# feature. It is the cheapest possible regression guard and it costs no new turn.
+MUST_NOT_BE_PAST: list[int] = [3, 48, 49, 50]
+
+
 @dataclass
 class TurnResult:
     index: int
@@ -360,6 +411,10 @@ class TurnResult:
     # strings would report splits that the store never suffered.
     keys: list[tuple[str, str]] = field(default_factory=list)
     cases: list[str] = field(default_factory=list)
+    # The fact text as P1 wrote it. Only the temporal diagnostic reads this -- every
+    # scored axis works on ordinals and keys, deliberately, since scoring prose would
+    # make the numbers depend on phrasing.
+    facts: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -498,6 +553,7 @@ async def run_once(run: int, graph: str) -> RunReport:
                     normalize_subject(item.candidate.attribute),
                 ))
                 row.cases.append(item.case.value)
+                row.facts.append(item.candidate.fact)
             results.append(row)
             history.append(Message(role="user", content=turn))
             # "Understood." where the turn has no reply, so turns 0-35 see exactly the
@@ -567,6 +623,19 @@ def print_run(report: RunReport) -> tuple[int, ...]:
         if not row.slots and row.index not in MUST_NOT_EXTRACT
     ]
     print(f"  wrote nothing {dropped}   (diagnostic only -- not scored)")
+
+    # DIAGNOSTIC for the unbuilt temporal axis (RESULTS.md §19). Prints what P1 does with
+    # a date TODAY, which is the one thing measurable before `occurs_at` exists -- and it
+    # is NOT a baseline for `occurs_at` itself, only for whether the date survives into the
+    # fact text at all and in what shape. The 2026-08-17 console run gave n=1 each way:
+    # c1 left "29th August 2026" as prose, c2 emitted "2026-08-18" from "tomorrow". That
+    # variance is the argument for a structured field rather than parsing the sentence.
+    print("  temporal turns (diagnostic only -- axis not scored until `occurs_at` lands)")
+    for index in sorted(set(MUST_BE_PAST + MUST_NOT_BE_PAST)):
+        row = report.turns[index]
+        verdict = "must-be-PAST " if index in MUST_BE_PAST else "must-NOT-past"
+        facts = "; ".join(f for f in row.facts) or "(nothing stored)"
+        print(f"    [{index:2d}] {verdict}  {facts}")
 
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the

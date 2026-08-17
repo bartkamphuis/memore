@@ -84,6 +84,14 @@ script through the real gateway path, both columns, **zero wrong supersedes** ag
 original run's 13, with §16/§17/§18 exercised together for the first time. Still not
 settled: the bench is argued inert (default True + a unit test) rather than re-run.
 
+RESULTS.md §19 is a **spec with no code**: temporal expiry, where a fact stops being
+*upcoming* without anyone contradicting it and consolidation cannot see it, because nothing
+arrived. Harness turns 46-50 and the refuse-list are on record; `occurs_at` / `recurring`
+are not built. Read §19 before starting it — the read-time-only rule, THE DATE RULE
+governing which turns may join the axis, and §19.5's open question (which must be settled by
+measurement, not by writing an example into `_SYSTEM`) are all decided or deliberately left
+open there.
+
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
@@ -275,7 +283,17 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   `wrote nothing [...]` line is a **diagnostic, not a sixth axis**: unscored on purpose,
   because every scored axis is blind to a turn that stored nothing (a coexist group with a
   missing member still reads OK, there being no dead ordinal to find). Do not promote it
-  to an axis on one observation. RESULTS.md §17.4, §18.8.
+  to an axis on one observation. RESULTS.md §17.4, §18.8. Turns 46-50 (`MUST_BE_PAST` /
+  `MUST_NOT_BE_PAST`) are likewise **unscored on purpose** until `occurs_at` exists —
+  scoring an interface before seeing its output is what made the turn-45 pair vacuous.
+- **Temporal expiry is a READ-time label, never a write-time state change, and it must
+  never suppress recall.** A fact does not become false when its date passes; *now* is
+  different on every read, so a stored `expired` flag bakes in the moment it was computed.
+  It must not reuse `invalid_at`, which means *superseded* — a claim that a newer fact
+  replaced this one, which is not what the calendar did. And PAST must not shut the gate,
+  drop the fact or dock its score: expiry that suppresses recall is deletion wearing a
+  different hat. `MUST_BE_PAST` exists because a one-sided refuse-list is scored perfectly
+  by `occurs_at: null` on everything — the §18 hole again. RESULTS.md §19.
 - **An attribute names a PROPERTY, never the fact's category, and P1 gets this wrong about
   two thirds of the time.** `preference` / `interests` / `likes` are `FactType` values, not
   slots; naming a slot that way puts every simultaneously-true fact of that type in one
