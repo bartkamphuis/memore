@@ -31,10 +31,14 @@ _SCHEMA = {
                     "subject_hint": {"type": "string"},
                     "attribute": {"type": "string"},
                     "single_valued": {"type": "boolean"},
+                    # RESULTS.md §19. Nullable: most facts are not dated events, and
+                    # `null` is the inert answer that leaves a fact unlabelled.
+                    "occurs_at": {"type": ["string", "null"]},
+                    "recurring": {"type": "boolean"},
                 },
                 "required": [
                     "fact", "type", "confidence", "subject_hint", "attribute",
-                    "single_valued",
+                    "single_valued", "occurs_at", "recurring",
                 ],
             },
         }
@@ -143,8 +147,47 @@ Rules for each extracted fact:
   not because Bud might change his mind, but because a person's likes are a collection
   and a new one is added to it rather than replacing it. "Bud's favourite beer is
   Guinness" is true: he has one favourite at a time.
+- `occurs_at` is the date the fact's EVENT happens, as ISO-8601 `YYYY-MM-DD`, or null.
+
+    null   the DEFAULT, and correct for almost everything. Any standing property, and
+           any fact that merely CONTAINS a number shaped like a year. "The user's car is
+           a 2019 Subaru" is null: 2019 describes the car, nothing happens on a date.
+           If you cannot point at an event that happens ON a day, answer null.
+    a date the fact is about something that happens on that day: a flight, an
+           appointment, a deadline, an expiry.
+
+  Resolve dates relative to the turn's own date, so "tomorrow" becomes an actual date.
+  If the day is genuinely not determined ("sometime in May"), answer null rather than
+  inventing one.
+- `recurring` is true when the event repeats on a schedule -- "renews on the 1st of every
+  month", "the retro is the last Friday of the month", a birthday. A repeating event has
+  no single date, so give `occurs_at` null and `recurring` true. One-off events, and
+  everything undated, are false.
 - `confidence` is your own 0..1 confidence that this is a durable fact.
 """
+
+
+def _parse_occurs_at(value: object) -> datetime | None:
+    """P1's `occurs_at` string to a UTC datetime, or None (RESULTS.md §19).
+
+    Deliberately strict: only a bare ISO date or datetime is accepted, and anything else
+    -- prose ("12 May 2026"), a partial date ("2026-05"), a non-string -- becomes None.
+    §19.7 measured P1 passing explicit dates through in the user's own phrasing and
+    normalising only when it had to do arithmetic, so prose here is expected rather than
+    exceptional, and the honest answer for a date the read path cannot compare is "no
+    date". Guessing at prose would put a parser's opinion into a field whose whole point
+    is that P1 already made the judgement.
+
+    Attached to UTC to match every other clock in this codebase; the comparison that uses
+    it is date-granular anyway (`assemble.is_past`).
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
 class Extractor(Protocol):
@@ -250,6 +293,11 @@ class OllamaExtractor:
                     # ignores the field changes nothing. Only an explicit `false`
                     # withholds a contradiction.
                     single_valued=item.get("single_valued", True) is not False,
+                    # Absent, null, or unparseable all mean "not a dated event" -- the
+                    # inert answer. An extractor that ignores these fields, and every
+                    # fact written before them, behaves exactly as it did (§19.2).
+                    occurs_at=_parse_occurs_at(item.get("occurs_at")),
+                    recurring=item.get("recurring", False) is True,
                 )
             )
         return out

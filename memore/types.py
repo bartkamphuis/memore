@@ -69,6 +69,13 @@ class MemoryHit:
     invalid_at: datetime | None
     source_episode_id: str
     similarity: float = 0.0
+    # Temporal expiry (RESULTS.md §19), carried so `assemble.render_hit` can label a hit
+    # PAST. They arrive here for RENDERING only: nothing in the gate, the ranking or the
+    # budget may read them, because expiry that suppresses recall is deletion wearing a
+    # different hat, and "where did I go in August?" needs exactly the fact whose date
+    # has gone.
+    occurs_at: datetime | None = None
+    recurring: bool = False
 
 
 @dataclass(frozen=True)
@@ -113,6 +120,30 @@ class CandidateFact:
     Defaults True, which is what keeps this inert: a store written before the field, and
     the bench's cached extraction (`bench/extract.py`), supply nothing and get exactly the
     pre-§18 behaviour. Same argument as `attribute = ""`.
+
+    `occurs_at` / `recurring` are the temporal-expiry pair (RESULTS.md §19). A fact can
+    stop being *upcoming* without anybody contradicting it -- "a trip to Lisbon on 29
+    August 2026" is true on the 17th and misleading on the 30th, and no later turn will
+    correct it because the correction is the calendar. Consolidation cannot see that:
+    freshness ordinals order ARRIVALS, and nothing arrived.
+
+    `occurs_at` is the date the fact's EVENT happens, null for every standing property and
+    for any fact whose text merely contains a number that looks like a year ("a 2019
+    Subaru" is not an event). `recurring` is true when the event repeats -- a monthly
+    renewal has no single date and can never be past. Both are asked of P1 rather than
+    parsed from the text, for the `single_valued` reason: the information is in a string
+    and the string varies. The same live turn produced ISO in one column and prose in the
+    other, and §19.7 refined why -- P1 normalises only when it has to do arithmetic
+    ("tomorrow"), and passes explicit dates through in the user's phrasing.
+
+    Read-time only. Neither field ever changes what is stored or retired: a fact does not
+    become false when its date passes, its relation to *now* changes, and *now* differs on
+    every read. See `assemble.render_hit` for where the label is applied and why it must
+    not touch the gate.
+
+    Both default to the inert value, so a store written before them -- and the bench's
+    cached extraction -- behave exactly as they did. Same argument as `attribute = ""`
+    and `single_valued = True`.
     """
 
     fact: str
@@ -122,6 +153,8 @@ class CandidateFact:
     subject_hint: str
     attribute: str = ""
     single_valued: bool = True
+    occurs_at: datetime | None = None
+    recurring: bool = False
 
 
 @dataclass(frozen=True)
@@ -162,6 +195,16 @@ class StoredFact:
     # instead -- which is the slot-split failure of RESULTS.md §11 arriving by way of the
     # hint list rather than the model's judgement.
     attribute_label: str = ""
+    # The temporal-expiry pair, carried through from `CandidateFact` unchanged and never
+    # written again after commit (RESULTS.md §19). `occurs_at` is stored as a datetime
+    # for one boring reason -- the store's `_ts`/`_dt` helpers already round-trip
+    # datetimes as epoch floats -- but it MEANS a date, and the comparison that produces
+    # the PAST label is date-granular. See `assemble.is_past`.
+    #
+    # Storing these is not the same as storing expiry: no `expired` flag exists, because
+    # it would bake in the moment it was computed and be wrong on the next read.
+    occurs_at: datetime | None = None
+    recurring: bool = False
 
 
 @dataclass(frozen=True)

@@ -425,6 +425,11 @@ class DeterministicConsolidator:
                 # The raw phrasing, not the sorted key. This is what P1 gets shown back
                 # to reuse; the key is what decides identity. RESULTS.md §14.
                 attribute_label=candidate.attribute.strip(),
+                # Carried straight through. Nothing in the consolidation decision reads
+                # these -- a date is not a contradiction, and the calendar never retires
+                # a fact (RESULTS.md §19.1).
+                occurs_at=candidate.occurs_at,
+                recurring=candidate.recurring,
             )
             await self.store.add_fact(stored, vector)
             batch_ids.add(stored.id)

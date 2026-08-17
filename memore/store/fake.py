@@ -9,6 +9,7 @@ supersession without FalkorDB running.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from datetime import datetime
 
 from ..types import Episode, MemoryHit, StoredFact
@@ -88,6 +89,8 @@ class InMemoryStore:
                     valid_at=fact.valid_at,
                     invalid_at=fact.invalid_at,
                     source_episode_id=fact.source_episode_id,
+                    occurs_at=fact.occurs_at,
+                    recurring=fact.recurring,
                 )
             )
         scored.sort(key=lambda h: h.score, reverse=True)
@@ -140,21 +143,10 @@ class InMemoryStore:
         self.vectors[fact.id] = list(embedding)
 
     async def supersede(self, fact_id: str, invalid_at: datetime) -> None:
-        existing = self.facts[fact_id]
-        self.facts[fact_id] = StoredFact(
-            id=existing.id,
-            session_id=existing.session_id,
-            fact=existing.fact,
-            subject_key=existing.subject_key,
-            subject_label=existing.subject_label,
-            ordinal=existing.ordinal,
-            valid_at=existing.valid_at,
-            invalid_at=invalid_at,
-            source_episode_id=existing.source_episode_id,
-            type=existing.type,
-            attribute=existing.attribute,
-            attribute_label=existing.attribute_label,
-        )
+        # `replace` rather than a field-by-field rebuild: the rebuild silently dropped
+        # every field added after it was written, which is how a new StoredFact field
+        # can pass its own tests and still vanish on supersede.
+        self.facts[fact_id] = replace(self.facts[fact_id], invalid_at=invalid_at)
 
     async def count(self, session_id: str) -> int:
         return sum(1 for f in self.facts.values() if f.session_id == session_id)

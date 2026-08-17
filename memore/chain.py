@@ -58,6 +58,13 @@ class ChainNode:
     subject_key: str
     valid_at: datetime | None = None
     invalid_at: datetime | None = None
+    # Carried purely so a chain-reached fact can still be labelled PAST (RESULTS.md §19).
+    # Without them a fact that arrives by the walk rather than by ranking renders with no
+    # temporal framing at all -- a hole `slots.py` cannot see, because the walk is not
+    # what it measures. The walk itself never reads these: expansion is a graph question,
+    # not a calendar one.
+    occurs_at: datetime | None = None
+    recurring: bool = False
 
 
 def candidate_values(fact: str, subject_key: str) -> list[str]:

@@ -23,13 +23,14 @@ NOW = datetime(2026, 3, 14, tzinfo=UTC)
 
 def make_hit(
     fact: str, score: float, valid_at=None, invalid_at=None, episode="ep1",
-    similarity: float | None = None,
+    similarity: float | None = None, occurs_at=None, recurring=False,
 ) -> MemoryHit:
     """`similarity` defaults to `score`, so a crafted hit gates identically under either
     `RecallConfig.gate_on`. Pass them apart only when testing that distinction."""
     return MemoryHit(
         fact=fact, score=score, similarity=score if similarity is None else similarity,
         valid_at=valid_at, invalid_at=invalid_at, source_episode_id=episode,
+        occurs_at=occurs_at, recurring=recurring,
     )
 
 
@@ -212,3 +213,72 @@ async def test_non_temporal_store_emits_bare_facts():
     result = await recall(make_turn(), RecallConfig(), store, StubEmbedder())
     assert "- no timestamps here" in result.injected_block
     assert "valid as of" not in result.injected_block
+
+
+# --- Temporal expiry (RESULTS.md §19) ----------------------------------------
+#
+# The label is computed at render time against a `now` passed in, never stored, so these
+# assert on `render_hit`/`build_block` directly where a fixed clock is the point. The
+# through-`recall()` cases below use real dates far enough from today that the verdict
+# cannot flip on the calendar -- THE DATE RULE of §19.4 applies to tests as much as to
+# harness turns.
+
+PAST_DAY = datetime(2020, 5, 12, tzinfo=UTC)
+FUTURE_DAY = datetime(2099, 5, 12, tzinfo=UTC)
+
+
+def test_is_past_needs_a_date_that_has_gone():
+    from memore.assemble import is_past
+
+    assert is_past(make_hit("flew to Porto", 0.9, occurs_at=PAST_DAY), NOW)
+    # Not yet: an upcoming trip is the case the store exists to remember.
+    assert not is_past(make_hit("flying to Porto", 0.9, occurs_at=FUTURE_DAY), NOW)
+    # No date at all -- every standing property, and the "2019 Subaru" trap.
+    assert not is_past(make_hit("drives a 2019 Subaru", 0.9), NOW)
+
+
+def test_a_recurring_event_is_never_past():
+    """A monthly renewal has no single date. Even carrying one, `recurring` wins --
+    otherwise "renews on the 1st" reads PAST for all but one day a month."""
+    from memore.assemble import is_past
+
+    assert not is_past(
+        make_hit("renews on the 1st", 0.9, occurs_at=PAST_DAY, recurring=True), NOW
+    )
+
+
+async def test_past_is_labelled_but_never_dropped_or_docked():
+    """§19.1: expiry that suppresses recall is deletion wearing a different hat.
+    "Where did I go in May?" needs exactly this fact."""
+    hit = make_hit("the user flew to Porto", 0.95, valid_at=NOW, occurs_at=PAST_DAY)
+    store = FakeStore([hit])
+    result = await recall(make_turn(), RecallConfig(), store, StubEmbedder())
+
+    assert "[PAST - occurred 2020-05-12] the user flew to Porto" in result.injected_block
+    # Present, ranked and unscathed -- the label is the ONLY difference.
+    assert result.gate_open
+    assert [h.fact for h in result.memories_used] == ["the user flew to Porto"]
+    assert result.memories_used[0].score == hit.score
+
+
+def test_superseded_wins_over_past_when_a_fact_is_both():
+    """Deliberate precedence, not line order: SUPERSEDED is the stronger claim (a newer
+    fact replaced this one) where PAST only says the calendar moved."""
+    from memore.assemble import render_hit
+
+    both = make_hit(
+        "deploys to staging", 0.9, valid_at=PAST_DAY, invalid_at=NOW, occurs_at=PAST_DAY
+    )
+    rendered = render_hit(both, NOW)
+    assert rendered.startswith("- [SUPERSEDED")
+    assert "PAST" not in rendered
+
+
+def test_without_a_clock_nothing_is_labelled_past():
+    """`build_block`'s `now` is optional so every pre-§19 caller -- both bench harnesses
+    among them -- renders exactly what it rendered before."""
+    from memore.assemble import build_block
+
+    hits = [make_hit("the user flew to Porto", 0.9, valid_at=NOW, occurs_at=PAST_DAY)]
+    assert "PAST" not in build_block(hits)
+    assert "PAST" in build_block(hits, NOW)

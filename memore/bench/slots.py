@@ -415,6 +415,10 @@ class TurnResult:
     # scored axis works on ordinals and keys, deliberately, since scoring prose would
     # make the numbers depend on phrasing.
     facts: list[str] = field(default_factory=list)
+    # `(occurs_at, recurring)` as P1 answered them, for the §19 temporal diagnostic.
+    # Read alongside `facts`, never scored -- see the printer for why the axis stays
+    # unscored until the field's real output has been looked at.
+    temporal: list[tuple[str | None, bool]] = field(default_factory=list)
 
 
 @dataclass
@@ -554,6 +558,12 @@ async def run_once(run: int, graph: str) -> RunReport:
                 ))
                 row.cases.append(item.case.value)
                 row.facts.append(item.candidate.fact)
+                row.temporal.append((
+                    item.candidate.occurs_at.date().isoformat()
+                    if item.candidate.occurs_at is not None
+                    else None,
+                    item.candidate.recurring,
+                ))
             results.append(row)
             history.append(Message(role="user", content=turn))
             # "Understood." where the turn has no reply, so turns 0-35 see exactly the
@@ -630,12 +640,16 @@ def print_run(report: RunReport) -> tuple[int, ...]:
     # fact text at all and in what shape. The 2026-08-17 console run gave n=1 each way:
     # c1 left "29th August 2026" as prose, c2 emitted "2026-08-18" from "tomorrow". That
     # variance is the argument for a structured field rather than parsing the sentence.
-    print("  temporal turns (diagnostic only -- axis not scored until `occurs_at` lands)")
+    print("  temporal turns (diagnostic only -- still unscored, see RESULTS.md §19)")
     for index in sorted(set(MUST_BE_PAST + MUST_NOT_BE_PAST)):
         row = report.turns[index]
         verdict = "must-be-PAST " if index in MUST_BE_PAST else "must-NOT-past"
-        facts = "; ".join(f for f in row.facts) or "(nothing stored)"
-        print(f"    [{index:2d}] {verdict}  {facts}")
+        if not row.facts:
+            print(f"    [{index:2d}] {verdict}  (nothing stored)")
+            continue
+        for fact, (occurs_at, recurring) in zip(row.facts, row.temporal, strict=False):
+            flag = "recurring" if recurring else (occurs_at or "-")
+            print(f"    [{index:2d}] {verdict}  {flag:<12} {fact}")
 
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the

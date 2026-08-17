@@ -234,9 +234,11 @@ async def recall(
 
     latency_ms = (time.perf_counter() - started) * 1000.0
 
-    # Component D -- assembly (§7).
+    # Component D -- assembly (§7). The clock is read HERE, at render time, and not
+    # stored anywhere: a fact's relation to "now" is different on every read, which is
+    # the whole reason §19 is a label rather than a flag.
     return RecallResult(
-        injected_block=build_block(chosen),
+        injected_block=build_block(chosen, datetime.now(UTC)),
         memories_used=chosen,
         latency_ms=latency_ms,
         gate_open=True,
@@ -295,6 +297,10 @@ async def _expand(
                 valid_at=node.valid_at,
                 invalid_at=node.invalid_at,
                 source_episode_id="",
+                # A chain-reached fact gets the same temporal framing as a ranked one.
+                # Its score is 0.0 because it was never ranked; its date is real.
+                occurs_at=node.occurs_at,
+                recurring=node.recurring,
             )
         )
         used += cost

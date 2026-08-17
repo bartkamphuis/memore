@@ -346,3 +346,77 @@ async def test_irrelevant_query_stays_below_the_gate_floor():
         await real._q("MATCH (f:Fact) DELETE f")
         await drop_graph(real)
         await real.aclose()
+
+
+# --- Temporal expiry round-trip (RESULTS.md §19) -----------------------------
+
+
+async def test_occurs_at_and_recurring_survive_the_store(store):
+    """The fields are useless unless they come back. Both search arms hydrate them, so
+    this asserts through `hybrid_search` rather than off the StoredFact."""
+    from datetime import UTC, datetime
+
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    trip = CandidateFact(
+        fact="the user is flying to Porto",
+        type=FactType.STATE, confidence=0.9, valid_at=None, subject_hint="porto trip",
+        attribute="flight date",
+        occurs_at=datetime(2026, 5, 12, tzinfo=UTC),
+    )
+    gym = CandidateFact(
+        fact="the user's gym membership renews monthly",
+        type=FactType.STATE, confidence=0.9, valid_at=None, subject_hint="gym membership",
+        attribute="renewal", recurring=True,
+    )
+    await con.consolidate("s1", [trip, gym])
+
+    hits = {h.fact: h for h in await store.hybrid_search(
+        "porto gym", await embedder.embed_one("porto gym"), "s1", 10
+    )}
+    assert hits["the user is flying to Porto"].occurs_at.date().isoformat() == "2026-05-12"
+    assert hits["the user is flying to Porto"].recurring is False
+    # A recurring event carries no date, and must not acquire one on the way through.
+    assert hits["the user's gym membership renews monthly"].occurs_at is None
+    assert hits["the user's gym membership renews monthly"].recurring is True
+
+
+async def test_a_fact_with_no_date_reads_back_inert(store):
+    """Every fact written before §19 has no `occurs_at` property at all. The read path
+    must give None/False for a missing property, not raise and not invent a date."""
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+    await con.consolidate("s1", [candidate("the user's car is a 2019 Subaru", "car")])
+
+    hits = await store.hybrid_search(
+        "car", await embedder.embed_one("car"), "s1", 5
+    )
+    assert [h.occurs_at for h in hits] == [None]
+    assert [h.recurring for h in hits] == [False]
+
+
+async def test_supersede_preserves_the_temporal_fields(store):
+    """Supersede rewrites the node; the date of the event it describes is not what
+    changed, so it must still be there afterwards."""
+    from datetime import UTC, datetime
+
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(
+        store, embedder, ConsolidationConfig(use_embedding_comparison=False)
+    )
+    def dated(fact: str, day: int) -> CandidateFact:
+        return CandidateFact(
+            fact=fact, type=FactType.STATE, confidence=0.9, valid_at=None,
+            subject_hint="porto trip", attribute="flight date",
+            occurs_at=datetime(2026, 5, day, tzinfo=UTC),
+        )
+
+    await con.consolidate("s1", [dated("flying to Porto on the 12th", 12)])
+    await con.consolidate("s1", [dated("flying to Porto on the 19th", 19)])
+
+    hits = {h.fact: h for h in await store.hybrid_search(
+        "porto", await embedder.embed_one("porto"), "s1", 10
+    )}
+    superseded = hits["flying to Porto on the 12th"]
+    assert superseded.invalid_at is not None, "precondition: the first fact was retired"
+    assert superseded.occurs_at.date().isoformat() == "2026-05-12"

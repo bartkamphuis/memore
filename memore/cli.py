@@ -147,7 +147,16 @@ async def run_inspect(session: str | None, query: str | None, config: RecallConf
         for fact in group:
             mark = "SUPERSEDED" if fact.invalid_at is not None else "live      "
             slot = f"({fact.attribute}) " if fact.attribute else ""
-            print(f"    #{fact.ordinal:<4} {mark}  {slot}{fact.fact}")
+            # The stored inputs to the PAST label, not the label itself -- the inspector
+            # shows what is in the store, and whether a fact reads PAST depends on when
+            # you ask (RESULTS.md §19).
+            if fact.recurring:
+                when = "[recurring] "
+            elif fact.occurs_at is not None:
+                when = f"[on {fact.occurs_at.date().isoformat()}] "
+            else:
+                when = ""
+            print(f"    #{fact.ordinal:<4} {mark}  {slot}{when}{fact.fact}")
 
     if query:
         embedder = OllamaEmbedder(embed_config)

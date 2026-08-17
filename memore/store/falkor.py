@@ -184,6 +184,10 @@ class FalkorStore:
                 valid_at=_dt(row.get("valid_at")),
                 invalid_at=_dt(row.get("invalid_at")),
                 source_episode_id=row.get("source_episode_id") or "",
+                # Carried for the PAST label only -- nothing above reads them, so ranking
+                # and the gate are unchanged by their presence (RESULTS.md §19.1).
+                occurs_at=_dt(row.get("occurs_at")),
+                recurring=bool(row.get("recurring")),
             )
             for row, score, sim in ranked
         ]
@@ -221,11 +225,14 @@ class FalkorStore:
                 "CALL db.idx.vector.queryNodes('Fact', 'embedding', $k, vecf32($vec)) "
                 "YIELD node, score WITH node, score WHERE node.session_id = $sid "
                 "RETURN node.id AS id, node.fact AS fact, node.valid_at AS valid_at, "
-                "node.invalid_at AS invalid_at, node.source_episode_id AS ep, score",
+                "node.invalid_at AS invalid_at, node.source_episode_id AS ep, "
+                "node.occurs_at AS occurs_at, node.recurring AS recurring, score",
                 {"k": fetch, "vec": query_vec, "sid": session_id},
             )
             out = {}
-            for fact_id, fact, valid_at, invalid_at, episode, distance in result.result_set:
+            for (
+                fact_id, fact, valid_at, invalid_at, episode, occurs_at, recurring, distance
+            ) in result.result_set:
                 similarity = max(0.0, min(1.0, 1.0 - float(distance)))
                 out[fact_id] = (
                     {
@@ -233,6 +240,8 @@ class FalkorStore:
                         "valid_at": valid_at,
                         "invalid_at": invalid_at,
                         "source_episode_id": episode,
+                        "occurs_at": occurs_at,
+                        "recurring": recurring,
                     },
                     similarity,
                 )
@@ -256,7 +265,8 @@ class FalkorStore:
                 "CALL db.idx.fulltext.queryNodes('Fact', $q) YIELD node, score "
                 "WITH node, score WHERE node.session_id = $sid "
                 "RETURN node.id AS id, node.fact AS fact, node.valid_at AS valid_at, "
-                "node.invalid_at AS invalid_at, node.source_episode_id AS ep, score "
+                "node.invalid_at AS invalid_at, node.source_episode_id AS ep, "
+                "node.occurs_at AS occurs_at, node.recurring AS recurring, score "
                 "LIMIT $lim",
                 {"q": cleaned, "sid": session_id, "lim": k * _SESSION_OVERFETCH},
             )
@@ -269,10 +279,13 @@ class FalkorStore:
                     "valid_at": valid_at,
                     "invalid_at": invalid_at,
                     "source_episode_id": episode,
+                    "occurs_at": occurs_at,
+                    "recurring": recurring,
                 },
                 float(score),
             )
-            for fact_id, fact, valid_at, invalid_at, episode, score in result.result_set
+            for fact_id, fact, valid_at, invalid_at, episode, occurs_at, recurring, score
+            in result.result_set
         }
 
     async def ingest(self, episode: Episode) -> None:
@@ -293,7 +306,8 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid AND f.subject_key = $key "
             "AND f.invalid_at IS NULL RETURN f.id, f.fact, f.subject_key, f.ordinal, "
-            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label "
+            "f.valid_at, f.invalid_at, f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label, "
+            "f.occurs_at, f.recurring "
             "ORDER BY f.ordinal DESC",
             {"sid": session_id, "key": subject_key},
         )
@@ -311,6 +325,10 @@ class FalkorStore:
                 type=FactType(row[7]) if row[7] else FactType.STATE,
                 attribute=row[9] or "",
                 attribute_label=row[10] or row[9] or "",
+                # Absent on every fact written before §19; `_dt(None)` is None and
+                # `bool(None)` is False, which are exactly the inert values.
+                occurs_at=_dt(row[11]),
+                recurring=bool(row[12]),
             )
             for row in result.result_set
         ]
@@ -331,7 +349,8 @@ class FalkorStore:
         await self.connect()
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid AND f.invalid_at IS NULL "
-            "RETURN f.fact, f.subject_key, f.valid_at, f.invalid_at ORDER BY f.ordinal",
+            "RETURN f.fact, f.subject_key, f.valid_at, f.invalid_at, f.occurs_at, f.recurring "
+            "ORDER BY f.ordinal",
             {"sid": session_id},
         )
         return [
@@ -340,6 +359,8 @@ class FalkorStore:
                 subject_key=row[1] or "",
                 valid_at=_dt(row[2]),
                 invalid_at=_dt(row[3]),
+                occurs_at=_dt(row[4]),
+                recurring=bool(row[5]),
             )
             for row in result.result_set
         ]
@@ -403,20 +424,27 @@ class FalkorStore:
             "type": fact.type.value,
             "attribute": fact.attribute,
             "attribute_label": fact.attribute_label,
+            # Temporal expiry (RESULTS.md §19). `recurring` goes in `props` because a
+            # bool is always present; `occurs_at` follows the `valid_at` pattern below,
+            # being nullable.
+            "recurring": fact.recurring,
         }
         valid_at = _ts(fact.valid_at)
         invalid_at = _ts(fact.invalid_at)
+        occurs_at = _ts(fact.occurs_at)
         # MERGE on id makes commit idempotent per turn (writepath §3).
         await self._q(
             "MERGE (f:Fact {id: $id}) SET f += $props, f.embedding = vecf32($vec)"
             + (", f.valid_at = $valid_at" if valid_at is not None else "")
-            + (", f.invalid_at = $invalid_at" if invalid_at is not None else ""),
+            + (", f.invalid_at = $invalid_at" if invalid_at is not None else "")
+            + (", f.occurs_at = $occurs_at" if occurs_at is not None else ""),
             {
                 "id": fact.id,
                 "props": props,
                 "vec": embedding,
                 "valid_at": valid_at,
                 "invalid_at": invalid_at,
+                "occurs_at": occurs_at,
             },
         )
 
@@ -499,7 +527,8 @@ class FalkorStore:
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
             "RETURN f.id, f.fact, f.subject_key, f.ordinal, f.valid_at, f.invalid_at, "
-            "f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label ORDER BY f.ordinal",
+            "f.source_episode_id, f.type, f.subject_label, f.attribute, f.attribute_label, "
+            "f.occurs_at, f.recurring ORDER BY f.ordinal",
             {"sid": session_id},
         )
         return [
@@ -516,6 +545,10 @@ class FalkorStore:
                 type=FactType(row[7]) if row[7] else FactType.STATE,
                 attribute=row[9] or "",
                 attribute_label=row[10] or row[9] or "",
+                # Absent on every fact written before §19; `_dt(None)` is None and
+                # `bool(None)` is False, which are exactly the inert values.
+                occurs_at=_dt(row[11]),
+                recurring=bool(row[12]),
             )
             for row in result.result_set
         ]
