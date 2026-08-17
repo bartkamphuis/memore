@@ -192,6 +192,14 @@ MUST_COLLIDE: list[tuple[int, int]] = [
     (24, 38),   # deploy target again -- turn 38 carries a reply, and must still land.
 ]
 
+# `(24, 38)` above fails 3/3 both before and after the §17 fix, exactly as `[3, 4]` fails
+# below: P1 names turn 38's slot `deploy target` and turn 24's `deployment workflow`, which
+# is ordinary attribute-naming variance and measures nothing about the reply channel. Left
+# failing rather than relaxed, per §3 and §10 -- an assertion edited because a change broke
+# it stops being evidence. So the collide total reads 18/21 where §11/§14/§15 recorded
+# 18/18: the six original pairs are unchanged, and TWO known failures now sit in the
+# denominator. RESULTS.md §17.5.
+
 # Every turn in a group MUST still be live: they are different properties.
 MUST_COEXIST: list[list[int]] = [
     [0, 1, 2],        # name / age / occupation  (0 may yield 2 facts -- see note below)
