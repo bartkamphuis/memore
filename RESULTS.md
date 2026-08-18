@@ -2549,3 +2549,84 @@ Two things worth carrying into the build:
 The five scored axes were unmoved by the new turns — `21/24, 39/39, 57/60, 15/15, 6/6`
 across the three runs, with the same two standing failures and nothing else. Appending at
 the end kept every earlier index meaning what it meant.
+
+### 19.8 Built. What P1 actually emits, over 9 runs
+
+`occurs_at` / `recurring` are in the P1 schema and consumed mechanically; the label lives
+in `assemble.render_hit` behind `assemble.is_past`. The temporal axis is **scored now**,
+which it was not in §19.4 — the order was field → 9 runs → read the output → *then* the
+scorer, because scoring an unseen interface is what made the turn-45 pair vacuous.
+
+Nine runs, and the field is the most stable thing in this harness:
+
+```
+[ 3] must-NOT-past   no date      9/9      the user was born in Den Haag
+[46] must-be-PAST    2026-05-12   9/9      the user is flying to Porto
+[47] must-be-PAST    2026-04-04   9/9      the user's passport expires on 2026-04-04
+[48] must-NOT-past   recurring    9/9      gym membership renews on the 1st of every month
+[49] must-NOT-past   recurring    9/9      the team retro occurs on the last Friday
+[50] must-NOT-past   no date      8/9      the user's car is a 2019 Subaru   (1 stored nothing)
+```
+
+`MUST_BE_PAST` is **18/18** and `MUST_NOT_BE_PAST` **26/26 of what was stored**, with
+**zero** wrong dates anywhere. Turn 50 — the trap for a four-digit scrape — never once
+acquired an event date from "2019"; its single miss is P1 dropping the fact on salience,
+which the `wrote nothing` diagnostic already covers and which is not a temporal failure.
+
+**§19.3's variance argument is now settled in the field's favour, and visibly so.** The
+pre-fix diagnostic recorded turn 46 as `the user is flying to Porto on 12 May 2026` —
+the date living in prose. Post-fix it is `the user is flying to Porto` with `2026-05-12`
+in `occurs_at`. The date moved out of the sentence and into a field the read path can
+compare, which is exactly what the section asked for.
+
+### 19.9 §19.5 is answered YES, by construction — recorded, not defaulted
+
+§19.2's rule ("non-null AND not recurring AND `occurs_at < today`") applied to a completed
+durable event — "the user started at DDS on 1 February 2026" — yields PAST. So
+**implementing §19.2 verbatim IS the "Yes" branch of §19.5**; the two are not independent,
+and shipping the code without saying so would have settled an open question silently.
+
+Taken deliberately: nothing in the two fields distinguishes a biographical record from a
+flight, so "No" needs a third signal from P1 that §19.2 does not have. No example was
+written into `_SYSTEM` either way — that constraint from §19.5 still holds, and §18.12 is
+why.
+
+### 19.10 The control: `[9->10]` is NOT §19's, and the §18 baseline has drifted
+
+Three runs in, a failure appeared that CLAUDE.md's baseline says should not exist:
+`[9->10] MISSED user::likes vs user::likes`. Two new required fields in the P1 schema are
+exactly the kind of change §18.12 showed can perturb §15's naming, so it was controlled
+rather than argued: the same harness, `--runs 9`, on `HEAD~1` in a worktree, separate
+graph.
+
+| axis (9 runs each)      | pre-§19 | §19       |
+|-------------------------|---------|-----------|
+| must-collide            | 58/72   | **60/72** |
+| must-coexist            | 117/117 | 117/117   |
+| one-subject coherent    | 171/180 | 171/180   |
+| distinct (over-merge)   | 45/45   | 45/45     |
+| no-reply-leak           | 2/2 ×9  | 2/2 ×9    |
+| `[9->10]` failures      | **5/9** | **3/9**   |
+
+**§19 is exonerated.** `[9->10]` fails *more often* without it, and the pre-§19 arm
+produces the identical `likes`/MISSED mechanism in 3 of its 9 runs. §19 moves no axis
+down and collide up by 2.
+
+Two things this turned up that outlive §19:
+
+- **CLAUDE.md's "the only two failures are `(24, 38)` and `[3, 4]`" no longer reproduces
+  at `HEAD~1`.** `[9->10]` fails 5/9 *before* §19. That claim was true when §18 measured
+  it and is not true now; it is a standing failure that postdates §18's measurement, and
+  it should be read as such rather than as a regression in whatever ran last.
+- **`(9, 10)` is a fixture that still depends on naming**, which is what §18 set out to
+  remove. It resolves only when P1 happens to coin something single-valued
+  (`language preference programming`); when it coins `likes`, `single_valued=false` is the
+  *correct* answer by `_SYSTEM`'s own example list, and the pair becomes unsatisfiable.
+  The two failure modes are one defect wearing two hats: `SPLIT` (2/9 baseline) when the
+  namings differ, `MISSED` (3/9 baseline, 3/9 §19) when they agree on `likes`. Do not
+  "fix" it by deleting `likes` from the example list without re-running both arms — that
+  list is load-bearing for `[10, 11]` and `[39, 40, 41, 43]`.
+
+The contention is worth stating: §19's runs 1–5 ran alone and 6–9 alongside the baseline,
+which ran mostly contended. Same model at temperature 0, so this costs power rather than
+biasing direction — but the two rates were not collected under identical conditions.

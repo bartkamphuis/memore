@@ -57,6 +57,7 @@ import asyncio
 import os
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 
 from ..config import EmbedConfig, StoreConfig, WritePathConfig
 from ..consolidate import DeterministicConsolidator
@@ -512,6 +513,38 @@ class RunReport:
                 ))
         return out
 
+    def temporal_results(self, today: date) -> list[tuple[int, str, str]]:
+        """Does the calendar label fire where it must, and stay silent where it must not?
+
+        Scored only now that `occurs_at` exists and its real output has been read --
+        writing this against an unseen interface is what made the turn-45 pair vacuous
+        (§18.7). Nine runs of the field first, then this.
+
+        Both directions, because a one-sided list is the §18 hole: `occurs_at: null` on
+        everything scores MUST_NOT_BE_PAST perfectly while implementing nothing, so
+        MUST_BE_PAST is what forces the rule to actually fire.
+
+        A turn that stored NOTHING is reported as such rather than passed. It trivially
+        satisfies "nothing is past" and would inflate the refuse-list -- the same reason
+        `wrote nothing` is a diagnostic and not an axis (§17.4). Turn 50 does this in
+        roughly one run in nine, on salience, and it is not a temporal failure.
+        """
+        out: list[tuple[int, str, str]] = []
+        for index in sorted(set(MUST_BE_PAST + MUST_NOT_BE_PAST)):
+            row = self.turns[index]
+            must = index in MUST_BE_PAST
+            if not row.temporal:
+                out.append((index, "NOTHING-STORED", "unscorable -- P1 wrote no fact"))
+                continue
+            for (occurs_at, recurring), fact in zip(row.temporal, row.facts, strict=False):
+                past = occurs_at is not None and not recurring and date.fromisoformat(occurs_at) < today
+                shown = "recurring" if recurring else (occurs_at or "no date")
+                if past == must:
+                    out.append((index, "OK", shown))
+                else:
+                    out.append((index, "NOT-PAST" if must else "WRONGLY-PAST", f"{shown}  {fact}"))
+        return out
+
     def coexist_results(self) -> list[tuple[list[int], str, str]]:
         out = []
         for group in MUST_COEXIST:
@@ -640,16 +673,16 @@ def print_run(report: RunReport) -> tuple[int, ...]:
     # fact text at all and in what shape. The 2026-08-17 console run gave n=1 each way:
     # c1 left "29th August 2026" as prose, c2 emitted "2026-08-18" from "tomorrow". That
     # variance is the argument for a structured field rather than parsing the sentence.
-    print("  temporal turns (diagnostic only -- still unscored, see RESULTS.md §19)")
-    for index in sorted(set(MUST_BE_PAST + MUST_NOT_BE_PAST)):
-        row = report.turns[index]
-        verdict = "must-be-PAST " if index in MUST_BE_PAST else "must-NOT-past"
-        if not row.facts:
-            print(f"    [{index:2d}] {verdict}  (nothing stored)")
-            continue
-        for fact, (occurs_at, recurring) in zip(row.facts, row.temporal, strict=False):
-            flag = "recurring" if recurring else (occurs_at or "-")
-            print(f"    [{index:2d}] {verdict}  {flag:<12} {fact}")
+    temporal = report.temporal_results(datetime.now(UTC).date())
+    scorable = [r for r in temporal if r[1] != "NOTHING-STORED"]
+    ok = sum(1 for r in scorable if r[1] == "OK")
+    print(f"  temporal      {ok}/{len(scorable)} correctly framed")
+    for index, verdict, detail in temporal:
+        want = "must-be-PAST " if index in MUST_BE_PAST else "must-NOT-past"
+        mark = "ok  " if verdict == "OK" else "FAIL"
+        if verdict == "NOTHING-STORED":
+            mark = "----"
+        print(f"    {mark} [{index:2d}] {want} {verdict:<14} {detail}")
 
     # Slot vocabulary per subject: the raw material of a split, whether or not it cost a
     # pair. Printed because a subject accumulating five near-synonymous slots is the

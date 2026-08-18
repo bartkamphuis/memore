@@ -84,13 +84,22 @@ script through the real gateway path, both columns, **zero wrong supersedes** ag
 original run's 13, with §16/§17/§18 exercised together for the first time. Still not
 settled: the bench is argued inert (default True + a unit test) rather than re-run.
 
-RESULTS.md §19 is a **spec with no code**: temporal expiry, where a fact stops being
+RESULTS.md §19 is **built** (§19.8–§19.10): temporal expiry, where a fact stops being
 *upcoming* without anyone contradicting it and consolidation cannot see it, because nothing
-arrived. Harness turns 46-50 and the refuse-list are on record; `occurs_at` / `recurring`
-are not built. Read §19 before starting it — the read-time-only rule, THE DATE RULE
-governing which turns may join the axis, and §19.5's open question (which must be settled by
-measurement, not by writing an example into `_SYSTEM`) are all decided or deliberately left
-open there.
+arrived. `occurs_at` / `recurring` are P1 schema fields consumed mechanically, and PAST is a
+read-time label in `assemble.render_hit`. Over 9 runs the field is the most stable thing in
+the harness — `MUST_BE_PAST` 18/18, zero wrong dates, and turn 50's "2019 Subaru" trap never
+once fired. §19.5's open question is answered **YES by construction** and recorded as a
+decision in §19.9: §19.2's rule labels a completed durable event PAST, so shipping the rule
+settles the question whether or not you say so. Still no example in `_SYSTEM` either way.
+
+**§19 was controlled against `HEAD~1`, and that control corrected a claim in this file.**
+`[9->10]` fails **5/9 pre-§19** and 3/9 with it, so "the only two failures anywhere are
+`(24, 38)` and `[3, 4]`" was true when §18 measured it and is **not true now** — read a
+`[9->10]` failure as a standing one, not as a regression in whatever ran last. It is also a
+fixture that still depends on naming: it resolves only when P1 coins something single-valued,
+and when it coins `likes`, `single_valued=false` is *correct* by `_SYSTEM`'s own example list.
+Do not delete `likes` from that list without re-running both arms — RESULTS.md §19.10.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
@@ -284,8 +293,11 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   because every scored axis is blind to a turn that stored nothing (a coexist group with a
   missing member still reads OK, there being no dead ordinal to find). Do not promote it
   to an axis on one observation. RESULTS.md §17.4, §18.8. Turns 46-50 (`MUST_BE_PAST` /
-  `MUST_NOT_BE_PAST`) are likewise **unscored on purpose** until `occurs_at` exists —
-  scoring an interface before seeing its output is what made the turn-45 pair vacuous.
+  `MUST_NOT_BE_PAST`) are **scored now** that `occurs_at` exists — but only in that order:
+  field, nine runs, read the real output, *then* the scorer. Scoring an interface before
+  seeing its output is what made the turn-45 pair vacuous. A turn that stored nothing
+  reports `NOTHING-STORED` rather than passing: it trivially satisfies "nothing is past",
+  which is the §17.4 argument again. RESULTS.md §19.8.
 - **Temporal expiry is a READ-time label, never a write-time state change, and it must
   never suppress recall.** A fact does not become false when its date passes; *now* is
   different on every read, so a stored `expired` flag bakes in the moment it was computed.
