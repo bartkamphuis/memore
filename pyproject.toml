@@ -1,6 +1,6 @@
 [project]
 name = "memore"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic write-time memory consolidation and pre-fetch recall for LLM agents"
 readme = "README.md"
 requires-python = ">=3.11"
