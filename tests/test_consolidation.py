@@ -767,3 +767,42 @@ async def test_an_extractor_that_never_answers_gets_the_pre_18_behaviour(consoli
     assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
     live = await store.live_facts_for_subject(SESSION, subject_key("the user"))
     assert [f.fact for f in live] == ["the user likes coffee"]
+
+
+def test_print_run_reports_the_coexist_axis_it_computed():
+    """The summary tuple must agree with the per-run lines printed beside it.
+
+    Guards a real defect: the §19 temporal block reused the name `ok`, still live from
+    the coexist block and read by the return tuple, so the run summary reported the
+    temporal count as the coexist total -- 50/117 against a true 117/117, while every
+    per-run line said 13/13. A summary disagreeing with its own detail is the shape to
+    catch, and nothing else in the harness would have.
+
+    The report is built with the coexist groups LIVE and the temporal turns empty, so the
+    two counts differ. An empty report makes both zero and passes either way -- that
+    vacuous version was written first and caught nothing (§18.7 again).
+    """
+    import io
+    from contextlib import redirect_stdout
+
+    from memore.bench.slots import MUST_COEXIST, RunReport, TurnResult, print_run
+
+    turns = [TurnResult(index=i, turn=f"turn {i}") for i in range(60)]
+    ordinal = 0
+    live: dict[int, bool] = {}
+    for group in MUST_COEXIST:
+        for index in group:
+            ordinal += 1
+            turns[index].ordinals.append(ordinal)
+            live[ordinal] = True
+
+    report = RunReport(run=1, turns=turns, live_by_ordinal=live)
+    with redirect_stdout(io.StringIO()):
+        totals = print_run(report)
+
+    coexist = report.coexist_results()
+    expected_ok = sum(1 for _, verdict, _ in coexist if verdict == "OK")
+    assert expected_ok == len(MUST_COEXIST), "precondition: every group must be live"
+    # The temporal count is 0 here (no facts on those turns), so a shadowed `ok` shows up.
+    assert totals[2] == expected_ok
+    assert totals[3] == sum(1 for _, verdict, _ in coexist if verdict != "UNMEASURABLE")

@@ -675,8 +675,12 @@ def print_run(report: RunReport) -> tuple[int, ...]:
     # variance is the argument for a structured field rather than parsing the sentence.
     temporal = report.temporal_results(datetime.now(UTC).date())
     scorable = [r for r in temporal if r[1] != "NOTHING-STORED"]
-    ok = sum(1 for r in scorable if r[1] == "OK")
-    print(f"  temporal      {ok}/{len(scorable)} correctly framed")
+    # NOT `ok`: that name is still live from the coexist block above and is read by the
+    # return tuple below, so reusing it here silently reported the temporal count as the
+    # coexist total. It read 50/117 against a true 117/117 while every per-run line said
+    # 13/13 -- a summary that disagreed with its own detail. Keep these names distinct.
+    temporal_ok = sum(1 for r in scorable if r[1] == "OK")
+    print(f"  temporal      {temporal_ok}/{len(scorable)} correctly framed")
     for index, verdict, detail in temporal:
         want = "must-be-PAST " if index in MUST_BE_PAST else "must-NOT-past"
         mark = "ok  " if verdict == "OK" else "FAIL"
