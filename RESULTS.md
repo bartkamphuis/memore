@@ -2643,3 +2643,95 @@ Two things this turned up that outlive §19:
 The contention is worth stating: §19's runs 1–5 ran alone and 6–9 alongside the baseline,
 which ran mostly contended. Same model at temperature 0, so this costs power rather than
 biasing direction — but the two rates were not collected under identical conditions.
+
+## 20. The `[9->10]` fixture: diagnosed, twice fixed, neither fix shipped
+
+§19.10 left `(9, 10)` as a fixture that still turns on naming. This section diagnoses it,
+records two prompt edits that **do** fix it, and explains why neither is in the tree.
+
+### 20.1 Why the pair is unsatisfiable when P1 says `likes`
+
+```
+ 9  "I like coding in Python"
+10  "Actually I've changed my mind, I prefer Ruby now"     -> MUST_COLLIDE
+11  "I hate green sweets"                                  -> MUST_COEXIST with 10
+```
+
+A probe replaying turns 0-11 (`scratchpad/probe910.py`) shows the resolving shape:
+
+```
+[ 9] NEW            attr='programming language preference'  sv=False   the user likes coding in Python
+[10] CONTRADICTION  attr='programming language preference'  sv=True    ...preference is Ruby
+```
+
+`_classify` reads the *incoming* candidate's `single_valued`, so turn 10's answer decides.
+Two things must hold: both turns name the same slot, and turn 10 answers `true`.
+
+When turn 9 instead names the slot `likes`, both fail *correctly*. Turn 10 reuses `likes`
+because the prompt asks for exact reuse, and then answers `single_valued=false` — which is
+right for a slot called `likes`, and is what `_SYSTEM`'s own example list teaches. The pair
+becomes unsatisfiable by construction. That is the whole defect, and it is **§18's category
+attribute wearing new clothes**: `likes` and `interests` are `FactType` values sitting in
+the `false` example list, in a prompt whose own rules say an attribute names a property and
+never a category.
+
+The parallel pair `(42, 43)` — "Bud's favourite programming language is Go" → "changed his
+mind... Rust" — resolves reliably for exactly the reason 9/10 does not: turn 42 says
+"favourite programming language", so P1 has no invitation to write `likes`.
+
+### 20.2 Two arms, 9 runs each, against HEAD as arm A
+
+- **B** replaced the `false` examples entirely: `languages spoken`, `allergies`,
+  `qualifications`, `dietary restrictions`, and a non-`likes` closing line.
+- **B2** was the minimal edit: delete `likes` and `interests`, keep `skills`,
+  `languages spoken`, `allergies` and the original closing line.
+
+| axis (9 runs)         | A (HEAD) | B        | B2         |
+|-----------------------|----------|----------|------------|
+| must-collide          | 60/72    | **63/72**| **63/72**  |
+| must-coexist          | 117/117  | 117/117  | 117/117    |
+| one-subject coherent  | **171/180** | 167/180 | 167/180  |
+| distinct (over-merge) | **45/45**| **45/45**| **43/45**  |
+| `[9->10]` failures    | 3/9      | **0/9**  | **0/9**    |
+| new failures          | —        | `[32,34]` split 4/9 | `[30,31]` 2/9, `[28,29]` 2/9, **`(15,30)` OVER-MERGE 2/9** |
+
+**Both edits fix the target completely** — 0/9, from 3/9 — and both lift collide to 63/72.
+The diagnosis in §20.1 is therefore confirmed: the example list *is* the cause.
+
+### 20.3 Why neither shipped
+
+Acceptance criteria were written down before the runs, which is the only reason this
+section is not a rationalisation:
+
+- **B2 is disqualified outright.** `(15, 30) OVER-MERGED lisa` in 2/9 runs, against 0/9 for
+  A and B. A merge destroys a fact where a split only costs recall, and CLAUDE.md's
+  asymmetry rule makes trading one for the other a regression, not a wash. The minimal edit
+  was *worse* than the wholesale one, which is not what anyone predicted.
+- **B fails the pre-registered coherence bar** (`one-subject >= 171/180`; it scores
+  167/180, a new `[32, 34]` subject split in 4/9). It destroys nothing — coexist and
+  distinct are untouched — so this is split-for-split: `[9->10]` leaves a contradicted fact
+  live where `[32, 34]` scatters one subject across two keys. Roughly one-for-one in rate,
+  opposite in kind, and no clear net gain.
+
+So HEAD is unchanged. This is recorded rather than shipped because the *finding* is durable
+and the *fix* is not: any edit to `_SYSTEM` perturbs subject naming somewhere else, which
+is §18.12 for the third time, and two examples were enough to move an axis four points.
+
+**Do not re-run this experiment expecting a different answer.** If `(9, 10)` is worth
+fixing, the lever is turn 9's own ambiguity — "I like coding in Python" is genuinely both a
+collection membership and a scalar preference, and only turn 10 disambiguates it — not
+another pass at the example list. Both passes have been made and are on the record above.
+
+### 20.4 A harness bug found by the same run, and worth more than the experiment
+
+Arm B's summary printed `must-coexist intact 50/117` while all nine of its own per-run
+lines said `13/13` and not one `COLLIDED` line existed. That is a **reporting bug** in
+`print_run`, introduced with §19's temporal block: the block reused the name `ok`, still
+live from the coexist block and read positionally by the return tuple, so `totals[2]`
+accumulated the temporal count instead. 50 is 9 runs × ~5.5 temporal rows.
+
+It only surfaced because the summary disagreed with its own detail — 50/117 is exactly the
+shape of a catastrophic false-supersede result, and would have been reported as one. Fixed,
+and now guarded by `test_print_run_reports_the_coexist_axis_it_computed`, which was written
+vacuous first (an empty report makes both counts zero and passes either way, §18.7 yet
+again) and then made to fail `assert 0 == 13` against the bug before being kept.

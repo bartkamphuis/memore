@@ -99,7 +99,15 @@ settles the question whether or not you say so. Still no example in `_SYSTEM` ei
 `[9->10]` failure as a standing one, not as a regression in whatever ran last. It is also a
 fixture that still depends on naming: it resolves only when P1 coins something single-valued,
 and when it coins `likes`, `single_valued=false` is *correct* by `_SYSTEM`'s own example list.
-Do not delete `likes` from that list without re-running both arms — RESULTS.md §19.10.
+
+**That deletion has now been tried, twice, and neither version shipped — RESULTS.md §20.**
+Removing `likes`/`interests` from the `false` examples *does* fix `[9->10]` completely
+(0/9 from 3/9) and lifts collide to 63/72, confirming the diagnosis. But the wholesale
+replacement costs 4 points of subject coherence (`[32,34]` split 4/9), and the *minimal*
+edit is worse still — it produces a `(15,30)` subject OVER-MERGE in 2/9, a destroyed fact,
+which the asymmetry rule disqualifies outright. Do not re-run this expecting a different
+answer; if `(9, 10)` is worth fixing, the lever is turn 9's own ambiguity, not the example
+list. Both passes are on the record.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
