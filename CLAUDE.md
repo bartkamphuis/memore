@@ -4,6 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
+**Starting a session? Read `RESULTS.md` §21 first.** It is the standing assessment —
+the three-tier verdict on what here is and is not an advance, the convergence finding that
+the bottleneck is subject identity rather than freshness, and the ranked list of what is
+left. It exists so none of that gets re-derived from twenty sections, and it is the one
+section to read before deciding what to work on.
+
 Step 0 (the consolidation spike) is complete — both arms ran; see `RESULTS.md`, and read
 it before quoting any number, because several of its findings correct earlier claims.
 
@@ -32,8 +38,11 @@ bench harness, and the `score_floor` calibration harness (`memore/bench/calibrat
 
 Multi-hop is built and measured too (RESULTS.md §8): a deterministic value→subject graph
 walk in `memore/chain.py`, run *after* the gate, taking `factconsolidation_mh_6k` from
-0.200 to **0.760** exact-match against a field in single digits. It is off by default
-(`expansion_hops = 0`) — see the invariant below before turning it on.
+0.200 to **0.760** exact-match (0.800 SubEM). It is off by default (`expansion_hops = 0`)
+— see the invariant below before turning it on, and note that "off by default" is part of
+how the number must be quoted: it is not the shipped conversational config's result, and
+§9 calls expansion a no-op in that regime. The comparison is **0.515** (arXiv:2606.01435,
+gpt-4o), not the single-digit Graphiti figure this line used to cite — RESULTS.md §0.
 
 Subject aliasing is built and measured (RESULTS.md §10): `memore/aliases.py` merges two
 namings of one subject when they differ only by *generic relation words*, decided by
@@ -114,7 +123,9 @@ machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
 with chain expansion on) after calibrating `score_floor` over a real query set and
 switching the embedder — RESULTS.md §5. The open weakness is wrong-subject recall, not
-latency: see the scalar-floor limit below.
+latency: see the scalar-floor limit below, and **§21.4 for what that costs and what it
+would take to fix** — subject identity is ranked first there by two independent
+measurements, and this deferred list is ranked fourth.
 
 **§5's calibration is superseded by §13.** The shipped pairing is now `gate_on="cosine"`
 with floor **0.57**, not the fused score at 0.48. §5's numbers were measured against

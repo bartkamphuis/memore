@@ -2741,3 +2741,80 @@ shape of a catastrophic false-supersede result, and would have been reported as 
 and now guarded by `test_print_run_reports_the_coexist_axis_it_computed`, which was written
 vacuous first (an empty report makes both counts zero and passes either way, §18.7 yet
 again) and then made to fail `assert 0 == 13` against the bug before being kept.
+
+## 21. Where this stands, and what is left
+
+Written 2026-08-18, to answer "is this useful / an advance, and what is left" without
+re-deriving it from twenty sections. Nothing here is new measurement — it is §0, §3, §7,
+§9 and §20 collected and ranked. Read this first in a new session; read the cited sections
+before acting on any of it.
+
+### 21.1 The three-tier verdict
+
+Do not compress these into one claim. The earlier "beats the field by 40 points" framing
+came from exactly that compression.
+
+- **Not an advance: the deterministic freshness primitive.** arXiv:2606.01435 published the
+  same core idea (LLM extraction + deterministic `max(serial)`) in May 2026. Single-hop is
+  **parity** — 0.980–1.000 SubEM against 0.948, which §0 calls inside the noise of an
+  uncontrolled setup comparison, with the ceiling at 98 because 2 of 100 32k questions are
+  unwinnable.
+- **A real margin: multi-hop.** 0.800 SubEM against 0.515, by a mechanism with no
+  counterpart in their recipe (§8's chain walk — no LLM, no embeddings). Three caveats
+  belong with the number every time it is quoted: it is `mh_6k` only; the reader is a local
+  `gemma4:12b` against their gpt-4o (which cuts *for* us, but is not controlled); and
+  **chain expansion ships off** (`expansion_hops = 0`), so this is not the shipped
+  conversational default's number. §9 calls expansion a no-op in the target regime.
+- **Genuinely ours and defensible:** write-time rather than read-time resolution (the store
+  is always in a resolved state; the read path does no freshness reasoning at all), running
+  entirely on local models, and the subject-identity work in §9 and §10.
+
+### 21.2 The headline finding is the convergence, not a benchmark number
+
+arXiv:2606.01435 was revised on 2026-08-02 to attribute its gains primarily to separating
+evidence extraction from policy execution "rather than the freshness mechanism alone."
+
+§3 reached the same conclusion independently and from the opposite direction: consolidation
+was correct on every subject group in every run at both corpus sizes, and every residual
+error was extraction naming one subject two ways.
+
+**Two measurements from different directions agreeing that the bottleneck is subject
+identity rather than freshness is a stronger result than either alone.** It is the answer
+to "what did this project find", and it is what ranks the open work below.
+
+### 21.3 It works well *on the fixtures it has*
+
+The single largest untested surface in the shipped read path, from §7: **the bench never
+exercises `recall()`.** `run_deterministic` calls `store.hybrid_search` and `build_block`
+directly, so `score_floor`, the lookup timeout and the failure-safety path play no part in
+any headline number. The gate is covered only by unit tests against fakes and the §6 demo
+trace. A production integration hits this first.
+
+### 21.4 What is left, ranked by evidence rather than by ease
+
+1. **Subject identity.** Named by two independent measurements (§21.2) as *the* bottleneck.
+   §9's residual is structural, not a tuning miss: `subject_min_competitors = 2` requires a
+   genuine crowd, and most conversational relations hold exactly two subjects — one
+   competitor each, below the threshold, unpoliced. Crowded-chat wrong-entity FPR sits at
+   **0.462** (from 0.846). Setting the knob to 1 blocks 69% and costs **8% conversational
+   recall**, measured, and the losses are genuine paraphrases. §9's closing line names what
+   is actually missing: a signal that "milk" and "coffee preference" are the same subject
+   while "mobile app" and "web app" are not. Neither similarity nor lexical overlap carries
+   it.
+2. **Run `recall()` under the bench**, closing §21.3. Smallest of the four and the one a
+   gateway integration would want first.
+3. **Scale.** 64k/262k unmeasured; only the oracle ran at 32k, and `retrieval_hit` is
+   expected to fall there (§7). §7 argues the marginal value stays low until the P1
+   canonicalization bottleneck is addressed — which is item 1 again.
+4. **Cross-session recall**, deferred by `recall-poc-spec.md` §5, along with the async job
+   machinery, rolling-summary key synthesis and the queryable audit log. §19.6 flags that
+   temporal expiry's motivating case ("a new session past that date") lands here, so §19 is
+   built against a scenario the read path cannot fully reach yet.
+
+### 21.5 The standing harness failures are evidence for that ranking
+
+`[3, 4]` (9/9), `(24, 38)` (9/9) and `[9->10]` (3/9) are **all** subject- or slot-naming
+failures. They are instances of item 1 rather than a separate defect list, which is itself
+support for the ranking. §20 further established that `[9->10]` cannot be fixed from the
+`_SYSTEM` example list without paying for it elsewhere — both passes are on the record, so
+start from turn 9's own ambiguity or not at all.
