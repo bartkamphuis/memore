@@ -1,10 +1,20 @@
-"""What does P1 actually emit for turns 9/10/11, attribute AND single_valued together?
+"""Show P1's `attribute` and `single_valued` for chosen turns, side by side.
 
-The harness prints attributes and cases but never `single_valued`, so the MISSED mode
-(`likes` vs `likes`, same slot, no supersede) can only be inferred. This shows it.
+`slots.py` prints attributes, cases and ordinals but never `single_valued`, so a
+`must-collide` miss cannot be told apart from its two causes: a SPLIT (two slot names) or
+a MISSED (one slot name, `single_valued=false`, so no contradiction can fire). This prints
+both fields on one line, which is what made §20's mechanism visible. That pairing is the
+reusable part -- point `WATCH` at whatever turns you are investigating.
 
-Replays turns 0..11 with the real history and hint list, exactly as slots.py would, and
-stops there -- the later turns cannot reach turn 10's extraction at extract_window_turns=3.
+It replays from turn 0 through `max(WATCH)` with the real history and hint list, exactly as
+`slots.py` would, and stops there. Stopping is safe for any window that ends at least
+`extract_window_turns` (3) before a later turn you care about: nothing downstream can reach
+an earlier turn's extraction, and the hint list at turn N depends only on turns 0..N-1.
+
+Defaults to turns 9/10/11, the case §20 diagnoses. **§20 is settled** -- read it before
+re-running that one, rather than re-deriving the same answer.
+
+    MEMORE_GRAPH=memore_probe uv run python -m memore.bench.probe910 3
 """
 import asyncio
 import sys

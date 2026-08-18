@@ -2698,6 +2698,12 @@ mind... Rust" — resolves reliably for exactly the reason 9/10 does not: turn 4
 **Both edits fix the target completely** — 0/9, from 3/9 — and both lift collide to 63/72.
 The diagnosis in §20.1 is therefore confirmed: the example list *is* the cause.
 
+One figure in that table is not machine-printed: **arm B's `117/117` is summed by hand from
+its nine per-run lines**, because arm B ran before the bug in §20.4 was found and its own
+printed summary said `50/117`. The reconstruction rests on nine `13/13 intact` lines and the
+absence of any `COLLIDED` line in the run, which is the same evidence that exposed the bug.
+Arms A and B2 are as printed — A predates the temporal block, B2 postdates the fix.
+
 ### 20.3 Why neither shipped
 
 Acceptance criteria were written down before the runs, which is the only reason this
