@@ -2568,8 +2568,10 @@ Nine runs, and the field is the most stable thing in this harness:
 [50] must-NOT-past   no date      8/9      the user's car is a 2019 Subaru   (1 stored nothing)
 ```
 
-`MUST_BE_PAST` is **18/18** and `MUST_NOT_BE_PAST` **26/26 of what was stored**, with
-**zero** wrong dates anywhere. Turn 50 — the trap for a four-digit scrape — never once
+`MUST_BE_PAST` is **18/18** (2 turns × 9 runs) and `MUST_NOT_BE_PAST` **35/35** — 4 turns
+× 9 runs = 36 rows, less the one row where turn 50 stored nothing and is reported
+`NOTHING-STORED` rather than passed. 53 scorable rows, 53 correct, **zero** wrong dates
+anywhere. Turn 50 — the trap for a four-digit scrape — never once
 acquired an event date from "2019"; its single miss is P1 dropping the fact on salience,
 which the `wrote nothing` diagnostic already covers and which is not a temporal failure.
 
@@ -2598,6 +2600,17 @@ Three runs in, a failure appeared that CLAUDE.md's baseline says should not exis
 exactly the kind of change §18.12 showed can perturb §15's naming, so it was controlled
 rather than argued: the same harness, `--runs 9`, on `HEAD~1` in a worktree, separate
 graph.
+
+**The arms provably ran different code**, which is worth showing rather than asserting:
+the worktree was driven by the *treatment* venv's interpreter, and that venv carries an
+editable `.pth` pointing at the working tree. `python -m` puts the CWD at `sys.path[0]`,
+ahead of the `.pth`, so the worktree's own sources won — and the output proves it, twice
+over. The baseline printed the pre-§19 header (`axis not scored until occurs_at lands`)
+and the old two-column diagnostic with no date column, strings that exist only at
+`HEAD~1`; and its turn 46 came back as prose, `the user is flying to Porto on 12 May
+2026`, which the §19 prompt does not produce. Check this whenever a worktree control
+shares a venv with its treatment — the failure is silent and would make both arms the
+same code.
 
 | axis (9 runs each)      | pre-§19 | §19       |
 |-------------------------|---------|-----------|
