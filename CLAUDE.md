@@ -231,12 +231,20 @@ those). The oracle uses no LLM and is unaffected either way.
 
 ## The spec set — cited everywhere, not published
 
-Source docstrings cite four design documents by bare filename:
+Source docstrings cite six design documents by bare filename:
 
 - `recall-poc-spec.md` — scopes the standalone terminal PoC this repo builds. The entry point.
 - `recall-stage-spec.md` — the read path (recall stage A–D), store choice, config, invariants (§13), definition of done (§14).
 - `recall-writepath-spec.md` — the write path (P1 extract → P2 consolidate → P3 commit); expands stage-spec §8.
 - `recall-stage-test-spec.md` — test suites and fixtures for the read path.
+- `identity-and-gate-spec.md` — handoff, downstream of §21.2's finding. Part A (write lane:
+  identity, A1–A6) and Part B (read gate: scalar floor → profile, B1–B6). **A1 is done —
+  RESULTS.md §22.** Its acceptance criteria are pre-registered, and two have been corrected
+  against measurement since: A1's stale `63/72`, and A2's bar, which was met at k=1 and could
+  only fail by introducing variance.
+- `performance-addendum.md` — serving, latency and ranking quality; explicitly no change to
+  consolidation, identity, or the gate's decision logic. Its "do not" list is restated in the
+  invariants above, because it is the most re-derivable content in the set.
 
 **These are not in the public repo.** They describe a private production integration target, so a `§`-reference in a docstring points at a document you will not find here. That is deliberate, not rot. Everything load-bearing from them — the invariants, the interfaces, the reasoning behind each — is restated below and in `RESULTS.md`, which is why those two files are long. Nothing in the code depends on the specs being present.
 
@@ -441,6 +449,36 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
 - **Aliasing reads document frequency in ARRIVAL order, not from the finished corpus.** The rule is conservative when cold — `affiliated` is not yet a relation word on its first appearance — and converges as the session fills. `bench.oracle.build_groups` replays the same growing vocabulary deliberately: grouping a completed corpus in one pass credits the store with merges ingest never made and scores a system that was never run. If you add a caller, pass it the same `AliasConfig` the ingest used. RESULTS.md §10.
 - **Chain expansion runs AFTER the gate, never before, and never seeds it.** A multi-hop answer fact shares no entity with the question — that is what makes it multi-hop — so it cannot clear a similarity floor and must not be asked to. Judging relevance on the seeds and letting the chain ride along is what keeps `score_floor` meaning what it was calibrated to mean. Moving expansion ahead of the gate would silently re-open the gate on turns that have nothing relevant, and would invalidate §5's calibration. Chain facts carry `score=0.0` because they were never ranked against the turn — do not invent a similarity for them. RESULTS.md §8.
 - **Hybrid fusion is multiplicative** (`cos · (1 + w·bm25)/(1 + w)`), not additive. Additive fusion mixes an absolute score with a set-relative one and lets an irrelevant query clear `score_floor`. Full-text queries must be `|`-joined term unions, or the index ANDs them and the BM25 arm silently returns nothing. RESULTS.md §5.
+- **Performance: four expensive wrong turns, each closed by arithmetic. Do not reopen them.**
+  Restated here from `specs/performance-addendum.md` because that file is not in the public
+  repo and this list is the single most re-derivable thing in it — every item is a plausible
+  instinct that the measurements rule out.
+  - **No FPGA or GPU vector index.** The workload is a scan over 1559 vectors of 1024
+    dimensions — 6.4MB. Custom silicon starts paying near 10^7 vectors, three orders of
+    magnitude away.
+  - **No rewrite in Rust or another language.** Wall time is in an HTTP call to a model
+    server and in FalkorDB. Interpreter overhead is inside the ~18ms "everything else"
+    figure of a budget that is half empty (§5: ~90ms p95 against 200ms).
+  - **Do not optimise the FalkorDB lookup.** 2.6–4.3ms — 2% of a budget with ~110ms unused.
+  - **No smaller embedder for speed.** Measured and rejected in §5: `nomic-embed-text` gets
+    the speed and loses the ranking (`retrieval_hit` 0.93 → 0.76 across candidates at the
+    same speed). Quality is the binding axis, not speed.
+  - **No smaller model on the write lane.** §11 and §18 establish the residual errors are
+    identity judgements. The one place a small model belongs is A4's pairwise matcher — a
+    same-or-not decision over a short candidate list.
+
+  The framing that generates all five: **the read path is latency-bound and its remaining
+  errors need a *better* model; the write path is accuracy-bound and has no latency
+  constraint.** Optimisation runs in opposite directions in the two lanes, and the instinct
+  that is right in one is wrong in the other.
+
+  What IS worth doing, and it is measured rather than proposed: **the embedder pays a
+  per-call load charge on a model that is already resident.** Re-measured 2026-08-20 under
+  the pinned serving state — 10 queries, wall 50.6–75.6ms, `load_duration` **36–56ms per
+  call** while `/api/ps` reports `mxbai-embed-large` resident at 0.62GB, pinned. Pinning does
+  not remove it; only an in-process embedder does. Actual compute is the remaining ~15–20ms.
+  (§5's "`/api/ps` showing 0 GB VRAM" line is about `embeddinggemma` — do not cite it for
+  `mxbai`.)
 - **Do not wrap this in MCP.** MCP is permanently the wrong shape for pre-fetch recall (it would put recall back behind a model decision, which is the pattern this design leaves behind). It is only the right shape for the deliberate model-initiated fallback lookup — see `recall-poc-spec.md` §5a.
 
 Deferred PoC scope is listed in `recall-poc-spec.md` §5 (cross-session recall, async job machinery, rolling-summary key synthesis, provider abstraction, audit-log query path). Mark these in code with comments pointing at the production spec section rather than omitting them silently.
