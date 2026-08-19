@@ -45,6 +45,25 @@ one, zero and one times respectively.
 
     uv run python -m memore.bench.slots --runs 3
 
+## The shipped baseline, at nine runs
+
+Pre-registered here because `identity-and-gate-spec.md` requires every acceptance
+criterion to be in the harness before the change it gates, and because the figure that
+file quotes is stale. A1 cites §18.11's `must-collide 63/72`; §19's `HEAD~1` control
+re-measured the shipped code afterwards and it is **60/72**, the difference being the
+`[9->10]` standing failure that postdates §18 (RESULTS.md §19.10, and the same correction
+CLAUDE.md carries). Judge a change against these:
+
+    must-collide          60/72       (2 standing failures: `(24, 38)` x9, `[9->10]` 3/9)
+    must-coexist         117/117
+    one-subject          171/180      (1 standing failure: `[3, 4]` x9)
+    distinct              45/45
+    no-reply-leak          2/2 x9
+
+`must-coexist` and `distinct` are one-sided: anything that withholds CONTRADICTION or
+merges nothing scores them perfectly. `must-collide` is the number that decides a change
+in this direction, and `one-subject` is the one every `_SYSTEM` edit pays with.
+
 Turns are reconstructed from those sessions. Each pair-bearing turn must yield exactly one
 fact; a turn that yields none or two is reported as UNMEASURABLE rather than scored, so a
 change to P1's salience never quietly inflates a rate.

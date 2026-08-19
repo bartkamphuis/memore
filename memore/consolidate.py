@@ -18,6 +18,7 @@ is the whole point -- no LLM is asked to reason about which fact is newer.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -34,6 +35,8 @@ from .types import (
     ConsolidationOutcome,
     StoredFact,
 )
+
+logger = logging.getLogger("memore.consolidate")
 
 
 @dataclass(frozen=True)
@@ -175,6 +178,18 @@ class DeterministicConsolidator:
         # collaborator assertion -- that tripwire is worth more than the convenience of a
         # public attribute. Read it through `vocabulary()`.
         self._vocabs: dict[str, SubjectVocabulary] = {}
+        # Slot arity, per session: (subject_key, attribute) -> single_valued.
+        # identity-and-gate-spec.md A1. `single_valued` is a property of the SLOT, not of
+        # the fact that happened to open it, but P1 is asked it fresh on every turn and
+        # answers inconsistently (RESULTS.md §18.5). So the first answer for a slot is
+        # recorded and every later fact in that slot reads the record instead. Seeded from
+        # the store once and maintained in memory, exactly as `_vocabs` is, and for the
+        # same reason: re-reading it per candidate would be a round-trip per fact.
+        #
+        # `None` marks a store that cannot answer -- the pre-A1 code path, taken without
+        # further attempts. Invariant 2 of the spec: a missing capability degrades to the
+        # shipped behaviour and warns, it does not fail the write.
+        self._slots: dict[str, dict[tuple[str, str], bool] | None] = {}
 
     async def _vectors_for(self, texts: list[str]) -> dict[str, list[float]]:
         missing = [t for t in dict.fromkeys(texts) if t not in self._vec_cache]
@@ -202,6 +217,60 @@ class DeterministicConsolidator:
             self._vocabs[session_id] = SubjectVocabulary(self.config.alias, keys)
         return self._vocabs[session_id]
 
+    async def _slots_for(self, session_id: str) -> dict[tuple[str, str], bool] | None:
+        """The session's recorded slot arities, or None if the store cannot keep them.
+
+        Seeded once per session, then maintained in memory. A store that predates A1 --
+        or one whose slot query fails -- degrades to the pre-A1 path permanently for this
+        session rather than retrying per candidate: the fallback is the shipped behaviour,
+        not an error state, and a warning per fact would drown the write-side audit log.
+        """
+        if session_id not in self._slots:
+            reader = getattr(self.store, "slot_schemas", None)
+            if reader is None:
+                logger.info(
+                    "consolidate: store has no slot_schemas; slot arity falls back to P1 "
+                    "per turn (identity-and-gate-spec.md A1)"
+                )
+                self._slots[session_id] = None
+            else:
+                try:
+                    rows = await reader(session_id)
+                except Exception as exc:  # noqa: BLE001 -- degrade to the shipped path (§3.1)
+                    logger.warning("consolidate: could not read slot schemas: %s", exc)
+                    self._slots[session_id] = None
+                else:
+                    self._slots[session_id] = {
+                        (key, attribute): value for key, attribute, value in rows
+                    }
+        return self._slots[session_id]
+
+    async def set_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        """Correct a slot's recorded arity. The one write path A1 asks for.
+
+        `subject_key` and `attribute` must already be normalized -- pass them through
+        `memore.keys.normalize_subject`, the same rule `live_facts_for_subject` states,
+        because these are the keys identity is decided on and normalizing here would put
+        that policy in two places.
+
+        Rewrites no fact. Arity is consulted at classification time and never stored on a
+        `StoredFact`, so the correction takes effect on the next fact that lands in the
+        slot and the facts already there are untouched -- which is the point: they were
+        classified against the old answer and re-deciding them would be exactly the
+        implicit revision `ensure_slot_schema` refuses.
+        """
+        writer = getattr(self.store, "set_slot_schema", None)
+        if writer is None:
+            raise NotImplementedError(
+                "store cannot record slot arity (identity-and-gate-spec.md A1)"
+            )
+        await writer(session_id, subject_key, attribute, single_valued)
+        cached = await self._slots_for(session_id)
+        if cached is not None:
+            cached[(subject_key, attribute)] = single_valued
+
     def vocabulary(self, session_id: str) -> SubjectVocabulary | None:
         """The subject vocabulary built for a session, or None if it never consolidated.
 
@@ -220,6 +289,7 @@ class DeterministicConsolidator:
     def _classify(
         self, candidate: CandidateFact, live: list[StoredFact], candidate_vec: list[float] | None,
         live_vecs: dict[str, list[float]] | None, batch_ids: frozenset[str] = frozenset(),
+        single_valued: bool | None = None,
     ) -> tuple[ConsolidationCase, StoredFact | None, list[StoredFact]]:
         """Step 2 of §4: decide the case deterministically.
 
@@ -230,6 +300,13 @@ class DeterministicConsolidator:
         `batch_ids` are the facts this same `consolidate()` call has already written. They
         are live, and they are in the slot, but the candidate may not out-rank them on
         FRESHNESS -- see the same-batch guard below.
+
+        `single_valued` is the slot's RECORDED arity (identity-and-gate-spec.md A1), or
+        None to fall back to what P1 emitted on this candidate. It arrives as a plain
+        argument rather than by mutating the candidate so that this stays a pure function
+        of its arguments, which is the property `test_no_llm_in_the_consolidation_decision`
+        and RESULTS.md §18 both rest on: a stored boolean is read exactly as `attribute`
+        is, and no LLM enters the decision either way.
         """
         candidate_value = _normalize_value(candidate.fact)
         candidate_slot = normalize_subject(candidate.attribute)
@@ -334,7 +411,15 @@ class DeterministicConsolidator:
         # asked the question directly instead of being asked to encode the answer in the
         # attribute's NAME, which RESULTS.md §18 measured it failing to do in every run of
         # both scripts.
-        if not candidate.single_valued:
+        #
+        # Which ANSWER is read changed once more in A1: the slot's recorded arity wins over
+        # the candidate's, because arity is a property of the slot and P1 re-derives it
+        # every turn from a model that does not agree with itself (RESULTS.md §18.5 and
+        # §18.11 -- asking the boolean removed the variance, storing it removes the
+        # re-derivation). The candidate's own value is still the fallback, and it is what
+        # opens a slot for the first time, so a store with no record behaves exactly as it
+        # did before.
+        if not (candidate.single_valued if single_valued is None else single_valued):
             return ConsolidationCase.NEW, None, []
 
         # The money case: the higher freshness ordinal wins, and the candidate always has
@@ -351,6 +436,7 @@ class DeterministicConsolidator:
         by_text = await self._vectors_for([c.fact for c in candidates])
 
         vocab = await self._vocab_for(session_id)
+        slot_arity = await self._slots_for(session_id)
 
         # One batch = one extraction of one utterance. The id is what lets a later
         # contradiction tell "these two coexist because we could not order them" from
@@ -373,8 +459,29 @@ class DeterministicConsolidator:
                 live_by_text = await self._vectors_for([f.fact for f in live])
                 live_vecs = {f.id: live_by_text[f.fact] for f in live}
 
+            # The slot's RECORDED arity, if it has one, overriding what P1 emitted this
+            # turn (identity-and-gate-spec.md A1). Keyed on the resolved subject key and
+            # the normalized attribute -- the same pair `_competing` filters on, because
+            # that pair IS the slot whose arity this is.
+            #
+            # A disagreement is logged and NOT acted on. It is evidence about P1's
+            # stability, which is what a later item wants to threshold on; acting on it
+            # would be the newest answer winning, which is the variance A1 exists to take
+            # out. `attribute == ""` records nothing and looks nothing up, so a store with
+            # no attributes -- an old graph, `bench/extract.py` -- reaches none of this.
+            slot = normalize_subject(candidate.attribute)
+            arity: bool | None = None
+            if slot and slot_arity is not None:
+                arity = slot_arity.get((key, slot))
+                if arity is not None and arity != candidate.single_valued:
+                    logger.info(
+                        "consolidate: slot arity disagreement session=%s slot=%r::%r "
+                        "stored=%s p1=%s (stored wins)",
+                        session_id, key, slot, arity, candidate.single_valued,
+                    )
+
             case, incumbent, competing = self._classify(
-                candidate, live, vector, live_vecs, frozenset(batch_ids)
+                candidate, live, vector, live_vecs, frozenset(batch_ids), arity
             )
             now = datetime.now(UTC)
 
@@ -432,6 +539,20 @@ class DeterministicConsolidator:
                 recurring=candidate.recurring,
             )
             await self.store.add_fact(stored, vector)
+            # Opening the slot is what records its arity, so a candidate that stores
+            # nothing (DUPLICATE, which returned above) never gets to declare one. Create
+            # only: `ensure_slot_schema` will not overwrite, and the in-memory mirror uses
+            # `setdefault` for the same reason.
+            #
+            # Within one batch this is moot by construction and worth saying so: the
+            # same-batch guard sits ABOVE the arity check in `_classify`, so a sibling
+            # candidate landing in a slot this call just opened coexists on the batch rule
+            # before arity is ever consulted.
+            if slot and slot_arity is not None:
+                await self.store.ensure_slot_schema(
+                    session_id, key, slot, candidate.single_valued
+                )
+                slot_arity.setdefault((key, slot), candidate.single_valued)
             batch_ids.add(stored.id)
             vocab.add(key)
             outcomes.append(

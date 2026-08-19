@@ -141,6 +141,10 @@ class FalkorStore:
             "CREATE INDEX FOR (f:Fact) ON (f.session_id)",
             "CREATE INDEX FOR (f:Fact) ON (f.subject_key)",
             "CREATE INDEX FOR (f:Fact) ON (f.id)",
+            # RESULTS.md §22 / identity-and-gate-spec A1. Slot arity lives on its own
+            # node, not on the Fact, so it survives the facts it governs and can be
+            # corrected without rewriting any of them.
+            "CREATE INDEX FOR (s:Slot) ON (s.session_id)",
         ]
         for statement in statements:
             try:
@@ -474,6 +478,41 @@ class FalkorStore:
             lines.append(f"{label or key} -> {', '.join(slots)}" if slots else (label or key))
         return lines
 
+    async def slot_schemas(self, session_id: str) -> list[tuple[str, str, bool]]:
+        await self.connect()
+        result = await self._q(
+            "MATCH (s:Slot) WHERE s.session_id = $sid "
+            "RETURN s.subject_key, s.attribute, s.single_valued",
+            {"sid": session_id},
+        )
+        return [(row[0], row[1], bool(row[2])) for row in result.result_set if row[1]]
+
+    async def ensure_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        if not attribute:
+            return
+        await self.connect()
+        # ON CREATE SET, not SET: the "do not overwrite implicitly" rule of A1 is enforced
+        # in the query, so no caller can get it wrong by passing the flag the wrong way.
+        await self._q(
+            "MERGE (s:Slot {session_id: $sid, subject_key: $key, attribute: $attr}) "
+            "ON CREATE SET s.single_valued = $sv",
+            {"sid": session_id, "key": subject_key, "attr": attribute, "sv": single_valued},
+        )
+
+    async def set_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        if not attribute:
+            return
+        await self.connect()
+        await self._q(
+            "MERGE (s:Slot {session_id: $sid, subject_key: $key, attribute: $attr}) "
+            "SET s.single_valued = $sv",
+            {"sid": session_id, "key": subject_key, "attr": attribute, "sv": single_valued},
+        )
+
     async def live_subject_keys(self, session_id: str) -> list[str]:
         await self.connect()
         result = await self._q(
@@ -556,6 +595,11 @@ class FalkorStore:
     async def clear_session(self, session_id: str) -> None:
         await self.connect()
         await self._q("MATCH (f:Fact) WHERE f.session_id = $sid DELETE f", {"sid": session_id})
+        # The slot schema is session-scoped state like the facts, and nothing else lists
+        # it -- `sessions()` counts Facts, so orphaned Slot nodes would accumulate in a
+        # shared graph completely invisibly. A harness that clears between runs (the
+        # `--runs 9` scripts do) must not leave the next run's arity decided by the last.
+        await self._q("MATCH (s:Slot) WHERE s.session_id = $sid DELETE s", {"sid": session_id})
 
     async def aclose(self) -> None:
         if self._db is not None:

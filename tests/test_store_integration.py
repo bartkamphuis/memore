@@ -420,3 +420,34 @@ async def test_supersede_preserves_the_temporal_fields(store):
     superseded = hits["flying to Porto on the 12th"]
     assert superseded.invalid_at is not None, "precondition: the first fact was retired"
     assert superseded.occurs_at.date().isoformat() == "2026-05-12"
+
+
+async def test_slot_arity_round_trips_and_clear_session_takes_it(store):
+    """identity-and-gate-spec.md A1, against the real graph.
+
+    Three things the in-memory store cannot prove: `ON CREATE SET` really refuses the
+    implicit overwrite in Cypher, the bare `SET` really performs the deliberate one, and
+    `clear_session` really takes the `:Slot` nodes with it. That last one is why it is
+    here at all -- nothing else lists slots (`sessions()` counts Facts), so orphans in a
+    shared graph would accumulate completely invisibly.
+    """
+    session = f"slots-{uuid.uuid4().hex[:8]}"
+    key, slot = subject_key("the user"), subject_key("creation location")
+
+    await store.ensure_slot_schema(session, key, slot, True)
+    assert await store.slot_schemas(session) == [(key, slot, True)]
+
+    # Create-only: a second fact in the slot cannot revise what the first declared.
+    await store.ensure_slot_schema(session, key, slot, False)
+    assert await store.slot_schemas(session) == [(key, slot, True)]
+
+    # The one deliberate correction path.
+    await store.set_slot_schema(session, key, slot, False)
+    assert await store.slot_schemas(session) == [(key, slot, False)]
+
+    # `""` is unspecified, not a slot -- nothing to be the arity of, nothing recorded.
+    await store.ensure_slot_schema(session, key, "", True)
+    assert await store.slot_schemas(session) == [(key, slot, False)]
+
+    await store.clear_session(session)
+    assert await store.slot_schemas(session) == []

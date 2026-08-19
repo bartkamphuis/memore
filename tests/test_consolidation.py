@@ -806,3 +806,186 @@ def test_print_run_reports_the_coexist_axis_it_computed():
     # The temporal count is 0 here (no facts on those turns), so a shadowed `ok` shows up.
     assert totals[2] == expected_ok
     assert totals[3] == sum(1 for _, verdict, _ in coexist if verdict != "UNMEASURABLE")
+
+
+# ---------------------------------------------------------------------------
+# identity-and-gate-spec.md A1 -- `single_valued` is a property of the SLOT.
+#
+# P1 re-derives it every turn and does not agree with itself (RESULTS.md §18.5): asking
+# the boolean removed the variance, and recording the answer removes the re-derivation.
+# The first fact in a slot declares its arity; every later fact reads the record.
+# ---------------------------------------------------------------------------
+
+
+async def test_the_slot_keeps_the_arity_its_first_fact_declared(consolidator):
+    """A later `single_valued=True` cannot re-close a slot opened multi-valued.
+
+    This is the failure the recording prevents: four preferences accumulate correctly,
+    then P1 names the same slot on the fifth turn and happens to answer True. Reading the
+    candidate would retire all four true facts on that one wobble.
+    """
+    con, store = consolidator
+    for text in ("Bud likes Lisa", "Bud likes beer", "Bud likes the Matrix"):
+        await con.consolidate(
+            SESSION, [candidate(text, "Bud", attribute="preference", single_valued=False)]
+        )
+
+    outcomes = await con.consolidate(
+        SESSION,
+        # P1 wobbles: same slot, opposite answer.
+        [candidate("Bud likes red chairs", "Bud", attribute="preference", single_valued=True)],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert {f.fact for f in live} == {
+        "Bud likes Lisa",
+        "Bud likes beer",
+        "Bud likes the Matrix",
+        "Bud likes red chairs",
+    }
+
+
+async def test_the_slot_keeps_single_valued_against_a_later_false(consolidator):
+    """The mirror, and the direction that matters more.
+
+    A slot opened single-valued must go on resolving. Without the record, one turn where
+    P1 answers False leaves the contradiction unfired and a stale fact live -- and because
+    nothing is superseded there is no dead ordinal to notice it by.
+    """
+    con, store = consolidator
+    slot = "favourite programming language"
+    await con.consolidate(
+        SESSION, [candidate("Bud's favourite programming language is Go", "Bud", attribute=slot)]
+    )
+    outcomes = await con.consolidate(
+        SESSION,
+        [
+            candidate(
+                "Bud's favourite programming language is Rust",
+                "Bud",
+                attribute=slot,
+                single_valued=False,
+            )
+        ],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    live = await store.live_facts_for_subject(SESSION, subject_key("Bud"))
+    assert [f.fact for f in live] == ["Bud's favourite programming language is Rust"]
+
+
+async def test_a_disagreement_is_recorded_but_never_acted_on(consolidator, caplog):
+    """A1: log disagreements, do not act on them.
+
+    The stored value stays exactly what the first fact declared -- a disagreement is
+    evidence about P1's stability for a later item to threshold on, and letting it revise
+    the record would be the newest answer winning, which is the variance A1 removes.
+    """
+    con, store = consolidator
+    slot = "favourite programming language"
+    await con.consolidate(
+        SESSION, [candidate("Bud's favourite language is Go", "Bud", attribute=slot)]
+    )
+    with caplog.at_level("INFO", logger="memore.consolidate"):
+        await con.consolidate(
+            SESSION,
+            [candidate("Bud's favourite language is Rust", "Bud", attribute=slot,
+                       single_valued=False)],
+        )
+    assert any("slot arity disagreement" in r.message for r in caplog.records)
+    assert store.slots[(SESSION, subject_key("Bud"), subject_key(slot))] is True
+
+
+async def test_a_correction_takes_effect_next_turn_without_rewriting_facts(consolidator):
+    """A1's acceptance criterion, and RESULTS.md §11's `creation location` case.
+
+    Two genuinely different properties land in one slot, so the second retires the first.
+    Correcting the slot's arity must fix every *later* fact in it and must not touch the
+    facts already there -- they were classified against the old answer, and re-deciding
+    them is the implicit revision `ensure_slot_schema` refuses.
+    """
+    con, store = consolidator
+    key, slot = subject_key("the user"), subject_key("creation location")
+    await con.consolidate(
+        SESSION,
+        [candidate("the user wrote the memory system in Den Haag", "the user",
+                   attribute="creation location")],
+    )
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("the user was born in Den Haag", "the user", attribute="creation location")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    before = {f.fact for f in await store.live_facts_for_subject(SESSION, key)}
+    assert before == {"the user was born in Den Haag"}
+
+    await con.set_slot_schema(SESSION, key, slot, single_valued=False)
+
+    # No rewrite: the fact superseded before the correction stays superseded.
+    assert {f.fact for f in await store.live_facts_for_subject(SESSION, key)} == before
+
+    outcomes = await con.consolidate(
+        SESSION,
+        [candidate("the user learned to sail in Den Haag", "the user",
+                   attribute="creation location")],
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    assert {f.fact for f in await store.live_facts_for_subject(SESSION, key)} == {
+        "the user was born in Den Haag",
+        "the user learned to sail in Den Haag",
+    }
+
+
+async def test_an_unspecified_attribute_records_no_slot(consolidator):
+    """Inertness, the same argument `attribute == ""` and `single_valued = True` make.
+
+    `""` is unspecified, not a slot, so there is nothing for an arity to be the arity OF.
+    Old graphs and `bench/extract.py` name no attribute at all, so they reach neither the
+    lookup nor the write and every §3 oracle number is reproducible unchanged.
+    """
+    con, store = consolidator
+    await con.consolidate(SESSION, [candidate("the user likes tea", "the user")])
+    outcomes = await con.consolidate(SESSION, [candidate("the user likes coffee", "the user")])
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+    assert store.slots == {}
+
+
+class PreA1Store(InMemoryStore):
+    """A `ConsolidatingStore` written against the protocol as it stood before A1.
+
+    Spelled out as a class rather than monkeypatched because that is what it models: a
+    third-party store the gateway wired up, which cannot grow methods when this one does.
+    """
+
+    slot_schemas = None
+    ensure_slot_schema = None
+    set_slot_schema = None
+
+    def __getattribute__(self, name):
+        if name in ("slot_schemas", "ensure_slot_schema", "set_slot_schema"):
+            raise AttributeError(name)
+        return super().__getattribute__(name)
+
+
+async def test_a_store_without_slot_schemas_degrades_to_the_pre_a1_path():
+    """Spec invariant 2: a missing capability falls back, it never fails the write.
+
+    The candidate's own `single_valued` is the fallback, which is exactly the shipped
+    pre-A1 behaviour -- so a store written against the older protocol keeps working, one
+    INFO line the poorer.
+    """
+    store = PreA1Store()
+    con = DeterministicConsolidator(
+        store, StubEmbedder(), ConsolidationConfig(use_embedding_comparison=False)
+    )
+    await con.consolidate(
+        SESSION, [candidate("Bud likes beer", "Bud", attribute="preference", single_valued=False)]
+    )
+    outcomes = await con.consolidate(
+        SESSION, [candidate("Bud likes Lisa", "Bud", attribute="preference", single_valued=False)]
+    )
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+    assert len(await store.live_facts_for_subject(SESSION, subject_key("Bud"))) == 2
+
+    # And the correction path says so rather than silently doing nothing.
+    with pytest.raises(NotImplementedError):
+        await con.set_slot_schema(SESSION, subject_key("Bud"), "preference", True)

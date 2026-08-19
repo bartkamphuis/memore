@@ -68,6 +68,10 @@ class InMemoryStore:
     def __init__(self):
         self.facts: dict[str, StoredFact] = {}
         self.vectors: dict[str, list[float]] = {}
+        # (session_id, subject_key, attribute) -> single_valued. A separate mapping, not a
+        # field on the fact, for the same reason the graph gets its own node: the arity
+        # outlives the facts in the slot and is corrected without touching any of them.
+        self.slots: dict[tuple[str, str, str], bool] = {}
 
     async def hybrid_search(
         self, query_text: str, query_vec: list[float], session_id: str, k: int
@@ -137,6 +141,25 @@ class InMemoryStore:
             f"{label} -> {', '.join(sorted(slots[key]))}" if slots.get(key) else label
             for key, label in labels.items()
         )
+
+    async def slot_schemas(self, session_id: str) -> list[tuple[str, str, bool]]:
+        return [
+            (key, attribute, value)
+            for (session, key, attribute), value in self.slots.items()
+            if session == session_id and attribute
+        ]
+
+    async def ensure_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        if attribute:
+            self.slots.setdefault((session_id, subject_key, attribute), single_valued)
+
+    async def set_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        if attribute:
+            self.slots[(session_id, subject_key, attribute)] = single_valued
 
     async def add_fact(self, fact: StoredFact, embedding: list[float]) -> None:
         self.facts[fact.id] = fact

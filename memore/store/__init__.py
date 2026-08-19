@@ -99,6 +99,50 @@ class ConsolidatingStore(MemoryStore, Protocol):
         """
         ...
 
+    async def slot_schemas(self, session_id: str) -> list[tuple[str, str, bool]]:
+        """`(subject_key, attribute, single_valued)` for every slot this session has named.
+
+        The slot -- `(subject_key, attribute)`, exactly the pair `_competing` filters on --
+        is the unit whose arity is being recorded, because arity is a property of the slot
+        and not of the subject or the attribute alone. RESULTS.md §11's residual error is
+        the concrete case: `the user :: creation location` wrongly held both "born in Den
+        Haag" and "wrote the memory system in Den Haag", and what fixes it is declaring
+        *that* slot multi-valued -- not `creation location` everywhere, and not everything
+        about `the user`.
+
+        Slots with an empty attribute are never recorded and never returned. `""` means
+        unspecified (see `CandidateFact.attribute`), so there is no slot for it to be the
+        arity OF, and skipping it is what keeps old graphs and `bench/extract.py` -- which
+        supply no attribute at all -- at exactly the pre-change code path and zero extra
+        queries.
+        """
+        ...
+
+    async def ensure_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        """Record `single_valued` for this slot IF the slot is not already recorded.
+
+        Create-only, and that is the whole point rather than an optimisation: the stored
+        value is the schema, and a later fact must never revise it implicitly. P1 is asked
+        the question fresh on every turn and answers inconsistently (RESULTS.md §18.5,
+        §18.11); letting the newest answer win would put the variance straight back in,
+        one turn later. Use `set_slot_schema` to change one deliberately.
+        """
+        ...
+
+    async def set_slot_schema(
+        self, session_id: str, subject_key: str, attribute: str, single_valued: bool
+    ) -> None:
+        """Overwrite a slot's recorded arity. The one deliberate correction path.
+
+        Separate from `ensure_slot_schema` so "do not overwrite implicitly" is expressed
+        by which method the caller can reach, not by a flag it might pass wrong. Takes
+        effect on the next fact in the slot; it rewrites no existing fact, because arity
+        is read at classification time and never stored on a fact.
+        """
+        ...
+
     async def add_fact(self, fact: StoredFact, embedding: list[float]) -> None: ...
 
     async def supersede(self, fact_id: str, invalid_at: datetime) -> None: ...
