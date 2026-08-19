@@ -12,6 +12,10 @@ section to read before deciding what to work on. **§22 qualifies it**: A1 of
 `specs/identity-and-gate-spec.md` is built and controlled, and the same measurement found
 that two slot-harness numbers from §15–§20 no longer reproduce under unchanged code and an
 unchanged serving state. Read §22.4 before quoting any harness figure or starting A2.
+**§23 closes §21.3** — `recall()` now runs under the bench. The gate opened on 100% of
+single-hop questions and shut on zero answerable ones, so it is not the risk §21.3
+anticipated; **the A–D latency budget is, and it is breached at 32k (272ms p95 against
+200ms)**. Read §23.3 before quoting a latency figure and §23.4 before spending headroom.
 
 Step 0 (the consolidation spike) is complete — both arms ran; see `RESULTS.md`, and read
 it before quoting any number, because several of its findings correct earlier claims.
@@ -135,9 +139,12 @@ list. Both passes are on the record.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
-cross-session recall. The §14 200ms P95 latency budget **is now met** (~96ms P95, ~146ms
-with chain expansion on) after calibrating `score_floor` over a real query set and
-switching the embedder — RESULTS.md §5. The open weakness is wrong-subject recall, not
+cross-session recall. The §14 200ms P95 latency budget is met **at conversational scale
+only** (~96ms P95, ~146ms with chain expansion on — RESULTS.md §5, on calibration fixtures
+holding tens of facts). **§23 measured it on the bench corpora and it is breached at 32k:
+272ms P95, of which the entire excess is `subject_check`'s O(session) `subject_view` —
+20ms at 455 facts, 102.6ms at 2310, linear.** With the check off, A–D is flat at ~80–115ms
+at both sizes. Do not quote ~96ms without the scale it was measured at. The open weakness is wrong-subject recall, not
 latency: see the scalar-floor limit below, and **§21.4 for what that costs and what it
 would take to fix** — subject identity is ranked first there by two independent
 measurements, and this deferred list is ranked fourth.
@@ -458,8 +465,14 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
     magnitude away.
   - **No rewrite in Rust or another language.** Wall time is in an HTTP call to a model
     server and in FalkorDB. Interpreter overhead is inside the ~18ms "everything else"
-    figure of a budget that is half empty (§5: ~90ms p95 against 200ms).
-  - **Do not optimise the FalkorDB lookup.** 2.6–4.3ms — 2% of a budget with ~110ms unused.
+    figure. (The "budget is half empty" half of this argument is retired by §23 — at 32k
+    it is 72ms *over*. The rewrite is still pointless, because the excess is a per-query
+    session scan, which no language change removes.)
+  - **Do not optimise the FalkorDB lookup.** Still true, but not for the reason usually
+    quoted: §5's 2.6–4.3ms is wrong by 3–5x — §23 measures 13.5–20.4ms on the bench
+    corpora, and it does *not* grow with session size (13.5ms at 2310 facts vs 20.4ms at
+    455). It is not the dominant cost and not worth optimising; the O(session) cost that
+    *is* worth attention is `subject_view`, not the index (§23.3).
   - **No smaller embedder for speed.** Measured and rejected in §5: `nomic-embed-text` gets
     the speed and loses the ranking (`retrieval_hit` 0.93 → 0.76 across candidates at the
     same speed). Quality is the binding axis, not speed.
