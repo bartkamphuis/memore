@@ -4,11 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Starting a session? Read `RESULTS.md` §21 first.** It is the standing assessment —
+**Starting a session? Read `RESULTS.md` §21, then §22.** §21 is the standing assessment —
 the three-tier verdict on what here is and is not an advance, the convergence finding that
 the bottleneck is subject identity rather than freshness, and the ranked list of what is
 left. It exists so none of that gets re-derived from twenty sections, and it is the one
-section to read before deciding what to work on.
+section to read before deciding what to work on. **§22 qualifies it**: A1 of
+`specs/identity-and-gate-spec.md` is built and controlled, and the same measurement found
+that two slot-harness numbers from §15–§20 no longer reproduce under unchanged code and an
+unchanged serving state. Read §22.4 before quoting any harness figure or starting A2.
 
 Step 0 (the consolidation spike) is complete — both arms ran; see `RESULTS.md`, and read
 it before quoting any number, because several of its findings correct earlier claims.
@@ -108,6 +111,15 @@ settles the question whether or not you say so. Still no example in `_SYSTEM` ei
 `[9->10]` failure as a standing one, not as a regression in whatever ran last. It is also a
 fixture that still depends on naming: it resolves only when P1 coins something single-valued,
 and when it coins `likes`, `single_valued=false` is *correct* by `_SYSTEM`'s own example list.
+
+**§22 overtakes that list again, and this time §18.12's fix is what stopped reproducing.**
+On 2026-08-20, under unchanged code and with Ollama serving exactly what this file
+documents, the standing failures are **four**, each 9/9: `(24, 38)`, `[3, 4]`, `[9->10]`
+(up from 3/9), and **`[28, 29]` `miso | user`** — §18.12's owner-collection subject split,
+back at 9/9 though `_SYSTEM` still carries the fix verbatim. Either P1 drifted or that fix
+was never the mechanism; §22.4 leaves it open and **§20 still forbids reopening the example
+list to find out**. The harness bar is now pre-registered in `slots.py`; use it rather than
+a figure quoted from a section, because two of those no longer describe HEAD.
 
 **That deletion has now been tried, twice, and neither version shipped — RESULTS.md §20.**
 Removing `likes`/`interests` from the `false` examples *does* fix `[9->10]` completely
@@ -344,6 +356,23 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   keyword list scores 3/3 on turns 39–41 while breaking `(42, 43)`, because a favourite is
   a preference holding one value at a time. And **judge any change here on `--runs 9`, not
   3** — pre-fix, identical input scored 2/3 then 1/3. RESULTS.md §18.
+- **`single_valued` is recorded on the SLOT, and the record wins over what P1 emits.**
+  A `:Slot` node keyed `(session_id, subject_key, attribute)` — the pair `_competing`
+  filters on, because that pair *is* the slot. The first fact to land declares the arity
+  via `ensure_slot_schema`, which is `ON CREATE SET` in Cypher: no later fact may revise
+  it implicitly, and that is enforced by the query, not by a comment. `set_slot_schema` is
+  the one deliberate correction path and **rewrites no fact** — arity is read at
+  classification time and never stored on a `StoredFact`, so a correction lands on the
+  next fact in the slot and leaves the ones already classified alone. Disagreements are
+  logged at INFO and **not acted on**; acting on them is the newest answer winning, which
+  is the variance the field exists to remove. `_classify` takes the arity as a plain
+  argument, so it stays a pure function of its arguments and no LLM enters the decision.
+  Inert on `attribute == ""` — nothing recorded, nothing looked up — which is what keeps
+  old graphs and `bench/extract.py` on the pre-A1 path; a store lacking the three methods
+  degrades there too. `clear_session` must keep deleting `:Slot` nodes: nothing else lists
+  them, so orphans accumulate invisibly. Measured **0 disagreements in 108 slot reuses**,
+  so it changed no decision on the 51-turn script — its value is permanence and the
+  correction path, not a score. RESULTS.md §22.
 - **The `single_valued` examples in `_SYSTEM` must not be collections held by an OWNER.**
   The first version listed "office locations" and "todo list items", and P1 generalised the
   shape: "I have a cat called Miso" filed as `the user :: pets` instead of subject `Miso`,

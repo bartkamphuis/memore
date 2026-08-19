@@ -1,0 +1,965 @@
+extractor=gemma4:26b  graph=memore_slots  turns=51
+2026-08-20 01:27:23 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:27:23 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:27:25 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:27:28 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:27:31 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:27:34 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:27:37 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:27:39 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:27:42 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:27:45 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=0c1f97c8-ee7b-4f57-bc23-54de35026080 [in writepath.py:93]
+2026-08-20 01:27:48 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:27:50 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:27:53 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:27:56 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:27:59 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=f05ce163-52f2-479b-bf5d-547f11db4efb [in writepath.py:93]
+2026-08-20 01:28:01 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:28:04 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=be0e46c7-f92b-46d1-86d6-b841b63e9247 [in writepath.py:93]
+2026-08-20 01:28:07 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:28:10 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:28:13 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:28:16 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:28:18 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:28:21 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:28:24 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=43db7163-a190-441a-b20c-7baa55ca761c [in writepath.py:93]
+2026-08-20 01:28:27 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:28:30 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=dca81c38-8f3d-488d-babd-e8e57ae0c6c6 [in writepath.py:93]
+2026-08-20 01:28:33 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:28:35 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:28:38 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:28:42 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:28:42 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:28:45 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:28:47 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:28:50 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:28:53 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:28:56 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:28:59 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:29:02 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:29:07 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:29:10 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:29:13 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:29:16 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:29:19 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:29:21 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=fa19f569-68e8-4298-b002-16395d8d3e99 [in writepath.py:93]
+2026-08-20 01:29:27 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:29:27 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:29:27 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:29:31 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:29:34 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:29:37 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:29:40 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:29:43 - memore.writepath - INFO - writepath session=slotbench-1-c033b8 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 1 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:29:47 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:29:47 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:29:50 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:29:52 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:29:55 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:29:58 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:30:01 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:30:04 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:30:06 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:30:09 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=1501964e-4865-4cbe-b4c4-dea8aff6d332 [in writepath.py:93]
+2026-08-20 01:30:12 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:30:15 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:30:18 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:30:20 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:30:23 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=f4dd8854-5eb0-4d77-bcde-508f312770e4 [in writepath.py:93]
+2026-08-20 01:30:26 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:30:29 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=83f87083-1abd-46fc-9b53-c642cf5d2acb [in writepath.py:93]
+2026-08-20 01:30:31 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:30:34 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:30:37 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:30:39 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:30:42 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:30:45 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:30:48 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=8adf9bbb-e2ac-4558-94c3-c8d34b95cb0b [in writepath.py:93]
+2026-08-20 01:30:50 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:30:53 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=e7560004-bd54-4435-ba64-abee4d41a8b1 [in writepath.py:93]
+2026-08-20 01:30:56 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:30:59 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:31:02 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:31:05 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:31:05 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:31:08 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:31:11 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:31:14 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:31:17 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:31:19 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:31:22 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:31:25 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:31:31 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:31:34 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:31:37 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:31:40 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:31:42 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:31:45 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=75826b67-eb2a-49d4-82b3-7a0677725095 [in writepath.py:93]
+2026-08-20 01:31:50 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:31:50 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:31:50 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:31:55 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:31:58 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:32:01 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:32:04 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:32:06 - memore.writepath - INFO - writepath session=slotbench-2-6c7b33 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 2 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:32:10 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:32:10 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:32:13 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:32:16 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:32:18 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:32:21 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:32:24 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:32:27 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:32:30 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:32:32 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=6a8212bb-32b9-43ec-9eb9-f267d1edc4bd [in writepath.py:93]
+2026-08-20 01:32:35 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:32:38 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:32:41 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:32:43 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:32:46 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=27fdf051-0511-44dc-b74e-813c3a4fd3f3 [in writepath.py:93]
+2026-08-20 01:32:49 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:32:52 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=810d0ffb-8942-4638-b0ba-a6884c93cdb0 [in writepath.py:93]
+2026-08-20 01:32:54 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:32:57 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:33:00 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:33:03 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:33:05 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:33:08 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:33:11 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=3d81f17d-1bd5-46e5-a758-55e918f8e277 [in writepath.py:93]
+2026-08-20 01:33:14 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:33:17 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=b233282d-62fe-4894-9ff1-26d171022b44 [in writepath.py:93]
+2026-08-20 01:33:20 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:33:22 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:33:25 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:33:29 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:33:29 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:33:32 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:33:35 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:33:37 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:33:41 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:33:43 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:33:46 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:33:49 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:33:55 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:33:57 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:34:00 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:34:03 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:34:06 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:34:09 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=a688c1f9-28d7-49b6-82ac-ec0578d16f77 [in writepath.py:93]
+2026-08-20 01:34:14 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:34:14 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:34:14 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:34:18 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:34:21 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:34:24 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:34:27 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:34:30 - memore.writepath - INFO - writepath session=slotbench-3-c3b498 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 3 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:34:34 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:34:34 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:34:36 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:34:39 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:34:42 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:34:45 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:34:48 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:34:51 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:34:53 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:34:56 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=c949c082-a3fc-4930-8bd4-5cb5f439038b [in writepath.py:93]
+2026-08-20 01:34:59 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:35:02 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:35:04 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:35:07 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:35:10 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=94086bd8-b0d1-47a2-8869-b1c189aae0c2 [in writepath.py:93]
+2026-08-20 01:35:13 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:35:15 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=e3096009-3ed1-4303-bf9f-8439373ac686 [in writepath.py:93]
+2026-08-20 01:35:18 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:35:21 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:35:24 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:35:26 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:35:29 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:35:32 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:35:35 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=3080f886-9631-4fdf-9677-4d4805acdc5d [in writepath.py:93]
+2026-08-20 01:35:38 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:35:40 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=b2963163-d164-4354-81e1-ff59f9d0d9ee [in writepath.py:93]
+2026-08-20 01:35:43 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:35:46 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:35:49 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:35:52 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:35:52 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:35:55 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:35:58 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:36:01 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:36:04 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:36:07 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:36:10 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:36:13 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:36:18 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:36:21 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:36:24 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:36:26 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:36:29 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:36:32 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=65bd375f-0b5e-4e13-991d-6e24a5162cb3 [in writepath.py:93]
+2026-08-20 01:36:37 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:36:37 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:36:37 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:36:42 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:36:45 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:36:48 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:36:51 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:36:54 - memore.writepath - INFO - writepath session=slotbench-4-d7eb0e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 4 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:36:57 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:36:57 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:37:00 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:37:03 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:37:06 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:37:08 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:37:11 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:37:14 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:37:17 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:37:19 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=40436bea-1027-482b-bb93-c4f180958c34 [in writepath.py:93]
+2026-08-20 01:37:22 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:37:25 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:37:28 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:37:31 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:37:33 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=4d58647e-cfc5-4a76-8c9a-1295d343c1bd [in writepath.py:93]
+2026-08-20 01:37:36 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:37:39 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=6426afe5-5571-4649-8da2-9f85e2b78b0b [in writepath.py:93]
+2026-08-20 01:37:42 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:37:45 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:37:47 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:37:50 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:37:53 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:37:56 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:37:58 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=87ab235c-9e6d-4592-abe2-6bcab0056dff [in writepath.py:93]
+2026-08-20 01:38:01 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:38:04 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=62cf9d08-cc67-4d1e-bff6-28e9622f9fdf [in writepath.py:93]
+2026-08-20 01:38:07 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:38:09 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:38:12 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:38:16 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:38:16 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:38:19 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:38:21 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:38:24 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:38:27 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:38:30 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:38:33 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:38:36 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:38:41 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:38:44 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:38:47 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:38:49 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:38:52 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:38:55 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=e8f224cf-24d1-48eb-ad51-47541028b8d8 [in writepath.py:93]
+2026-08-20 01:39:00 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:39:00 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:39:00 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:39:05 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:39:08 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:39:11 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:39:14 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:39:17 - memore.writepath - INFO - writepath session=slotbench-5-551f25 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 5 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:39:20 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:39:20 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:39:23 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:39:26 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:39:29 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:39:31 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:39:34 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:39:37 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:39:40 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:39:43 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=2584ccc7-7333-40be-bcea-128f83cb0f03 [in writepath.py:93]
+2026-08-20 01:39:45 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:39:48 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:39:51 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:39:54 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:39:56 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=a39e3e5d-cd6f-4b99-8074-4e9d0ed38724 [in writepath.py:93]
+2026-08-20 01:39:59 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:40:02 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=94185938-567b-4cae-b1fd-a4a7edbf8bb3 [in writepath.py:93]
+2026-08-20 01:40:05 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:40:07 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:40:10 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:40:13 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:40:16 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:40:19 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:40:22 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=1c712d88-8187-442e-bcb2-fb50a64b3d2c [in writepath.py:93]
+2026-08-20 01:40:24 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:40:27 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=54a7af8a-6511-4888-8056-616207f4074e [in writepath.py:93]
+2026-08-20 01:40:30 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:40:33 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:40:36 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:40:39 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:40:39 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:40:42 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:40:45 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:40:48 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:40:50 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:40:53 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:40:56 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:40:59 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:41:05 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:41:07 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:41:10 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:41:13 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:41:16 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:41:19 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=120a83f0-5278-42f1-a25d-8e94a1c4e7fc [in writepath.py:93]
+2026-08-20 01:41:24 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:41:24 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:41:24 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:41:28 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:41:32 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:41:35 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:41:38 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:41:40 - memore.writepath - INFO - writepath session=slotbench-6-3fc734 case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 6 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:41:44 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:41:44 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:41:47 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:41:49 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:41:52 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:41:55 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:41:58 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:42:01 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:42:04 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:42:06 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=cc2bc86f-64f6-4b95-a6e7-121a296b74c7 [in writepath.py:93]
+2026-08-20 01:42:09 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:42:12 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:42:15 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:42:17 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:42:20 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=49e4b821-1b43-47b0-b4f6-9ef7853ad47e [in writepath.py:93]
+2026-08-20 01:42:23 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:42:26 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=2bd2397b-d93d-47ae-b313-ff13364faf1e [in writepath.py:93]
+2026-08-20 01:42:28 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:42:31 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:42:34 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:42:37 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:42:40 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:42:43 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:42:45 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=df04d0dd-f25c-4da7-91ec-55de607e4a3f [in writepath.py:93]
+2026-08-20 01:42:48 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:42:51 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=e00fed9c-cedc-4676-a5b4-40cf75b99967 [in writepath.py:93]
+2026-08-20 01:42:54 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:42:57 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:42:59 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:43:03 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:43:03 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:43:06 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:43:09 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:43:12 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:43:15 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:43:17 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:43:20 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:43:23 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:43:29 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:43:31 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:43:34 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:43:37 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:43:40 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:43:43 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=7c4c700e-9397-42e4-8ca5-d07460f12b39 [in writepath.py:93]
+2026-08-20 01:43:47 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:43:47 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:43:47 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:43:52 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:43:55 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:43:58 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:44:01 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:44:04 - memore.writepath - INFO - writepath session=slotbench-7-18554e case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 7 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:44:08 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:44:08 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:44:11 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:44:13 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:44:16 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:44:19 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:44:22 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:44:24 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:44:27 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:44:30 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=92efd313-5d76-4a69-83d0-0986da1859f7 [in writepath.py:93]
+2026-08-20 01:44:33 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:44:35 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:44:38 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:44:41 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:44:44 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=7bca078c-8e3f-4762-9102-8a5097cc8e76 [in writepath.py:93]
+2026-08-20 01:44:47 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:44:49 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=7d671871-3a2f-4dd4-847c-20d39226e20c [in writepath.py:93]
+2026-08-20 01:44:52 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:44:55 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:44:58 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:45:01 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:45:03 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:45:06 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:45:09 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=82e8ab21-e9a2-41b2-bf7c-cecb21db8478 [in writepath.py:93]
+2026-08-20 01:45:12 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:45:15 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=699a1980-523f-4575-9953-860a6c73a97e [in writepath.py:93]
+2026-08-20 01:45:17 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:45:20 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:45:23 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:45:27 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:45:27 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:45:30 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:45:32 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:45:35 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:45:38 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:45:41 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:45:44 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:45:47 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:45:52 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:45:55 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:45:58 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:46:01 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:46:03 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:46:06 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=5bf88e5d-e727-4adc-9c3e-0d6972201c45 [in writepath.py:93]
+2026-08-20 01:46:11 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:46:11 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:46:11 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:46:16 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:46:19 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:46:22 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:46:25 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:46:28 - memore.writepath - INFO - writepath session=slotbench-8-03a6fb case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 8 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+2026-08-20 01:46:31 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=1 superseded=None [in writepath.py:93]
+2026-08-20 01:46:31 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=IDENTITY conf=1.00 subject='the user' ordinal=2 superseded=None [in writepath.py:93]
+2026-08-20 01:46:34 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=3 superseded=None [in writepath.py:93]
+2026-08-20 01:46:37 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=4 superseded=None [in writepath.py:93]
+2026-08-20 01:46:40 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=5 superseded=None [in writepath.py:93]
+2026-08-20 01:46:42 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=0.80 subject='the memory system' ordinal=6 superseded=None [in writepath.py:93]
+2026-08-20 01:46:45 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=7 superseded=None [in writepath.py:93]
+2026-08-20 01:46:48 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the memory system' ordinal=8 superseded=None [in writepath.py:93]
+2026-08-20 01:46:51 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=9 superseded=None [in writepath.py:93]
+2026-08-20 01:46:54 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the Netherlands' ordinal=10 superseded=6a8dd748-aa4d-41a9-95ba-477fbfc14fdc [in writepath.py:93]
+2026-08-20 01:46:56 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=11 superseded=None [in writepath.py:93]
+2026-08-20 01:46:59 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=12 superseded=None [in writepath.py:93]
+2026-08-20 01:47:02 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=13 superseded=None [in writepath.py:93]
+2026-08-20 01:47:05 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=14 superseded=None [in writepath.py:93]
+2026-08-20 01:47:07 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=15 superseded=ddc2008a-39a6-47ac-bb23-ec37c934aa51 [in writepath.py:93]
+2026-08-20 01:47:10 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=16 superseded=None [in writepath.py:93]
+2026-08-20 01:47:13 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Lisa' ordinal=17 superseded=c5391d47-1189-4087-9a54-1a3f72f70344 [in writepath.py:93]
+2026-08-20 01:47:16 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Lisa' ordinal=18 superseded=None [in writepath.py:93]
+2026-08-20 01:47:19 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=EVENT conf=1.00 subject='Lisa' ordinal=19 superseded=None [in writepath.py:93]
+2026-08-20 01:47:22 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=IDENTITY conf=1.00 subject='Pixel' ordinal=20 superseded=None [in writepath.py:93]
+2026-08-20 01:47:24 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=21 superseded=None [in writepath.py:93]
+2026-08-20 01:47:27 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Pixel' ordinal=22 superseded=None [in writepath.py:93]
+2026-08-20 01:47:30 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=23 superseded=None [in writepath.py:93]
+2026-08-20 01:47:33 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=24 superseded=646652b8-c8d9-4983-8193-907bf3dd15c7 [in writepath.py:93]
+2026-08-20 01:47:36 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=0.90 subject='the user' ordinal=25 superseded=None [in writepath.py:93]
+2026-08-20 01:47:38 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='the user' ordinal=26 superseded=547a419c-3b9b-47a8-b874-f0e756f1f35c [in writepath.py:93]
+2026-08-20 01:47:41 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=27 superseded=None [in writepath.py:93]
+2026-08-20 01:47:44 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=28 superseded=None [in writepath.py:93]
+2026-08-20 01:47:47 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Tom' ordinal=29 superseded=None [in writepath.py:93]
+2026-08-20 01:47:50 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=30 superseded=None [in writepath.py:93]
+2026-08-20 01:47:50 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=IDENTITY conf=1.00 subject='Miso' ordinal=31 superseded=None [in writepath.py:93]
+2026-08-20 01:47:53 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Miso' ordinal=32 superseded=None [in writepath.py:93]
+2026-08-20 01:47:56 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=33 superseded=None [in writepath.py:93]
+2026-08-20 01:47:59 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Fien' ordinal=34 superseded=None [in writepath.py:93]
+2026-08-20 01:48:02 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=35 superseded=None [in writepath.py:93]
+2026-08-20 01:48:05 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Tom Bakker' ordinal=36 superseded=None [in writepath.py:93]
+2026-08-20 01:48:07 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the test suite' ordinal=37 superseded=None [in writepath.py:93]
+2026-08-20 01:48:10 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=38 superseded=None [in writepath.py:93]
+2026-08-20 01:48:16 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=39 superseded=None [in writepath.py:93]
+2026-08-20 01:48:19 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=40 superseded=None [in writepath.py:93]
+2026-08-20 01:48:22 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=41 superseded=None [in writepath.py:93]
+2026-08-20 01:48:24 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=42 superseded=None [in writepath.py:93]
+2026-08-20 01:48:27 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='Bud' ordinal=43 superseded=None [in writepath.py:93]
+2026-08-20 01:48:30 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=CONTRADICTION type=PREFERENCE conf=1.00 subject='Bud' ordinal=44 superseded=1f6cfe66-093a-4662-b61e-54f8fac11fec [in writepath.py:93]
+2026-08-20 01:48:35 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=45 superseded=None [in writepath.py:93]
+2026-08-20 01:48:35 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=46 superseded=None [in writepath.py:93]
+2026-08-20 01:48:35 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=47 superseded=None [in writepath.py:93]
+2026-08-20 01:48:40 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=EVENT conf=1.00 subject='the user' ordinal=48 superseded=None [in writepath.py:93]
+2026-08-20 01:48:43 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=EVENT conf=1.00 subject="the user's passport" ordinal=49 superseded=None [in writepath.py:93]
+2026-08-20 01:48:46 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject="the user's gym membership" ordinal=50 superseded=None [in writepath.py:93]
+2026-08-20 01:48:48 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the team retro' ordinal=51 superseded=None [in writepath.py:93]
+2026-08-20 01:48:51 - memore.writepath - INFO - writepath session=slotbench-9-438b3f case=NEW type=PREFERENCE conf=1.00 subject='the user' ordinal=52 superseded=None [in writepath.py:93]
+
+=== run 9 ===
+  must-collide  6/8 resolved
+    ok   [7->8] RESOLVED      netherlands::capital city  vs  netherlands::capital city
+    FAIL [9->10] MISSED        user::likes  vs  user::likes
+    ok   [12->13] RESOLVED      user::employer  vs  user::employer
+    ok   [14->15] RESOLVED      lisa::residence  vs  lisa::residence
+    ok   [21->22] RESOLVED      user::city code favourite python writing  vs  user::city code favourite python writing
+    ok   [23->24] RESOLVED      user::deployment workflow  vs  user::deployment workflow
+    FAIL [24->38] SPLIT         user::deployment workflow  vs  user::deploy target
+    ok   [42->43] RESOLVED      bud::favourite language programming  vs  bud::favourite language programming
+  must-coexist  13/13 intact
+    ok   [0, 1, 2]      OK            
+    ok   [3, 4]         OK            
+    ok   [5, 6]         OK            
+    ok   [10, 11]       OK            
+    ok   [16, 17]       OK            
+    ok   [18, 19, 20]   OK            
+    ok   [22, 24]       OK            
+    ok   [26, 27]       OK            
+    ok   [30, 31]       OK            
+    ok   [6, 34]        OK            
+    ok   [3, 35]        OK            
+    ok   [39, 40, 41, 43] OK            
+    ok   [44]           OK            
+  one-subject   18/20 coherent
+    FAIL [3, 4]         SUBJECT-SPLIT memory system | user
+    FAIL [28, 29]       SUBJECT-SPLIT miso | user
+  distinct      5/5 kept apart
+  no-reply-leak 2/2 silent
+  wrote nothing [45]   (diagnostic only -- not scored)
+  slot arity    40 recorded (5 multi-valued), 0 P1 disagreements (diagnostic only -- not scored)
+  temporal      6/6 correctly framed
+    ok   [ 3] must-NOT-past OK             no date
+    ok   [46] must-be-PAST  OK             2026-05-12
+    ok   [47] must-be-PAST  OK             2026-04-04
+    ok   [48] must-NOT-past OK             recurring
+    ok   [49] must-NOT-past OK             recurring
+    ok   [50] must-NOT-past OK             no date
+  slot keys coined
+    bakker tom                     instruments played
+    bud                            likes, likes, likes, favourite language programming, favourite language programming
+    fien                           age, location school
+    gym membership user            renewal schedule
+    lisa                           residence, residence, age, birthday
+    memory system                  creation place, latency lookup, implementation language
+    miso                           species, age
+    netherlands                    capital city, capital city
+    passport user                  date expiry
+    pixel                          breed, age, gender
+    retro team                     schedule
+    suite test                     run time, framework implementation
+    tom                            pull request reviewer, commit preference, location
+    user                           name, age, occupation, specialism, birth place, likes, likes, dislikes, employer, employer, city code favourite python writing, city code favourite python writing, deployment workflow, deployment workflow, pets, residence, deploy target, likes, dislikes, likes, destination flight, car
+
+=== 9 run(s) ===
+  must-collide resolved   54/72   (slot split)
+  must-coexist intact     117/117   (slot collision)
+  one-subject coherent    162/180   (subject split)
+  distinct kept apart     45/45   (subject OVER-merge)
+  no reply leak           18/18   (assistant-reply channel)
+  read the runs separately -- variance across identical inputs is the finding.
+  the last two move against each other: any rule that merges harder improves
+  one and costs the other, so neither number means anything without the other.

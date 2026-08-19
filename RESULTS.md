@@ -2818,3 +2818,146 @@ failures. They are instances of item 1 rather than a separate defect list, which
 support for the ranking. §20 further established that `[9->10]` cannot be fixed from the
 `_SYSTEM` example list without paying for it elsewhere — both passes are on the record, so
 start from turn 9's own ambiguity or not at all.
+
+---
+
+## 22. A1: `single_valued` moves onto the slot. Built, controlled, and inert.
+
+`identity-and-gate-spec.md` A1. `single_valued` was a schema property of the slot being
+re-derived by P1 every turn, so a slot's arity was only as stable as a model §18.5
+measured disagreeing with itself. §18.11 removed that variance by asking the boolean
+instead of encoding it in the attribute's name; A1 removes the re-derivation by recording
+the first answer and reading it thereafter.
+
+### 22.1 What shipped
+
+A `:Slot` node keyed on `(session_id, subject_key, attribute)` — the same pair `_competing`
+filters on, because that pair *is* the slot whose arity this is. The key was the one design
+question worth settling from evidence rather than taste, and §11 settles it: the residual
+error there is `the user :: creation location` holding both "born in Den Haag" and "wrote
+the memory system in Den Haag". What needs correcting is **that slot on that subject** —
+not `creation location` wherever it appears, and not everything about `the user`. A1's own
+phrase "correctable in one place" means one node instead of a re-derivation per turn.
+
+- `ensure_slot_schema` is `ON CREATE SET` in Cypher, so A1's "do not let a later fact
+  overwrite the stored value implicitly" is enforced by the query rather than asserted in
+  a comment. `set_slot_schema` is the single deliberate correction path.
+- `_classify` takes the arity as a plain argument (`None` → fall back to the candidate's
+  own value), not as a mutated candidate. It stays a pure function of its arguments, no
+  LLM enters the decision, and `test_no_llm_in_the_consolidation_decision` passes
+  unchanged — the same four things §18 asked not to undo.
+- A correction rewrites no fact. Arity is read at classification time and never stored on
+  a `StoredFact`, so it takes effect on the next fact in the slot and leaves the ones
+  already classified alone. Re-deciding those would be exactly the implicit revision
+  `ensure_slot_schema` refuses.
+- Disagreements between the record and what P1 emitted are logged at INFO and **not acted
+  on**, per A1.
+- Inert where it has no evidence, the same argument `attribute == ""` and
+  `single_valued = True` already make: an empty attribute records nothing and looks nothing
+  up, so old graphs and `bench/extract.py` — which name no attribute at all — reach neither
+  path, and every §3 oracle number stands unchanged. A store without the three methods
+  degrades to the pre-A1 behaviour with one INFO line (spec invariant 2), proven against a
+  store class that genuinely lacks them rather than a monkeypatch.
+- `clear_session` deletes `:Slot` nodes too. Nothing else lists them — `sessions()` counts
+  Facts — so orphans in a shared graph would accumulate completely invisibly.
+
+Covered by six unit tests and a real-graph round trip proving `ON CREATE SET` refuses the
+implicit overwrite while `set_slot_schema` performs the deliberate one.
+
+### 22.2 It is behaviourally inert on the 51-turn script, and that is the result
+
+```
+slot arity   40 recorded (5 multi-valued), 0 P1 disagreements     x9 runs
+```
+
+Per run: 52 candidate facts named a slot, across 40 distinct slots — so **12 reuses per
+run, 108 across nine runs, and zero disagreements.** The recorded value was never once
+different from what P1 would have supplied anyway.
+
+Report the denominator, not the bare zero. 0-of-108 is a finding; 0 alone is consistent
+with the measurement being broken. The specific way it could have been broken was checked:
+if `_slots_for` had returned `None` — a store capability check failing — the lookup is
+skipped and no disagreement can *ever* be logged, which looks exactly like a genuine zero.
+Neither fallback line (`store has no slot_schemas`, `could not read slot schemas`) appears
+anywhere in the nine runs, and 40 slots were genuinely recorded per run, so the zero is
+P1 agreeing rather than A1 not running.
+
+So §18.11's finding is stronger than it claimed: asking the boolean did not merely reduce
+the variance in `single_valued`, it removed it. A1 removes a re-derivation that turns out
+to be stable. Its deliverable is therefore **permanence and the correction path**, not a
+score — and the two axes A1 could have moved are `must-coexist` and `distinct`, which
+CLAUDE.md already warns are the one-sided ones scored perfectly by doing nothing.
+
+### 22.3 The baseline moved, and it is not A1's
+
+Nine runs of A1 came in below §19's published figures on two axes. **A control at the
+pre-A1 commit (`5809b79`, worktree, separate graph, `--runs 9`) reproduces the treatment
+bit-identically** — every axis, every run, every failing pair:
+
+| axis (9 runs each)   | §19 published | pre-A1 control | A1 |
+|----------------------|---------------|----------------|-------------|
+| must-collide         | 60/72         | **54/72**      | **54/72**   |
+| must-coexist         | 117/117       | 117/117        | 117/117     |
+| one-subject coherent | 171/180       | **162/180**    | **162/180** |
+| distinct (over-merge)| 45/45         | 45/45          | 45/45       |
+| no-reply-leak        | 18/18         | 18/18          | 18/18       |
+| temporal             | 6/6 ×9        | 6/6 ×9         | 6/6 ×9      |
+
+**A1 passes its acceptance criterion against the control, which is the comparison that
+means something.** A reader diffing 54/72 against A1's quoted 63/72 would read a regression
+that does not exist — and note that 63/72 was already stale when A1 was written: §19.10's
+own control re-measured the shipped code at 60/72. The bar is now pre-registered in
+`slots.py` so the next change does not repeat this.
+
+The arms provably ran different code, and the check was designed *before* the runs rather
+than reconstructed after, which is §19.10's lesson applied: pre-A1 `slots.py` cannot print
+the `slot arity` diagnostic line, and the control's output contains none. That is a
+positive tell from the output itself, not an assertion about interpreters.
+
+Three independent arguments say A1 is not the cause, and they do not depend on each other:
+
+1. It changed **zero** classification decisions (§22.2). A decision can only differ where
+   the record differs from P1, and none did.
+2. `one-subject` is **structurally beyond its reach**. It measures which subject P1 *names*;
+   A1 touches only the arity `_classify` consumes, downstream of naming.
+3. The **pre-A1 control produces the same numbers.**
+
+### 22.4 P1 drifted between 2026-08-18 and 2026-08-20, with the serving state unchanged
+
+The obvious explanation is ruled out. Ollama is serving exactly what CLAUDE.md documents —
+`gemma4:26b` at 32768 ctx and `mxbai-embed-large` at 512, both pinned — so this is not the
+`num_ctx` / `keep_alive` reload the commands section warns about. `_SYSTEM` is unchanged in
+the tree, and still carries §18.12's fix verbatim (`"languages spoken"`, `"allergies"`, and
+the sentence that the arity answer never changes which subject a fact belongs to).
+
+Two failures account for the whole delta, both 9/9 under *both* arms:
+
+- **`[9->10]` MISSED**, `user::likes` vs `user::likes`, at **9/9**. §19.10 measured this
+  same mechanism at 3/9 with §19 and 5/9 without. Same failure, higher rate.
+- **`[28, 29]` SUBJECT-SPLIT, `miso | user`**, with a `pets` slot on `the user` — 9/9. This
+  is §18.12's failure exactly, down to the slot name. §18.12 attributed it to the
+  `single_valued` example list and reported it fixed 9/9 after replacing the two
+  owner-collection examples.
+
+**§18.12's claim does not currently reproduce, and the reason is now open.** Either P1
+drifted, or the example list was never the mechanism and 9/9-clean was luck at n=9. Do not
+resolve this by editing the example list: §20 put both those arms permanently out of
+bounds, and this section adds no evidence that reopens them.
+
+A second observation, and it may be the same one: **all nine runs were byte-identical on
+every scored line, in both arms.** §18.5's whole argument for `--runs 9` was that identical
+input scores differently run to run. That variance is currently absent while the *level*
+has shifted — which is the signature of a model pinned in memory (temperature 0, no reload)
+rather than of a stable extractor. It follows that today's nine runs are closer to n=1 than
+to n=9, and that is the right way to read every number in this section.
+
+### 22.5 What this means for what comes next
+
+- **Quote §15–§20's slot numbers as of their measurement date, not as current.** Two of
+  them do not reproduce today under unchanged code and an unchanged serving state.
+- **A2's acceptance criterion is currently unfalsifiable.** It asks for "nine identical runs
+  on all axes at k=5"; k=1 already delivers that. A2 should not be started until the harness
+  can distinguish the two, or its bar is restated as something the current conditions can
+  fail.
+- **A1 does not block on any of this.** It changed no decision, its acceptance is a
+  same-conditions comparison, and the control supplies it.
