@@ -116,9 +116,12 @@ and when it coins `likes`, `single_valued=false` is *correct* by `_SYSTEM`'s own
 On 2026-08-20, under unchanged code and with Ollama serving exactly what this file
 documents, the standing failures are **four**, each 9/9: `(24, 38)`, `[3, 4]`, `[9->10]`
 (up from 3/9), and **`[28, 29]` `miso | user`** — §18.12's owner-collection subject split,
-back at 9/9 though `_SYSTEM` still carries the fix verbatim. Either P1 drifted or that fix
-was never the mechanism; §22.4 leaves it open and **§20 still forbids reopening the example
-list to find out**. The harness bar is now pre-registered in `slots.py`; use it rather than
+back at 9/9 though `_SYSTEM` still carries the fix verbatim. **Do not read this as drift**
+— that is a claim about time §22.4 deliberately does not make. All nine runs were
+byte-identical in both arms where §19.10's were not, so today's figures are one
+deterministic point and §19's were an average over a varying process: not the same kind of
+number, and a difference between them is not evidence of change. §22.4 leaves the cause
+open and **§20 still forbids reopening the example list to find out**. The harness bar is now pre-registered in `slots.py`; use it rather than
 a figure quoted from a section, because two of those no longer describe HEAD.
 
 **That deletion has now been tried, twice, and neither version shipped — RESULTS.md §20.**

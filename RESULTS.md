@@ -2922,7 +2922,11 @@ Three independent arguments say A1 is not the cause, and they do not depend on e
    A1 touches only the arity `_classify` consumes, downstream of naming.
 3. The **pre-A1 control produces the same numbers.**
 
-### 22.4 P1 drifted between 2026-08-18 and 2026-08-20, with the serving state unchanged
+### 22.4 §19's numbers do not reproduce, and "drift" is not the established explanation
+
+Say only what was measured: **the numbers do not reproduce**. The serving state is ruled
+out as the cause; whether this is a change over time or a difference in *sampling regime*
+is open, and the evidence leans to the second.
 
 The obvious explanation is ruled out. Ollama is serving exactly what CLAUDE.md documents —
 `gemma4:26b` at 32768 ctx and `mxbai-embed-large` at 512, both pinned — so this is not the
@@ -2939,25 +2943,40 @@ Two failures account for the whole delta, both 9/9 under *both* arms:
   `single_valued` example list and reported it fixed 9/9 after replacing the two
   owner-collection examples.
 
-**§18.12's claim does not currently reproduce, and the reason is now open.** Either P1
-drifted, or the example list was never the mechanism and 9/9-clean was luck at n=9. Do not
-resolve this by editing the example list: §20 put both those arms permanently out of
-bounds, and this section adds no evidence that reopens them.
+**§18.12's claim does not currently reproduce, and the reason is now open.** Three
+readings, and the third is not the obvious one:
 
-A second observation, and it may be the same one: **all nine runs were byte-identical on
-every scored line, in both arms.** §18.5's whole argument for `--runs 9` was that identical
-input scores differently run to run. That variance is currently absent while the *level*
-has shifted — which is the signature of a model pinned in memory (temperature 0, no reload)
-rather than of a stable extractor. It follows that today's nine runs are closer to n=1 than
-to n=9, and that is the right way to read every number in this section.
+1. P1 drifted over the two days.
+2. The example list was never the mechanism, and 9/9-clean was luck at n=9.
+3. **§18.12's fix was validated against a mixture and is now evaluated at a point.** See
+   below — today's nine runs are one deterministic sample, and §19's were not. A fix that
+   was right on the samples it saw can land on a different single point without either
+   drifting or having been wrong.
+
+Do not resolve this by editing the example list: §20 put both those arms permanently out
+of bounds, and this section adds no evidence that reopens them.
+
+**All nine runs were byte-identical on every scored line, in both arms** — and that is
+what makes reading 3 above the better one. §18.5's whole argument for `--runs 9` was that
+identical input scores differently run to run. That variance is currently absent while the
+*level* has shifted, which is the signature of a model pinned in memory (temperature 0, no
+reload) rather than of a stable extractor.
+
+It follows that today's nine runs are closer to n=1 than to n=9 — and, crucially, that
+**§19's figures and today's are not the same kind of number.** §19.10's control reported
+`[9->10]` at 5/9 and 3/9, so its nine runs were *not* identical: they were nine samples of
+a varying process, averaged into one figure. Today's are one deterministic point. A
+difference between an average over a mixture and a single point is not evidence of change
+over time, which is exactly why this section does not claim drift.
 
 ### 22.5 What this means for what comes next
 
 - **Quote §15–§20's slot numbers as of their measurement date, not as current.** Two of
   them do not reproduce today under unchanged code and an unchanged serving state.
-- **A2's acceptance criterion is currently unfalsifiable.** It asks for "nine identical runs
-  on all axes at k=5"; k=1 already delivers that. A2 should not be started until the harness
-  can distinguish the two, or its bar is restated as something the current conditions can
-  fail.
+- **A2's acceptance criterion is currently unfalsifiable — and inverted.** It asks for
+  "nine identical runs on all axes at k=5"; k=1 already delivers that, so the only way A2
+  could fail as written is by *introducing* variance. Restating it against the pre-pinned
+  regime's variance does not help either, since nobody can currently reproduce that regime.
+  A2 needs a bar the present conditions can fail before it is worth starting.
 - **A1 does not block on any of this.** It changed no decision, its acceptance is a
   same-conditions comparison, and the control supplies it.
