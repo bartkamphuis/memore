@@ -32,6 +32,42 @@ Three flags change what is measured rather than how: `--via-recall` routes throu
 real recall stage instead of raw top-k, `--expansion-hops` turns on the chain walk, and
 `--no-context` answers with no recalled block at all -- the parametric-knowledge floor,
 without which a retrieval number cannot be interpreted.
+
+## `--via-recall` and what it does and does not cover (RESULTS.md §21.3, §23)
+
+§21.3 names the largest untested surface in the shipped read path: no headline number
+routes through `recall()`, so `score_floor`, the lookup timeout and the failure-safety
+path are in none of them. `--via-recall` is the mechanism; running it is the item.
+
+Under `--via-recall` the raw `hybrid_search` above is **still performed, and is the
+control**, not waste. It is the same retrieval `recall()` itself performs -- `embed_one`
+normalizes and `blend(v, None, alpha)` is idempotent, so the two query vectors are
+identical, and `RecallConfig.k` is `--k`. That makes it the right comparator for the one
+number this item exists to produce:
+
+    gate_shut_but_retrievable   the gate returned nothing on a question whose gold WAS
+                                in the store's live top-k. The gate's cost in recall,
+                                measured against what the same lookup would have found.
+
+**Pre-registered expectation, written before the first run.** FactConsolidation questions
+are short, third-person and lexically near-identical to their answer facts ("What is the
+capital of Italy?" against "The capital of Italy is Rome."), so the gate should open on
+nearly all of single-hop and `gate_shut_but_retrievable` should be small. If it is, that
+is NOT a validation of `score_floor`: it is §11's argument applied to the gate -- a
+corpus that cannot express the failure the floor exists to prevent cannot be evidence
+about the floor. Only a materially non-zero cost would be a finding about 0.57 itself.
+
+Multi-hop is the opposite and is already measured: §8's arm B ran `recall()` gate-only on
+mh_6k and `retrieval_any` fell 0.400 -> 0.050, for the structural reason the chain-walk
+invariant states -- a multi-hop answer shares no entity with the question, so it cannot
+clear a similarity floor and must not be asked to.
+
+Three surfaces, and this covers one. `score_floor` is genuinely exercised. The lookup
+timeout is only *touched*: Falkor answers in 2.6-4.3ms against a 180ms timeout, so zero
+timeouts is the expected result and is not evidence that the timeout path works. Failure
+safety is not exercised at all -- it stays covered by `FailingStore`/`SlowStore` in the
+unit suite. The counters below exist to make that distinction checkable rather than
+assumed.
 """
 
 from __future__ import annotations
@@ -39,6 +75,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -85,12 +122,54 @@ class ArmResult:
     cases: dict[str, int] = field(default_factory=dict)
     ingest_seconds: float = 0.0
     query_seconds: float = 0.0
+    # --via-recall only (RESULTS.md §23). All default to the inert value so a raw top-k
+    # run serializes exactly as it did before this existed.
+    #
+    # `gate_open_rate` is how often the shipped gate let anything through.
+    # `gate_shut_but_retrievable` is the one that matters: gate shut on a question whose
+    # gold was in the control lookup's LIVE hits. `_live_first` on both sides on purpose
+    # -- a gate that shuts on a question answerable only by a SUPERSEDED fact cost
+    # nothing, and counting it would credit the gate with a loss it did not cause.
+    gate_open_rate: float = 0.0
+    gate_shut_but_retrievable: float = 0.0
+    # A-D latency as `recall()` itself measures it, which is the first such figure taken
+    # on the bench corpora rather than on calibration fixtures. Reported apart from
+    # `query_seconds`, which now also carries the control lookup and the reader.
+    recall_p95_ms: float = 0.0
+    # Zero is the EXPECTED result for both, not a passing grade -- see the module
+    # docstring. They exist so that "the timeout never fired" is a checked statement
+    # rather than an assumption.
+    lookup_timeouts: int = 0
+    lookup_failures: int = 0
     notes: list[str] = field(default_factory=list)
     samples: list[dict] = field(default_factory=list)
 
 
 def _live_first(hits: list[MemoryHit]) -> list[MemoryHit]:
     return [h for h in hits if h.invalid_at is None]
+
+
+class _DegradationCounter(logging.Handler):
+    """Counts the two ways `recall()` degrades to a closed gate without raising.
+
+    `recall()` never raises by contract (§3.1), so a store that timed out and a store
+    that answered are indistinguishable from the return value -- both give
+    `gate_open=False`. Without this, a run in which the store fell over on every question
+    would report a gate that simply never opened, which is the same silent-failure shape
+    `FalkorStore._assert_vector_dimension` exists to catch.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.timeouts = 0
+        self.failures = 0
+
+    def emit(self, record: logging.LogRecord) -> None:
+        message = record.getMessage()
+        if "lookup timed out" in message:
+            self.timeouts += 1
+        elif "lookup failed" in message:
+            self.failures += 1
 
 
 async def run_deterministic(
@@ -148,6 +227,12 @@ async def run_deterministic(
     started = time.perf_counter()
     acc = em = ret = ret_any = 0.0
     em_clean = ret_any_clean = 0.0
+    gate_open = gate_shut_retrievable = 0
+    recall_latencies: list[float] = []
+    degradations = _DegradationCounter()
+    recall_log = logging.getLogger("memore.recall")
+    if recall_config is not None:
+        recall_log.addHandler(degradations)
     for index, (question, gold) in enumerate(pairs):
         clean = clean_flags[index]
         if no_context:
@@ -166,6 +251,12 @@ async def run_deterministic(
             # was measured with -- switching it silently would break comparability.
             # With expansion_hops=0 this isolates the gate's contribution from the
             # walk's, which is the only way `0.40 -> 0.91` means anything.
+            #
+            # The raw hits computed just above are NOT discarded: they are the control
+            # this arm is measured against (see the module docstring). Same query vector,
+            # same k, same store -- so the only difference between them and what the gate
+            # returns is the gate.
+            control_live = _live_first(hits)
             recalled = await recall(
                 TurnContext(session_id=session, user_message=question),
                 recall_config,
@@ -173,6 +264,17 @@ async def run_deterministic(
                 embedder,
             )
             hits = recalled.memories_used
+            recall_latencies.append(recalled.latency_ms)
+            if recalled.gate_open:
+                gate_open += 1
+            elif any(
+                normalize_answer(g) in normalize_answer(h.fact)
+                for h in control_live
+                for g in gold
+            ):
+                # The gate shut on a question the same lookup COULD have answered. This
+                # is the gate's cost in recall, and the whole reason §21.3 is an item.
+                gate_shut_retrievable += 1
         live = _live_first(hits)
         if live and any(normalize_answer(g) in normalize_answer(live[0].fact) for g in gold):
             ret += 1.0
@@ -213,6 +315,15 @@ async def run_deterministic(
     c = max(1, result.n_clean)
     result.retrieval_any_clean = ret_any_clean / c
     result.exact_match_clean = em_clean / c
+    if recall_config is not None:
+        recall_log.removeHandler(degradations)
+        result.gate_open_rate = gate_open / n
+        result.gate_shut_but_retrievable = gate_shut_retrievable / n
+        result.lookup_timeouts = degradations.timeouts
+        result.lookup_failures = degradations.failures
+        if recall_latencies:
+            ordered = sorted(recall_latencies)
+            result.recall_p95_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
     return result
 
 
@@ -311,6 +422,20 @@ async def main_async(args: argparse.Namespace) -> None:
             f"   exact_match {result.exact_match_clean:.3f}"
         )
         print(f"  ingest {result.ingest_seconds:.1f}s   query {result.query_seconds:.1f}s")
+        if result.arm == "deterministic" and (args.via_recall or args.expansion_hops):
+            # RESULTS.md §23. `gate shut w/ answer` is the number this arm exists for;
+            # the rest is context for reading it. Timeouts/failures print even at 0
+            # deliberately -- a zero that is never shown cannot be distinguished from a
+            # counter nobody wired up.
+            print(
+                f"  gate opened      {result.gate_open_rate:.3f}"
+                f"   gate shut w/ answer in store {result.gate_shut_but_retrievable:.3f}"
+            )
+            print(
+                f"  recall() A-D p95 {result.recall_p95_ms:.1f}ms"
+                f"   lookup timeouts {result.lookup_timeouts}"
+                f"   lookup failures {result.lookup_failures}"
+            )
         for note in result.notes:
             print(f"  note: {note}")
 
