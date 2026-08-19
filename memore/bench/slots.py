@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -446,6 +447,12 @@ class RunReport:
     run: int
     turns: list[TurnResult]
     live_by_ordinal: dict[int, bool]
+    # identity-and-gate-spec.md A1 diagnostics. `slot_arity` is what the session
+    # RECORDED, which is the tell that A1 ran at all (a pre-A1 store records nothing);
+    # `arity_disagreements` is how often P1 then contradicted its own earlier answer,
+    # which is the variance A1 removes rather than resolves.
+    slot_arity: list[tuple[str, str, bool]] = field(default_factory=list)
+    arity_disagreements: int = 0
 
     def _single(self, index: int) -> int | None:
         """The one ordinal a pair-bearing turn wrote, or None if it wrote 0 or 2+."""
@@ -582,6 +589,22 @@ class RunReport:
         return out
 
 
+class _DisagreementCounter(logging.Handler):
+    """Counts `slot arity disagreement` lines -- how often P1 contradicted the record.
+
+    A handler rather than a counter inside the consolidator, so nothing in `memore/`
+    grows a field that exists only for the harness.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.INFO)
+        self.count = 0
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if "slot arity disagreement" in record.getMessage():
+            self.count += 1
+
+
 async def run_once(run: int, graph: str) -> RunReport:
     session = f"slotbench-{run}-{uuid.uuid4().hex[:6]}"
     embed_config = EmbedConfig.from_env()
@@ -594,6 +617,14 @@ async def run_once(run: int, graph: str) -> RunReport:
         WritePathConfig(),
         store=store,
     )
+    # The tell that A1 is actually engaged in this run, and the only place its
+    # disagreement rate is visible. Both are DIAGNOSTICS, not axes -- CLAUDE.md's §17.4
+    # argument: a count that no fixture pins can be scored perfectly by doing nothing.
+    disagreements = _DisagreementCounter()
+    arity_log = logging.getLogger("memore.consolidate")
+    arity_log.setLevel(logging.INFO)
+    arity_log.addHandler(disagreements)
+
     try:
         results: list[TurnResult] = []
         history: list[Message] = []
@@ -624,9 +655,17 @@ async def run_once(run: int, graph: str) -> RunReport:
 
         facts = await store.facts_in_session(session)
         live = {f.ordinal: f.invalid_at is None for f in facts}
+        arity = sorted(await store.slot_schemas(session))
         await store.clear_session(session)
-        return RunReport(run=run, turns=results, live_by_ordinal=live)
+        return RunReport(
+            run=run,
+            turns=results,
+            live_by_ordinal=live,
+            slot_arity=arity,
+            arity_disagreements=disagreements.count,
+        )
     finally:
+        logging.getLogger("memore.consolidate").removeHandler(disagreements)
         await embedder.aclose()
         await store.aclose()
 
@@ -685,6 +724,19 @@ def print_run(report: RunReport) -> tuple[int, ...]:
         if not row.slots and row.index not in MUST_NOT_EXTRACT
     ]
     print(f"  wrote nothing {dropped}   (diagnostic only -- not scored)")
+
+    # DIAGNOSTIC, not an axis (identity-and-gate-spec.md A1). The count of recorded slots
+    # is the tell that A1 ran: a pre-A1 store records none. The disagreement count is how
+    # often P1 answered `single_valued` differently from the slot's own first answer --
+    # the §18.5 variance, made visible rather than fixed, since A1 logs it and does not
+    # act on it. Neither is scored: no fixture pins either, and §17.4's argument is that
+    # an unpinned count is scored perfectly by doing nothing.
+    multi = sum(1 for _, _, sv in report.slot_arity if not sv)
+    print(
+        f"  slot arity    {len(report.slot_arity)} recorded "
+        f"({multi} multi-valued), {report.arity_disagreements} P1 disagreements "
+        f"(diagnostic only -- not scored)"
+    )
 
     # DIAGNOSTIC for the unbuilt temporal axis (RESULTS.md §19). Prints what P1 does with
     # a date TODAY, which is the one thing measurable before `occurs_at` exists -- and it
