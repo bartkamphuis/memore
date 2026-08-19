@@ -2980,3 +2980,136 @@ over time, which is exactly why this section does not claim drift.
   A2 needs a bar the present conditions can fail before it is worth starting.
 - **A1 does not block on any of this.** It changed no decision, its acceptance is a
   same-conditions comparison, and the control supplies it.
+
+---
+
+## 23. §21.3 closed: `recall()` under the bench. The gate is fine; the budget is not.
+
+Measured 2026-08-20, `gemma4:26b` @32768 and `mxbai-embed-large` @512 both pinned,
+`MEMORE_GRAPH=memore_mxbai`, `--no-reader` (so no SubEM here — these are retrieval and
+latency numbers). **One run per arm.** §22.4's caution applies: the extractor is currently
+deterministic under a pinned model, so n=1 is what a single run is worth, no more.
+
+### 23.1 The item, and what the mechanism needed
+
+§21.3: the bench never routes a headline number through `recall()`, so `score_floor`, the
+lookup timeout and the failure-safety path are in none of them. `--via-recall` already
+existed; nothing had been run with it, and in that branch the raw `hybrid_search` was
+computed and **thrown away**.
+
+That waste is now the **control**. It is the same retrieval `recall()` performs — `embed_one`
+normalizes, `blend(v, None, alpha)` is idempotent, and `RecallConfig.k` is `--k`, so the two
+query vectors are identical — which makes it the right comparator for the number the item
+exists to produce:
+
+```
+gate_shut_but_retrievable   the gate returned nothing on a question whose gold WAS in the
+                            store's live top-k
+```
+
+`_live_first` on both sides: a gate shutting on a question answerable only by a superseded
+fact cost nothing, and counting it would credit the gate with a loss it did not cause.
+
+**The expectation was pre-registered in the module docstring before the first run** — that
+the gate should open on nearly all of single-hop, and that if it did, this would *not* be a
+validation of `score_floor` but §11's argument applied to the gate: a corpus that cannot
+express the failure a threshold exists to prevent is not evidence about that threshold.
+
+### 23.2 The gate costs nothing on single-hop, at both scales
+
+| arm | sh_6k `retrieval_hit` | `_any` | A–D p95 | sh_32k `retrieval_hit` | `_any` | A–D p95 |
+|---|---|---|---|---|---|---|
+| raw top-k (no gate) | 0.900 | 1.000 | — | 0.920 | 1.000 | — |
+| `recall()`, shipped | **0.970** | 1.000 | 151.1ms | **0.960** | 0.980 | **272.4ms** |
+| `recall()`, `subject_check=False` | 0.910 | 1.000 | 103.2ms | 0.910 | 0.990 | 114.2ms |
+
+`gate_open_rate` is **1.000** and `gate_shut_but_retrievable` **0.000** in every arm, at both
+scales. Zero lookup timeouts, zero lookup failures.
+
+So the expectation held, and the pre-registered reading applies: **this is weak evidence for
+`score_floor`, not a validation of it.** FactConsolidation questions are short, third-person
+and lexically near-identical to their answer facts; the corpus cannot produce the off-domain
+turn 0.57 was chosen to keep out. What it *does* establish is that the shipped floor is not
+silently destroying the benchmark the headline numbers come from, which was the open risk.
+
+**The shipped read path is better than raw top-k on top-1** — +7.0 at 6k, +4.0 at 32k — and
+the third row says the whole improvement is the **subject check**, not the gate. With the
+check off, `recall()` and raw top-k are the same to within a point at both scales, which is
+what a gate that opens 100% of the time should look like.
+
+Two points of `retrieval_any` are lost at 32k, and the metric above cannot see where: the
+gate never shut on an answerable question, so the loss is **inside an open gate**. The third
+row separates it — one point to the subject check (1.000 → 0.990), one to the gate or
+`inject_token_budget` (0.990 → 0.980).
+
+### 23.3 The finding is latency, and §21.3 pointed at the wrong risk
+
+**A–D p95 is 272ms at 32k, against a 200ms budget.** §21.3 predicted "a production
+integration hits this first" and was right about that; it expected the gate to be the hazard,
+and the gate is the part that works.
+
+Component medians, same store, same session, 8 queries each:
+
+| | sh_6k (455 facts) | sh_32k (2310 facts) |
+|---|---|---|
+| `embed_one` | 66.5ms | 66.5ms |
+| `hybrid_search` | 20.4ms | 13.5ms |
+| `subject_view` | 20.0ms | **102.6ms** |
+| `recall()` full | 127.3ms | 211.3ms |
+| `recall()` without `subject_check` | 94.2ms | **79.6ms** |
+
+**`subject_view` is O(session) and it is the entire breach.** 5.1x the facts, 5.1x the time —
+one full session fetch, per query, rebuilding the vocabulary each time. Everything else is
+flat or better at 5x scale: the vector index does its job, and `recall()` with the check off
+is ~80–115ms at *both* sizes.
+
+That also explains why nothing caught this. §5's ~90ms was measured on calibration fixtures
+holding tens of facts, where an O(session) scan is invisible. It is not that the figure was
+wrong; it is that the quantity it measured does not vary with the thing that matters, and no
+fixture was large enough to show it. Same shape as §13's fixture drift — **a fixture that
+cannot express the failure cannot measure against it**, now for the third time in this file.
+
+### 23.4 B6 gets a price, and the performance addendum gets two corrections
+
+**B6 ("`subject_min_competitors` retires") now has a latency argument nobody had made.** §9
+measured the check's accuracy trade conversationally — crowded-chat hard-negative FPR 0.846
+→ 0.462, and 8% recall to close it further. Its cost on the bench, first measured here:
+
+```
+subject_check ON   +6.0 / +5.0 top-1 (6k / 32k)   -1 point retrieval_any at 32k
+                   +48ms at 455 facts   +158ms at 2310 facts, and rising linearly
+```
+
+That is a check worth having and a check that cannot be paid for as written. It is the
+strongest available argument for B6's "fold it in as a graded feature" over the current veto
+— and, before any of that, for caching `subject_view`, which is session state that changes
+only on write and is currently rebuilt on every read.
+
+Two figures in `performance-addendum.md` do not survive this:
+
+- **"~90ms p95 against a 200ms budget… roughly 110ms unused."** Measured at 272ms p95 at 32k,
+  i.e. ~72ms *over*. The headroom C2 spends on a reranker exists at conversational scale and
+  does not exist at 32k. C2's own "A–D p95 stays under 200ms" acceptance is now the binding
+  constraint rather than a formality.
+- **"FalkorDB lookup 2.6–4.3ms"**, cited in the "do not optimise" list. Measured at 13.5–20.4ms.
+  The *conclusion* survives — it is still not the dominant cost and still not worth optimising
+  — but the number is wrong by 3–5x and should not be quoted.
+
+### 23.5 What this does not cover
+
+One surface of the three §21.3 names, and the counters exist to keep that honest rather than
+implied:
+
+- **`score_floor`** — genuinely exercised, 200 questions across two corpora. Weakly, per §23.2.
+- **Lookup timeout** — *touched, not tested*. 0 timeouts, which is the expected result when
+  the lookup answers in 13–20ms against a 180ms limit. Zero here is not evidence the timeout
+  path works.
+- **Failure safety** — **not exercised at all.** Still covered only by `FailingStore` /
+  `SlowStore` in the unit suite. `recall()` never raises by contract, so a store that timed
+  out and a store that answered are indistinguishable from the return value; the degradation
+  counter exists so that a run where the store fell over on every question cannot be read as
+  a gate that simply never opened.
+
+Multi-hop is unchanged and already measured: §8's arm B ran `recall()` gate-only on mh_6k and
+`retrieval_any` fell 0.400 → 0.050, for the structural reason the chain-walk invariant states.
+Nothing here revisits that.

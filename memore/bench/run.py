@@ -390,6 +390,7 @@ async def main_async(args: argparse.Namespace) -> None:
                         expansion_hops=args.expansion_hops,
                         expansion_fanout=args.expansion_fanout,
                         inject_token_budget=args.inject_token_budget,
+                        subject_check=not args.no_subject_check,
                     )
                     if (args.via_recall or args.expansion_hops)
                     else None
@@ -468,6 +469,13 @@ def main() -> None:
         "--expansion-hops", type=int, default=0, help="multi-hop chain expansion depth (0 = off)"
     )
     parser.add_argument("--expansion-fanout", type=int, default=4)
+    parser.add_argument(
+        "--no-subject-check",
+        action="store_true",
+        help="disable the §9 subject admission rule inside recall() (--via-recall only). "
+        "Separates what an OPEN gate discarded from what the gate shut out, and is the "
+        "only way to price the check: it is O(session) and B6 proposes retiring it.",
+    )
     parser.add_argument(
         "--via-recall",
         action="store_true",
