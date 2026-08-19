@@ -451,3 +451,42 @@ async def test_slot_arity_round_trips_and_clear_session_takes_it(store):
 
     await store.clear_session(session)
     assert await store.slot_schemas(session) == []
+
+
+async def test_a_correction_survives_a_fresh_consolidator(store):
+    """A1's third acceptance clause, against the real graph rather than a dict.
+
+    `DeterministicConsolidator.set_slot_schema` writes through to the store AND mutates the
+    dict `_slots_for` caches. If those two ever disagree the correction appears to work and
+    then evaporates on the next process start -- which is §16.4's shape exactly: a
+    store-level behaviour whose unit tests pass while the real path silently loses it. So
+    the assertion is made by a SECOND consolidator, which has no cache to be right by
+    accident and must read the corrected value back out of the graph.
+    """
+    session = f"correct-{uuid.uuid4().hex[:8]}"
+    key, slot = subject_key("the user"), subject_key("creation location")
+
+    def slotted(fact: str) -> CandidateFact:
+        return CandidateFact(
+            fact=fact, type=FactType.STATE, confidence=0.9, valid_at=None,
+            subject_hint="the user", attribute="creation location",
+        )
+
+    con = DeterministicConsolidator(store, StubEmbedder(DIM))
+    await con.consolidate(session, [slotted("the user wrote the memory system in Den Haag")])
+    outcomes = await con.consolidate(session, [slotted("the user was born in Den Haag")])
+    assert [o.case for o in outcomes] == [ConsolidationCase.CONTRADICTION]
+
+    await con.set_slot_schema(session, key, slot, single_valued=False)
+
+    fresh = DeterministicConsolidator(store, StubEmbedder(DIM))
+    outcomes = await fresh.consolidate(session, [slotted("the user learned to sail in Den Haag")])
+    assert [o.case for o in outcomes] == [ConsolidationCase.NEW]
+
+    live = {f.fact for f in await store.live_facts_for_subject(session, key)}
+    assert live == {
+        "the user was born in Den Haag",
+        "the user learned to sail in Den Haag",
+    }
+    # No rewrite: the fact retired before the correction is still retired.
+    assert "the user wrote the memory system in Den Haag" not in live
