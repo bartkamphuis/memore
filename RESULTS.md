@@ -2987,8 +2987,14 @@ over time, which is exactly why this section does not claim drift.
 
 Measured 2026-08-20, `gemma4:26b` @32768 and `mxbai-embed-large` @512 both pinned,
 `MEMORE_GRAPH=memore_mxbai`, `--no-reader` (so no SubEM here — these are retrieval and
-latency numbers). **One run per arm.** §22.4's caution applies: the extractor is currently
-deterministic under a pinned model, so n=1 is what a single run is worth, no more.
+latency numbers).
+
+**One run per arm, except the shipped 32k arm, which was run three times** — because a p95
+is a tail statistic and one sample of it was about to retire two claims elsewhere. The three
+runs: **272.4 / 283.4 / 284.1ms**, with `retrieval_hit` 0.960, `retrieval_any` 0.980 and
+`gate_open` 1.000 identical in all three. So the breach is robust and the precision is
+~±5%; quote it as **≈270–285ms**, never as a single figure. Retrieval numbers elsewhere in
+this section are n=1, and §22.4's caution applies to them.
 
 ### 23.1 The item, and what the mechanism needed
 
@@ -3020,7 +3026,7 @@ express the failure a threshold exists to prevent is not evidence about that thr
 | arm | sh_6k `retrieval_hit` | `_any` | A–D p95 | sh_32k `retrieval_hit` | `_any` | A–D p95 |
 |---|---|---|---|---|---|---|
 | raw top-k (no gate) | 0.900 | 1.000 | — | 0.920 | 1.000 | — |
-| `recall()`, shipped | **0.970** | 1.000 | 151.1ms | **0.960** | 0.980 | **272.4ms** |
+| `recall()`, shipped | **0.970** | 1.000 | 151.1ms | **0.960** | 0.980 | **≈270–285ms** |
 | `recall()`, `subject_check=False` | 0.910 | 1.000 | 103.2ms | 0.910 | 0.990 | 114.2ms |
 
 `gate_open_rate` is **1.000** and `gate_shut_but_retrievable` **0.000** in every arm, at both
@@ -3044,7 +3050,7 @@ row separates it — one point to the subject check (1.000 → 0.990), one to th
 
 ### 23.3 The finding is latency, and §21.3 pointed at the wrong risk
 
-**A–D p95 is 272ms at 32k, against a 200ms budget.** §21.3 predicted "a production
+**A–D p95 is ≈270–285ms at 32k (n=3), against a 200ms budget.** §21.3 predicted "a production
 integration hits this first" and was right about that; it expected the gate to be the hazard,
 and the gate is the part that works.
 
@@ -3080,15 +3086,30 @@ subject_check ON   +6.0 / +5.0 top-1 (6k / 32k)   -1 point retrieval_any at 32k
                    +48ms at 455 facts   +158ms at 2310 facts, and rising linearly
 ```
 
+**Only the latency half of that transfers to B6, and the accuracy half must not be quoted
+against B6's bar.** B6 is scored on *chat_crowded hard-negative FPR* — right relation, wrong
+entity — and FactConsolidation is one-attribute-per-subject by construction, so it cannot
+produce a hard negative at all. The +5.0/+6.0 is the check improving top-1 on a corpus where
+wrong-subject confusion is structurally rare; it says nothing about the case the check exists
+for. This is §23.2's caveat about `score_floor` again, one axis over: a corpus that cannot
+express the failure is not evidence about the fix. **§9's 0.846 → 0.462 remains the only
+measurement on B6's actual axis.** What §23 adds is the price, which transfers anywhere.
+
 That is a check worth having and a check that cannot be paid for as written. It is the
 strongest available argument for B6's "fold it in as a graded feature" over the current veto
-— and, before any of that, for caching `subject_view`, which is session state that changes
-only on write and is currently rebuilt on every read.
+— and, before any of that, for **C6** in `performance-addendum.md`: cache `subject_view`,
+which is session state that changes only on write and is currently rebuilt on every read.
+C6 is deliberately *not* folded into this section. It is a fix for what §23 found, it has a
+correctness question of its own (`subject_view` returns live and superseded facts while the
+vocabulary statistics are computed over live subjects only, so a wrong invalidation silently
+changes `subjects.admits()` — the gate's precision path), and §10's arrival-order invariant
+is a standing warning that cached vocabulary state has bitten this codebase before. It gets
+its own pre-registered bar.
 
 Two figures in `performance-addendum.md` do not survive this:
 
-- **"~90ms p95 against a 200ms budget… roughly 110ms unused."** Measured at 272ms p95 at 32k,
-  i.e. ~72ms *over*. The headroom C2 spends on a reranker exists at conversational scale and
+- **"~90ms p95 against a 200ms budget… roughly 110ms unused."** Measured at ≈270–285ms p95
+  at 32k (n=3), i.e. ~70–85ms *over*. The headroom C2 spends on a reranker exists at conversational scale and
   does not exist at 32k. C2's own "A–D p95 stays under 200ms" acceptance is now the binding
   constraint rather than a formality.
 - **"FalkorDB lookup 2.6–4.3ms"**, cited in the "do not optimise" list. Measured at 13.5–20.4ms.

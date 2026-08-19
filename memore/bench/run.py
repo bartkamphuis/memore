@@ -473,8 +473,12 @@ def main() -> None:
         "--no-subject-check",
         action="store_true",
         help="disable the §9 subject admission rule inside recall() (--via-recall only). "
-        "Separates what an OPEN gate discarded from what the gate shut out, and is the "
-        "only way to price the check: it is O(session) and B6 proposes retiring it.",
+        "Two jobs: it separates what an OPEN gate discarded from what the gate shut out, "
+        "and it is the ONLY instrument that prices the check -- RESULTS.md §23.4's "
+        "latency figure for B6 comes from the difference between this arm and the shipped "
+        "one. Not a debugging switch. Note the accuracy half of that difference does NOT "
+        "transfer to B6: FactConsolidation cannot express a hard negative, so it measures "
+        "the check on a corpus where wrong-subject confusion is structurally rare.",
     )
     parser.add_argument(
         "--via-recall",

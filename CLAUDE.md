@@ -14,8 +14,10 @@ that two slot-harness numbers from §15–§20 no longer reproduce under unchang
 unchanged serving state. Read §22.4 before quoting any harness figure or starting A2.
 **§23 closes §21.3** — `recall()` now runs under the bench. The gate opened on 100% of
 single-hop questions and shut on zero answerable ones, so it is not the risk §21.3
-anticipated; **the A–D latency budget is, and it is breached at 32k (272ms p95 against
-200ms)**. Read §23.3 before quoting a latency figure and §23.4 before spending headroom.
+anticipated; **the A–D latency budget is, and it is breached at 32k (≈270–285ms p95, n=3,
+against 200ms)**. The whole breach is one O(session) call. Read §23.3 before quoting a
+latency figure and §23.4 before spending headroom — and note §23.4's warning that the
+subject-check *accuracy* figure there does not transfer to B6's axis, only the price does.
 
 Step 0 (the consolidation spike) is complete — both arms ran; see `RESULTS.md`, and read
 it before quoting any number, because several of its findings correct earlier claims.
@@ -142,7 +144,8 @@ machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget is met **at conversational scale
 only** (~96ms P95, ~146ms with chain expansion on — RESULTS.md §5, on calibration fixtures
 holding tens of facts). **§23 measured it on the bench corpora and it is breached at 32k:
-272ms P95, of which the entire excess is `subject_check`'s O(session) `subject_view` —
+≈270–285ms P95 (n=3), of which the entire excess is `subject_check`'s O(session)
+`subject_view` —
 20ms at 455 facts, 102.6ms at 2310, linear.** With the check off, A–D is flat at ~80–115ms
 at both sizes. Do not quote ~96ms without the scale it was measured at. The open weakness is wrong-subject recall, not
 latency: see the scalar-floor limit below, and **§21.4 for what that costs and what it
