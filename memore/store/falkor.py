@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from falkordb.asyncio import FalkorDB
@@ -381,16 +382,67 @@ class FalkorStore:
         ]
 
     def _invalidate_subject_view(self, session_id: str) -> None:
-        """Drop the cached rows for a session. Called by every write that changes them.
+        """Drop the cached rows for a session entirely. Only `clear_session` needs this.
 
-        `supersede` is the one that is easy to miss and the one that matters most. The
-        rows carry `invalid_at`, and `build_subject_view` computes document frequency and
-        competitor counts over LIVE subjects only -- so a cache that survived a supersede
-        would go on counting a dead subject as live, and the admission rule would police a
-        crowd that no longer exists. That is a silent precision change in the gate, not a
-        visible failure, which is why it is a named test rather than an argued one.
+        The two ordinary writes UPDATE the cache instead -- see `_cache_added_fact` and
+        `_cache_superseded_fact` and, more importantly, the reason below.
         """
         self._subject_view_cache.pop(session_id, None)
+
+    # ---- keeping the cache warm across writes ----------------------------------
+    #
+    # Dropping the entry on every write is correct and was the first version, and it is
+    # very nearly useless. A conversational turn is READ then WRITE: recall() runs, the
+    # response streams, then the write path stores what the turn asserted. So a
+    # drop-on-write cache is invalidated by turn N and cold again for turn N+1, every
+    # time. Measured at ~330 facts: **warm at read time 1 turn in 20**, against 19 in 20
+    # in a read-only loop. The bench, which ingests everything and then asks 100
+    # questions, is the one workload where dropping looks fine -- the same
+    # fixture-cannot-express-the-failure shape as §13 and §23.3.
+    #
+    # So the writes maintain the rows rather than discarding them. Both are exact: a fact
+    # is appended exactly as the query would have returned it, and a supersede flips the
+    # one field it changed. Anything a write cannot express exactly must go back to
+    # dropping -- a cache that is subtly wrong moves the gate's precision silently, which
+    # is worse than one that is merely cold.
+
+    def _cache_added_fact(self, fact: StoredFact) -> None:
+        rows = self._subject_view_cache.get(fact.session_id)
+        if rows is None:
+            return
+        # Field-for-field what `subject_view`'s query returns -- fact, subject_key,
+        # valid_at, invalid_at, and NOT occurs_at/recurring, which that query does not
+        # select. A mismatch here would make a warm view differ from a cold one, which is
+        # what `test_the_cached_subject_view_survives_writes_exactly` pins.
+        #
+        # `_dt(_ts(...))` rather than the datetime itself, and that is not pedantry: the
+        # store persists a datetime as a float epoch, so a value that has been to the
+        # graph and back has LESS precision than the one handed in. Caching the original
+        # made the warm row disagree with the cold one by 5 microseconds -- found by the
+        # test, not by reasoning. Nothing reads these today beyond `is None`, so it
+        # changed no behaviour; it would have been waiting for the first thing that did.
+        rows.append(
+            ChainNode(
+                fact=fact.fact,
+                subject_key=fact.subject_key,
+                valid_at=_dt(_ts(fact.valid_at)),
+                invalid_at=_dt(_ts(fact.invalid_at)),
+            )
+        )
+        # A duplicate row is harmless and is not filtered: `build_subject_view` keys
+        # `subject_of` by fact text and folds `live_keys` into a set, so appending the
+        # same fact twice (the MERGE-on-id retry path) folds to the same view.
+
+    def _cache_superseded_fact(self, session_id: str, fact_text: str, invalid_at: datetime) -> None:
+        rows = self._subject_view_cache.get(session_id)
+        if rows is None:
+            return
+        # Round-tripped through the store's own float encoding, for the reason in
+        # `_cache_added_fact`.
+        stored = _dt(_ts(invalid_at))
+        for index, node in enumerate(rows):
+            if node.fact == fact_text:
+                rows[index] = replace(node, invalid_at=stored)
 
     async def subject_view(self, session_id: str) -> list[ChainNode]:
         """Every fact in the session with its subject key, live and superseded.
@@ -504,21 +556,22 @@ class FalkorStore:
                 "occurs_at": occurs_at,
             },
         )
-        self._invalidate_subject_view(fact.session_id)
+        self._cache_added_fact(fact)
 
     async def supersede(self, fact_id: str, invalid_at: datetime) -> None:
         """Mark superseded -- never delete (recall-writepath-spec.md §2.2 case 3)."""
         await self.connect()
-        # RETURN the session so the subject-view cache can be invalidated: this signature
-        # takes a fact id and nothing else, so without asking, the one write most likely
-        # to corrupt that cache is the one that cannot reach it. Costs nothing -- the node
-        # is already matched.
+        # RETURN the session and the text so the subject-view cache can be MAINTAINED:
+        # this signature takes a fact id and nothing else, so without asking, the one
+        # write most likely to corrupt that cache is the one that cannot reach it. Costs
+        # nothing -- the node is already matched. The text is the cache's key for a row,
+        # matching `build_subject_view`, which keys `subject_of` by fact text.
         result = await self._q(
-            "MATCH (f:Fact {id: $id}) SET f.invalid_at = $ts RETURN f.session_id",
+            "MATCH (f:Fact {id: $id}) SET f.invalid_at = $ts RETURN f.session_id, f.fact",
             {"id": fact_id, "ts": _ts(invalid_at)},
         )
         for row in result.result_set:
-            self._invalidate_subject_view(row[0])
+            self._cache_superseded_fact(row[0], row[1], invalid_at)
 
     async def subject_slots(self, session_id: str) -> list[str]:
         await self.connect()

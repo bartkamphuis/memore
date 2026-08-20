@@ -1,0 +1,31 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 100,
+    "accuracy": 0.0,
+    "exact_match": 0.0,
+    "retrieval_hit": 0.97,
+    "retrieval_any": 1.0,
+    "n_clean": 23,
+    "retrieval_any_clean": 1.0,
+    "exact_match_clean": 0.0,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 301,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 154,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 7.119656396011123,
+    "query_seconds": 20.69633293300285,
+    "gate_open_rate": 1.0,
+    "gate_shut_but_retrievable": 0.0,
+    "recall_p95_ms": 122.3549950227607,
+    "lookup_timeouts": 0,
+    "lookup_failures": 0,
+    "notes": [],
+    "samples": []
+  }
+]

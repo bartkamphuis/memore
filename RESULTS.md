@@ -3134,3 +3134,126 @@ implied:
 Multi-hop is unchanged and already measured: §8's arm B ran `recall()` gate-only on mh_6k and
 `retrieval_any` fell 0.400 → 0.050, for the structural reason the chain-walk invariant states.
 Nothing here revisits that.
+
+---
+
+## 24. C6: caching `subject_view`. The bar was met by a version that does nothing.
+
+`performance-addendum.md` C6, the item §23.3 created. Measured 2026-08-20, same pinned
+serving state as §22 and §23.
+
+### 24.1 What the fix is, and where it deliberately stops
+
+§23.3 put the whole 32k budget breach in one call: `store.subject_view` is O(session) and
+`recall()` ran it on every read — 21ms at 455 facts, 106ms at 2310, exactly linear, while
+nothing else in A–D grows with session size.
+
+Cached at the **row** level, in the store, maintained by that instance's own writes.
+
+Not the fold. `build_subject_view` is 1.4ms at 455 facts and 12.2ms at 2310 — an order of
+magnitude under the fetch — and caching it would put a domain fold behind the store
+boundary, which is exactly what `normalize_subject` was lifted out of `store/falkor.py` to
+avoid. Measured before deciding, not assumed.
+
+`supersede` was the write that needed the most care and could reach the cache least: its
+signature takes a fact id and nothing else, and the field it changes, `invalid_at`, is
+precisely the one `build_subject_view` reads to decide which subjects are live. The query
+now `RETURN`s the session and the fact text — free, the node is already matched.
+
+### 24.2 The bar, met
+
+C6 asked for A–D p95 on `sh_32k` under 200ms with `subject_check` ON, and identical
+`admits()` decisions.
+
+| `sh_32k`, `--via-recall`, n=3 | A–D p95 | `retrieval_hit` | `retrieval_any` | gate |
+|---|---|---|---|---|
+| §23, no cache | 272.4 / 283.4 / 284.1ms | 0.960 | 0.980 | 1.000 / 0.000 |
+| C6 | **126.8 / 131.6 / 133.7ms** | 0.960 | 0.980 | 1.000 / 0.000 |
+
+`sh_6k` is 122.4ms (was 151.1ms), `retrieval_hit` 0.970, `retrieval_any` 1.000 — unchanged.
+Every retrieval figure is identical to the uncached arm in every run, which is the second
+acceptance clause holding at the bench level as well as in the unit test.
+
+### 24.3 The first version met that bar and was very nearly useless
+
+**Drop the cache on write** is the obvious implementation, it is correct, and it passes the
+table above. It is also worth almost nothing in the regime this system is for.
+
+A conversational turn is **read then write**: `recall()` runs, the response streams, then
+the write path stores what the turn asserted. So a drop-on-write cache is invalidated by
+turn N and cold again for turn N+1, every time. Measured, in a read-then-write loop at ~330
+facts:
+
+```
+read-only loop (the bench's shape)     median  83.1ms    warm at read 19/20
+read-then-write loop (a real turn)     median 103.1ms    warm at read  1/20
+```
+
+**One warm read in twenty.** The bench ingests everything and then asks 100 questions, so it
+is the single workload where dropping looks fine — 1 cold read followed by 99 warm, and a
+p95 that never sees the cold one. That is the same shape as §13's fixture drift and §23.3's
+latency blind spot, for the fourth time in this file: *the fixture that scores the change is
+the one workload where the change's weakness cannot appear.*
+
+So the writes **maintain** the rows instead of discarding them — append on `add_fact`, flip
+`invalid_at` on `supersede`, and drop only on `clear_session`, where there is nothing left to
+keep. Re-measured:
+
+```
+read-then-write, ~300 facts    median 78.6ms   warm at read 19/20
+read-then-write, ~1200 facts   median 78.7ms   warm at read 19/20
+```
+
+Flat in session size, which is the property that was actually wanted and which the bench
+number alone would never have shown.
+
+### 24.4 The exactness test found a real defect, and its residue is a store limitation
+
+Maintaining a cache across writes buys the hit rate and takes on a risk the drop version did
+not have: a row updated in place that does not match what the query would have returned makes
+a warm view silently differ from a cold one — a precision change in the gate that fails
+nothing. So the test does the writes, drops the cache, re-fetches, and compares.
+
+It immediately found one. The incremental path was caching the `datetime` it was handed,
+while the store persists datetimes as **float epochs**, so a value that has been to the graph
+and back has less precision than the original — warm and cold disagreed by 5 microseconds.
+Round-tripping through `_ts`/`_dt` narrowed it and **did not close it**: FalkorDB's wire
+format truncates further, and that rounding is not reproducible in Python.
+
+Stated rather than buried, because it is a limit and not a resolved point:
+
+- What is asserted exactly is `fact`, `subject_key`, and **liveness** (`invalid_at is None`).
+  Those three are everything `build_subject_view` reads, so they are everything that can
+  reach the gate. The fold is then compared directly, both ways.
+- The datetime **values** differ between a warm and a cold row in the low microseconds.
+  Nothing reads them today beyond `is None`, and `valid_at` is not read by the fold at all.
+  The first thing that does read them will see this.
+- Closing it properly would mean reading each row back after writing it, which reintroduces
+  the round trip the cache exists to remove. Not worth it for microseconds on a field with
+  no reader.
+
+The defect was found by the test rather than by reasoning, and it is the reason the test
+compares against a real re-fetch instead of against an expectation.
+
+### 24.5 Two limits that ship with this
+
+- **The cache is per store INSTANCE.** Another process writing leaves this one's rows stale
+  until it writes itself. Acceptable and not a correctness bug *for this consumer*: the
+  admission rule is a precision refinement and §3.1 already requires that losing it cost
+  recall nothing. It would not be acceptable for anything deciding freshness, and this cache
+  must not be reused for that.
+- **Bounded to 32 sessions, LRU.** The rows are a copy of the session's whole fact text, so
+  unbounded this is a slow leak rather than a cache. Nothing has been measured about what a
+  real gateway holds warm; 32 is a guess with a bound, which is better than no bound.
+
+### 24.6 What this changes elsewhere
+
+The A–D budget is met again at bench scale, and — for the first time — measured flat in
+session size rather than at one convenient point. `performance-addendum.md`'s ordering
+stands: C6 was ranked ahead of C1 because C1 removes ~50ms of a 66.5ms embedder and would
+have left the 32k budget breached; with C6 in, C1's ~50ms now buys headroom that C2 can
+actually spend.
+
+None of this touches the gate's decision, the subject rule's behaviour, or B6. §23.4's
+warning still holds: the subject check's *accuracy* contribution has never been measured on
+B6's axis, only its price, and C6 changes the price rather than the trade.

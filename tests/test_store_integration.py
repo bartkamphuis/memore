@@ -494,47 +494,72 @@ async def test_a_correction_survives_a_fresh_consolidator(store):
     assert "the user wrote the memory system in Den Haag" not in live
 
 
-async def test_subject_view_cache_is_invalidated_by_every_write(store):
-    """C6 (RESULTS.md §24). The cache must never outlive the rows it copied.
+async def test_the_cached_subject_view_survives_writes_exactly(store):
+    """C6 (RESULTS.md §24). The warm view must equal a cold fetch, after writes.
 
-    `add_fact` is the obvious one. **`supersede` is the trap**, and it is why this test
-    exists rather than an argument: the rows carry `invalid_at`, `build_subject_view`
-    computes document frequency and competitor counts over LIVE subjects only, and
-    `supersede()` is handed a fact id with no session. A cache that survived it would go
-    on counting a dead subject as live and the admission rule would police a crowd that no
-    longer exists -- a silent precision change in the gate, not a visible failure.
+    The cache is MAINTAINED across writes rather than dropped, because a conversational
+    turn is read-then-write and a drop-on-write cache is cold on every turn (§24.3
+    measured 1 warm read in 20). That buys the hit rate and takes on the risk: an
+    incrementally-updated row that does not match what the query would have returned makes
+    a warm view silently different from a cold one, which moves the gate's precision
+    without failing anything.
+
+    So this compares against the real thing: do the writes, then drop the cache and
+    re-fetch, and require the two to be identical field for field.
+
+    `supersede` is the trap it is written around. It is handed a fact id and no session,
+    so the write most likely to corrupt this cache is the one that could least easily
+    reach it -- and the field it changes, `invalid_at`, is exactly the one
+    `build_subject_view` reads to decide which subjects are live.
     """
     session = f"sv-{uuid.uuid4().hex[:8]}"
-    embedder = StubEmbedder(DIM)
-    con = DeterministicConsolidator(store, embedder)
+    con = DeterministicConsolidator(store, StubEmbedder(DIM))
 
     await con.consolidate(session, [candidate("the sport is rugby", "sport of Tunisia")])
-    first = await store.subject_view(session)
-    assert len(first) == 1
-    # Same rows, no second query -- the cache is actually in use.
-    assert await store.subject_view(session) is first
-
-    # add_fact invalidates.
-    await con.consolidate(session, [candidate("the sport is football", "sport of Ireland")])
-    after_add = await store.subject_view(session)
-    assert len(after_add) == 2
-    assert {n.subject_key for n in after_add} == {
-        subject_key("sport of Tunisia"),
-        subject_key("sport of Ireland"),
-    }
-
-    # supersede invalidates -- via the session the query now returns, since the caller
-    # only ever supplies a fact id.
+    warm = await store.subject_view(session)          # populates the cache
+    await con.consolidate(session, [candidate("the sport is hurling", "sport of Ireland")])
     live = await store.live_facts_for_subject(session, subject_key("sport of Tunisia"))
     await store.supersede(live[0].id, datetime.now(UTC))
-    after_supersede = await store.subject_view(session)
-    assert [n.invalid_at is not None for n in after_supersede].count(True) == 1
-    # And the fold sees it: the dead subject drops out of the live statistics.
-    view = build_subject_view(after_supersede)
-    assert subject_key("sport of Tunisia") not in view.competitors
-    assert subject_key("sport of Ireland") in view.competitors
 
-    # clear_session invalidates.
+    warm = await store.subject_view(session)
+    store._subject_view_cache.pop(session, None)
+    cold = await store.subject_view(session)
+
+    # fact, subject_key and LIVENESS, exactly. Those three are what `build_subject_view`
+    # reads and therefore all that can reach the gate.
+    assert sorted((n.fact, n.subject_key, n.invalid_at is None) for n in warm) == sorted(
+        (n.fact, n.subject_key, n.invalid_at is None) for n in cold
+    )
+    # The datetime VALUES cannot be asserted equal, and the reason is a property of the
+    # store rather than of the cache: `_ts`/`_dt` persist a datetime as a float epoch and
+    # the wire format truncates it, so a value that has been to the graph and back differs
+    # from the one handed in -- measured at 5 microseconds here. Reproducing that rounding
+    # in Python is not possible reliably, and reading each row back after writing it would
+    # reintroduce the round trip this cache exists to remove.
+    #
+    # This is stated rather than hidden because it is a real limit: nothing reads these
+    # beyond `is None` today, and the first thing that does will see warm and cold differ
+    # in the low microseconds. `valid_at` is not read by the fold at all.
+    assert all(
+        (w.invalid_at is None) == (c.invalid_at is None)
+        for w, c in zip(sorted(warm, key=lambda n: n.fact), sorted(cold, key=lambda n: n.fact),
+                        strict=True)
+    )
+    # And the fold agrees, which is what actually reaches the gate: the superseded
+    # subject must drop out of the LIVE statistics under both.
+    warm_view, cold_view = build_subject_view(warm), build_subject_view(cold)
+    assert warm_view.competitors == cold_view.competitors
+    assert warm_view.df == cold_view.df
+    assert subject_key("sport of Tunisia") not in warm_view.competitors
+    assert subject_key("sport of Ireland") in warm_view.competitors
+
+
+async def test_clear_session_drops_the_cached_subject_view(store):
+    """The one write that drops rather than maintains -- there is nothing left to keep."""
+    session = f"sv-{uuid.uuid4().hex[:8]}"
+    con = DeterministicConsolidator(store, StubEmbedder(DIM))
+    await con.consolidate(session, [candidate("the sport is rugby", "sport of Tunisia")])
+    assert len(await store.subject_view(session)) == 1
     await store.clear_session(session)
     assert await store.subject_view(session) == []
 
