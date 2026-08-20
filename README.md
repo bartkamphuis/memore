@@ -44,17 +44,27 @@ Measured against their numbers on MemoryAgentBench FactConsolidation. Their §4.
 **SubEM** (substring exact match), which is MemoryAgentBench's own metric, so that is the
 matched row; exact-match is the stricter figure this repo prefers and they do not report it:
 
-| | memore (local `gemma4`) | 2606.01435 (gpt-4o) |
+One reader throughout: `gemma4:26b`, measured 2026-08-21 through the shipped `recall()`
+path. (`RESULTS.md` §8's older multi-hop row — 0.800 SubEM / 0.760 exact — is a `gemma4:12b`
+reader on the same store, and must not be mixed into this table.)
+
+| | memore (local `gemma4:26b`) | 2606.01435 (gpt-4o) |
 |---|---|---|
 | single-hop, SubEM | 1.000 @6k · 0.980 @32k | 0.948 |
-| single-hop, exact-match | 0.99 @6k · 0.95 @32k | not reported |
-| multi-hop, SubEM | **0.800** @6k | 0.515 |
-| multi-hop, exact-match | **0.760** @6k | not reported |
+| single-hop, exact-match | 1.000 @6k · 0.980 @32k | not reported |
+| multi-hop, SubEM | **0.880** @6k | 0.515 |
+| multi-hop, exact-match | **0.850** @6k | not reported |
 
 Single-hop is a **modest edge at best and not a controlled comparison** — different reader,
 different setup, and 2 of the 100 single-hop questions at 32k have gold answers that
 contradict the benchmark's own "newer serial wins" rule, so the ceiling is 98 rather than
 100. Treat it as parity.
+
+The multi-hop row requires `--expansion-hops 3`. **The shipped conversational default is
+`expansion_hops = 0` and scores 0.060 SubEM on that corpus** — worse than no gate at all —
+because a multi-hop answer shares no entity with its question and so cannot clear a
+similarity floor. That is the design working as specified, and it is why the hop count
+belongs with the number every time (`RESULTS.md` §8, §25.3).
 
 Multi-hop is where the margin is real, and the mechanism is different: a deterministic
 value→subject graph walk over live facts, with no LLM and no embeddings, which has no

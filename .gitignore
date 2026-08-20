@@ -25,6 +25,12 @@ data/results/calibration.json
 data/results/calibration_gate.json
 data/results/calib_nosubj.json
 data/results/calib_subjcheck.json
+data/results/w4/control.json
+data/results/w4/dump.json
+
+# ...but data/results/w4/gate_features.csv IS committed. It is B1's deliverable rather
+# than a byproduct: one row per query per regime, joinable to the labels, and the point of
+# W4 is that someone can start from it without re-running anything. RESULTS.md §28.
 
 # Pre-publication history and internal design docs -- not for the public repo.
 HISTORY-private.md

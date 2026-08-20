@@ -289,6 +289,14 @@ def print_run(report: RunReport) -> None:
         counts = [v.n for v in turn.variants]
         disagreements = []
         for axis in AXES:
+            # The control pair is printed too, and marked. Without it a self-disagreement
+            # is invisible in the per-turn view while still moving the summary, which is
+            # the one thing this harness must not let happen -- it would read as
+            # paraphrase sensitivity when the wording never changed.
+            if len(set(turn.values(axis, CONTROL_PAIR))) > 1:
+                disagreements.append(
+                    f"SELF {axis}={sorted({str(v) for v in turn.values(axis, CONTROL_PAIR)})}"
+                )
             values = turn.values(axis, PARAPHRASES)
             if len(set(values)) > 1:
                 disagreements.append(f"{axis}={sorted({str(v) for v in values})}")

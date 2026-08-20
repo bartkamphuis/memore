@@ -3373,3 +3373,282 @@ The A–D latency figures now have a third correct answer, which is the third in
 **~79ms conversational (§24), 120–143ms on the bench corpora with a reader in the loop
 (here), 190.7ms with chain expansion on (here).** Quote the scale, the config *and* the
 date; §23's 270–285ms was correct on 2026-08-20 and is not correct now.
+
+---
+
+## 26. W2: paraphrase stability of P1. The number is low, and it is the honest one.
+
+`wrap-up-spec.md` W2. Subject identity is exact match on `normalize_subject` — no
+threshold, no embedding, no LLM — so **two paraphrases of one assertion collide only if P1
+names them identically**. §15 fixed the co-reference failures one script could show. Nothing
+had ever measured the property itself.
+
+`memore/bench/paraphrase.py`: twelve single-assertion turns, four variants each, extracted
+with `recent=[]`, `assistant_response=""` and `known_subjects=None`, so **wording is the only
+variable**. Variants 0 and 1 of every turn are byte-identical on purpose — the stochasticity
+control, without which paraphrase sensitivity and P1's own variance are pooled. A metamorphic
+test needs no gold labels, only agreement, which is why it can be committed and re-run.
+
+Measured 2026-08-21, `gemma4:26b` @32768 pinned, `--runs 3`. **All three runs identical.**
+
+### 26.1 The numbers
+
+| axis | self (identical wording) | paraphrase (unanimous) | paraphrase (pairwise) |
+|---|---|---|---|
+| cardinality | 12/12 | **12/12** (1.000) | 36/36 (1.000) |
+| subject | 12/12 | **7/12** (0.583) | 25/36 (0.694) |
+| attribute | 11/12 | **5/12** (0.417) | 22/36 (0.611) |
+| arity | 12/12 | **10/12** (0.833) | 32/36 (0.889) |
+
+**Read the paraphrase column against the self column, which is what it is for.** The control
+is 12/12 on three of four axes, so essentially all of the loss is paraphrase sensitivity and
+essentially none of it is noise. This is the one regime in which the two can be separated,
+and §22.4 is the standing example of what happens when they are not.
+
+**Cardinality is 12/12 and that matters more than it looks.** Every variant of every turn
+extracted the same number of facts, and never zero. The instability is entirely in *how* a
+fact is named, never in *whether* it is captured — so the failure mode is a split subject,
+which costs recall and keeps both facts, not a dropped one. That is the failure the
+invariants have biased toward since §3, and this is the first direct measurement that the
+bias holds under rewording.
+
+### 26.2 What the disagreements actually are
+
+Every one is a naming choice with no wrong answer, which is exactly why no prompt rule
+fixes it:
+
+```
+[ 1] My sister Lisa lives in Rotterdam.     attribute = location | residence
+[ 3] We use Postgres for the main database. subject   = database main | database primary user
+[ 4] I have a cat called Miso.              attribute = name | species     arity = True | False
+[ 5] The standup is at 9:30 every weekday.  subject   = standup | standup user | user
+[ 6] I'm flying to Lisbon on 29 August 2026. subject  = flight lisbon user | user
+[ 8] I prefer tea over coffee in the morning. attribute = beverage preference | beverage morning preference
+[ 9] The office moved to Utrecht last month. subject  = office | office user
+[10] My laptop is a 14-inch MacBook Pro.    subject   = laptop user | user     attribute = hardware | model
+```
+
+Two shapes, and both are §15's rule 5 — *a thing Y contains, with properties of its own, is
+its own subject* — landing on the wrong side of a genuine judgement call. `the user` vs
+`laptop user`, `office` vs `office user`, `standup` vs `user`: is the laptop a property of
+the user, or a subject that has a model? Both readings are defensible on the sentence alone,
+and the store needs one. **This is §21.4's item 1 in its purest form**, on a fixture with no
+benchmark, no reader and no retrieval to hide behind.
+
+The single **self**-disagreement is worth naming, because it is the smallest possible version
+of the whole problem: turn 2, `allergy` vs `allergies`, identical input. `normalize_subject`
+lowercases and de-duplicates tokens but **does not stem**, so those are two different slots
+and a later "I'm also allergic to X" lands in whichever one it happens to name.
+
+### 26.3 What this does and does not license
+
+**It is not a licence to reopen `_SYSTEM`.** §20 closed those arms with two measured passes
+and W2 says so explicitly. This test exists to put a number on the known weakness, not to be
+passed, and the number is the deliverable: **subject 0.583, attribute 0.417, arity 0.833
+unanimous over four variants**, on a committed fixture, reproducible.
+
+Three honest limits on it:
+
+- **Twelve turns.** Wide confidence intervals; treat the axis *ordering* (cardinality >
+  arity > subject > attribute) as the finding and the individual rates as indicative.
+- **No hint list, deliberately.** In a live session `subject_slots` is the dominant force on
+  naming (§18.4, "the magnet") and would raise every number here by showing the model its own
+  previous answer. That measures the hint list; this measures P1. The live figure is between
+  the two and is not measured by either.
+- **Attribute agreement understates the damage and subject agreement overstates it.** A
+  mis-split *attribute* keeps both facts live under one subject, where recall can still reach
+  them; a mis-split *subject* puts them where the collision never happens. The lower number
+  is the less costly axis.
+
+The one mechanical fix this points at — stemming inside `normalize_subject`, which would fold
+`allergy`/`allergies` — is **not made here**. It changes subject identity for every existing
+store, and §3 and §10 are two records of why a merge rule is judged on its refuse-list before
+its score. It is recorded as a candidate with a measurement behind it, which is the most this
+pass should do.
+
+---
+
+## 27. W3: the in-process embedder fails its own acceptance clause, on both arms tested
+
+`wrap-up-spec.md` W3 asks for a resident in-process embedder — "ONNX Runtime, `candle`, or
+`llama.cpp`'s embedding server" — with two clauses:
+
+> A–D p95 under 45ms on all three calibration fixtures. Embeddings **bit-identical** to the
+> Ollama path for the same model and input; **if not, stop and report rather than
+> proceeding.**
+
+Checked before anything was built, which is the only reason this cost an hour rather than a
+week. Measured 2026-08-21 against the same endpoint `memore.embed.OllamaEmbedder` calls,
+same `keep_alive`, same normalization, five strings from the demo and the calibration
+fixtures.
+
+### 27.1 Two arms, both fail bit-identity, and they fail for different reasons
+
+**Arm 1 — `mixedbread-ai/mxbai-embed-large-v1`'s published ONNX export, `onnxruntime` CPU:**
+
+```
+cos=0.999992  max|d|=4.02e-04  bit-identical=False   The user deploys to staging by default.
+cos=0.999994  max|d|=3.89e-04  bit-identical=False   what's my deploy setup?
+cos=0.999993  max|d|=3.29e-04  bit-identical=False   The capital of Italy is Rome.
+```
+
+This arm **could not have passed**, and `ollama show` says so in one line:
+`quantization_level: F16`. Ollama serves a GGUF at half precision; the ONNX export is the
+fp32 weights. Different weights cannot produce identical floats.
+
+**Arm 2 — `llama.cpp` (`llama-cpp-python`) on the exact GGUF blob Ollama serves**, which
+removes that objection entirely: Ollama *is* llama.cpp underneath, so the weights are the
+same bytes.
+
+```
+cos=1.000000  max|d|=4.83e-05  bit-identical=False   The user deploys to staging by default.
+cos=1.000000  max|d|=5.89e-05  bit-identical=False   what's my deploy setup?
+cos=1.000000  max|d|=5.59e-05  bit-identical=False   The capital of Italy is Rome.
+```
+
+An order of magnitude closer, and still not identical — **because this arm ran on CPU while
+Ollama runs on CUDA.** With the weights held constant the entire residual is the backend. So
+bit-identity requires not just the same model but the same *kernels*, which means running
+llama.cpp on the GPU — which is what Ollama already does. **The clause was a proxy for the
+real constraint** (`score_floor`, `EmbedConfig.model` and `gate_on` are one decision, so a
+changed embedding distribution is a changed floor) and it is a proxy that only its own
+incumbent can satisfy.
+
+### 27.2 Against the real constraint the ONNX arm is bounded, but not decision-neutral
+
+```
+25 chat + crowded-chat facts, 37 positive queries, both paths:
+  same top-1:        37/37
+  same top-12 order: 34/37
+  top-1 score delta: max 2.29e-03   mean 1.63e-03
+```
+
+Top-1 never moves, and the score moves by ~2e-3 against a floor of 0.57 chosen in §13 within
+a band of order 1e-1 — two orders of magnitude of slack, so **the shipped scalar gate's
+decision is not at risk**. But the *order* of the block differs on 3 of 37 queries, and the
+block order is precisely what C2's reranker and §28's margin feature consume. "No
+recalibration needed" is defensible for the gate as it ships today and is **not** defensible
+for anything downstream of the ranking.
+
+### 27.3 The latency premise is untested, because the arm that could test it did not run
+
+W3's stated gain — "~90ms to roughly 40ms" — rests on the measured `load_duration` of
+36–56ms per call on a model `/api/ps` reports resident at 0.62GB. Both arms that ran were
+CPU:
+
+```
+onnx CPU        median/p95   123.1 / 215.2 ms
+llama.cpp CPU   median/p95   637.6 / 667.4 ms     (default settings, untuned)
+ollama (CUDA)   median/p95    63.9 /  78.6 ms
+```
+
+**Neither CPU arm is a fair test of the premise and neither is quoted as one.** The
+llama.cpp figure in particular is default `llama-cpp-python` with no thread or batch tuning;
+it says nothing about llama.cpp's speed, only that this configuration was not worth tuning
+once bit-identity had already failed. What both do establish is narrower and still useful:
+**"in-process" is not itself the win — the GPU backend is.** The 36–56ms of `load_duration`
+is real, and it is smaller than what a 334M-parameter BERT costs on this CPU.
+
+The GPU arm was attempted and is **blocked for a reason unrelated to the item**:
+
+```
+ggml_cuda_init: found 2 CUDA devices ... RTX 3060 (8.6) x2      <- CUDA initialises fine
+SIGILL during model load                                        <- prebuilt cu124 wheel,
+                                                                   AMD Ryzen 7 2700X (no AVX-512)
+```
+
+A source build would resolve it and was out of scope for this pass. **VRAM does not block
+it** — the F16 model is 0.62GB against 1751 MiB free on card 1 — so the arithmetic that
+rules out an fp32 ONNX GPU session (1.34GB of weights, 292 MiB free on card 0) does not rule
+out this one.
+
+### 27.4 The finding
+
+**W3 stops here, per its own instruction, with one of three named backends untested.** Not
+"the premise is wrong" — that would be the overclaim this file exists to avoid:
+
+- The bit-identity clause is unachievable against an F16 GGUF served on CUDA by anything but
+  that same stack, and should have been written as a cosine-agreement bound.
+- The ONNX arm is measured and rejected: wrong precision, and slower than what it replaces.
+- The `llama.cpp` CUDA arm — the one that could plausibly be both bit-identical and faster —
+  is **untested**, blocked by a prebuilt-wheel ISA mismatch rather than by anything about
+  memore. It stays on the table.
+- And the urgency is gone regardless: §24 closed the budget breach W3 was partly meant to
+  relieve. A–D p95 is 120–143ms on the bench corpora and ~79ms conversationally against a
+  200ms budget, so the ~50ms is headroom for C2 rather than a shortfall to make up.
+
+The probes are not committed — a 1.3GB download, two extra virtual environments and two
+packages, for a negative result. `ollama show mxbai-embed-large`, `nvidia-smi` and the
+numbers above are the record.
+
+---
+
+## 28. W4: the gate feature dump, and what the first look at it says
+
+`wrap-up-spec.md` W4 / `identity-and-gate-spec.md` B1. The gate ships as one number against
+one threshold, and §5 established the shape of what that cannot separate. B1 is the data
+collection that would let anyone decide whether a profile is worth building. **It changes no
+behaviour and fits nothing.**
+
+`bench/calibrate.py --feature-dump PATH` writes one CSV row per query per regime, 34
+columns, joinable to the labels by `(variant, fixture, query)`. Every field is computed
+**after** the `recall()` call that produced the observation, from a second lookup — so the
+gate cannot see them, because they do not exist until it has already decided.
+
+### 28.1 The acceptance clause, checked rather than argued
+
+```
+control rows 417   dump rows 417
+decision-bearing fields identical: True
+   (variant, fixture, query, label, top1_score, top1_cosine, top1_fact, on_subject, n_hits)
+latency, excluded by construction: control median 82.2ms   dump median 82.2ms
+```
+
+Two runs of the same command, one with `--feature-dump` and one without. `latency_ms` is
+wall clock and differs on every row in any two runs, so diffing it answers a different
+question than "bit-identical gate decisions" — it is excluded deliberately and reported
+beside, not silently dropped.
+
+### 28.2 First look: the level cannot be shared across regimes, and the margin might
+
+Medians per regime and label, on the quantity the gate actually uses:
+
+| | n | `cos_top1` p10 / med / p90 | `cos_margin` p10 / med / p90 |
+|---|---|---|---|
+| chat, positive | 37 | 0.467 / **0.636** / 0.761 | 0.004 / **0.168** / 0.264 |
+| chat_crowded, positive | 13 | 0.709 / 0.821 / 0.877 | 0.033 / 0.134 / 0.380 |
+| chat_crowded, **hard negative** | 13 | 0.531 / **0.588** / 0.750 | -0.000 / **0.021** / 0.070 |
+| bench, **hard negative** | 99 | 0.467 / 0.582 / 0.690 | -0.068 / 0.026 / 0.190 |
+
+**This is §5's "the distributions overlap" claim, now visible as a cross-regime statement.**
+A conversational positive and a wrong-subject hard negative differ by 0.048 of median cosine
+— 0.636 against 0.588 — with the floor at 0.57 sitting between them and the p10/p90 ranges
+almost entirely superimposed. No single threshold on this quantity separates them, and the
+reason is now legible: the *level* is regime-dependent (chat positives 0.636, crowded
+positives 0.821) while the floor is not allowed to be.
+
+The margin is the interesting column, and `identity-and-gate-spec.md` B3 predicted it would
+be: **0.168 against 0.021 is a factor of eight where the level has a factor of 1.08.** It is
+scale-free in the way the level is not.
+
+**It is not a replacement, and the same dump says so.** Within `bench`, the level separates
+far better than the margin — 2 of 99 hard negatives reach the positives' 25th percentile on
+`cos_top1`, against 46 of 99 on `cos_margin` — and chat positives have a bad margin tail
+(p10 = 0.004). So the margin is a **second feature**, not a better scalar, which is precisely
+B1's premise and precisely why B4 is a profile rather than a re-tuning.
+
+### 28.3 What is deliberately not done
+
+**No model is fitted.** 149 positives across three regimes budget a handful of features
+(§5 notes chat TPR moves in 4% steps on 25 positives), and reaching past that budget is how a
+closing pass turns into the rebuild. The numbers above are descriptive statistics on a
+committed artefact, not a result — the artefact is the deliverable, and it is enough to start
+from without re-running anything.
+
+Two things the dump carries that nothing else in this repo has recorded: **BM25 raw and its
+normalizer separately** (`bm25_top1_raw`, `bm25_best_text` — never as a ratio, because
+dividing by `best_text` is what makes the text arm set-relative, which is §12's finding one
+step earlier), and **subject evidence as counts** (`subject_competitors`,
+`subject_distinctive`, `subject_query_overlap`, `subject_min_df`) rather than as the single
+bit `admits()` returns — the bit §23.2 measured carrying the whole of the shipped path's
+advantage over raw top-k.
