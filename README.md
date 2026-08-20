@@ -2,13 +2,33 @@
 
 *Italian, from Latin* memor *— mindful, remembering.*
 
-Deterministic memory for LLM agents. Facts are consolidated **when they are written**, so
-the store holds exactly one live fact per subject and the "which of these two contradictory
-facts is current?" question is never asked at read time — or asked of a model at all.
+Deterministic memory for LLM agents. Facts are consolidated **when they are written**, so a
+slot holds one live value at a time and "which of these two contradictory facts is current?"
+is never asked at read time — or asked of a model at all.
+
+**There is no LLM in the invalidation path, and there is a test that asserts it.**
+Every comparable system puts one there. Here, which fact supersedes which is decided by
+`(subject key, freshness ordinal, value equality)` — a pure function whose collaborators are
+pinned by `test_no_llm_in_the_consolidation_decision`. The benchmark numbers below say the
+determinism costs nothing: 0.990 / 0.960 oracle consolidation accuracy at 6k / 32k, zero gold
+facts wrongly superseded.
+
+**The limit is in the other lane, and it is measured.** An LLM still *extracts* candidate
+facts, off the response path, and it names one assertion differently when the wording
+changes: **0.583 subject agreement and 0.417 attribute agreement across four paraphrases of
+one sentence**, against a self-agreement control of 12/12 (`RESULTS.md` §26). Subject
+identity is exact match, so a differently-named subject is a split subject. That is the open
+problem, it is stated precisely in `RESULTS.md` §29.3, and it is not solved here.
 
 Memory is fetched *before* the model call and injected at prompt-assembly time, rather than
 exposed as a tool the model chooses to invoke. Local models throughout: no cloud LLM
 anywhere in the pipeline, and none at all in the recall path or the consolidation decision.
+
+📄 **[`docs/explainer.md`](docs/explainer.md)** — the design walked through with diagrams.
+📓 **[`RESULTS.md`](RESULTS.md)** — every run, including the ones that failed. Start at §29.
+🚫 **[Do not re-litigate](CLAUDE.md#do-not-re-litigate--the-dead-ends-and-the-arithmetic-that-closed-them)** —
+the dead ends, each with the measurement or the arithmetic that closed it. If you are
+building one of these, this is probably the most useful section in the repo.
 
 ```
 turn ──► recall()   A key synthesis ─► B hybrid lookup ─► C gate ─► D assembly ──► prompt
@@ -99,10 +119,16 @@ finding in places; §0 records the correction.
   when they differ only by generic relation words, decided by document frequency across
   subjects. Fixes the under-merges above without the over-merges that plain subset-merging
   causes. sh_32k 0.940 → 0.960, zero over-merges.
-- **Negative results, recorded rather than buried.** Embedding-based duplicate detection
-  silently *loses facts* and is off by default. A scalar relevance floor cannot separate
-  "has this kind of fact" from "has this fact." Hybrid fusion must be multiplicative. The
-  relevance floor and the embedder are one decision, not two. All in `RESULTS.md`.
+- **Negative results, recorded rather than buried — and this is the contribution.**
+  Embedding-based duplicate detection silently *loses facts* and is off by default. A scalar
+  relevance floor cannot separate "has this kind of fact" from "has this fact": a
+  conversational positive and a wrong-subject hard negative sit 0.048 of median cosine apart,
+  with the floor between them. Hybrid fusion must be multiplicative. The relevance floor and
+  the embedder are one decision, not two. A cache that passes the benchmark can be useless in
+  the regime the system is for. Four separate findings are the same lesson from four
+  directions: **a fixture that cannot express a failure cannot be evidence about it.** All in
+  `RESULTS.md`, with the runs behind them, and collected as a
+  [do-not-re-litigate list](CLAUDE.md#do-not-re-litigate--the-dead-ends-and-the-arithmetic-that-closed-them).
 
 ## Honest limitations
 
@@ -115,8 +141,16 @@ finding in places; §0 records the correction.
   762s for 20 facts under local-model constraints. That is a documented negative about
   viability under *these* constraints, not a measurement of Graphiti's quality.
 - **Different reader from published work**, uncontrolled.
+- **Write-lane identity is stochastic under paraphrase, and this is the number.** Subject
+  0.583, attribute 0.417, arity 0.833 unanimous across four wordings of one assertion, on a
+  committed fixture, three identical runs (`RESULTS.md` §26). The failure mode is a *split*
+  subject — both facts survive and recall can still reach them — not a lost one: cardinality
+  agreement is 12/12. Two prompt-level attempts to close this class of error are on the
+  record, both fixed the target and cost elsewhere, and a third is explicitly ruled out.
 - **PoC scope.** No async job machinery, no cross-session recall, no queryable audit log,
-  no rolling-summary key synthesis.
+  no rolling-summary key synthesis. Two further items are specified and deliberately not
+  shipped — a k-sample vote over P1's fields and a cross-encoder reranker — each with its
+  reason recorded in `RESULTS.md` §29.2 rather than left on a TODO list.
 
 ## Running it
 
@@ -177,10 +211,20 @@ curl -sL -o data/Conflict_Resolution.parquet \
 uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
 uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k
 uv run python -m memore.bench.run --source factconsolidation_mh_6k --expansion-hops 3
+
+# the write lane's own instruments -- no benchmark, no reader, no retrieval
+MEMORE_GRAPH=memore_slots uv run python -m memore.bench.slots --runs 3
+MEMORE_GRAPH=memore_slots uv run python -m memore.bench.paraphrase --runs 3
 ```
 
 `oracle_run` is the honest instrument: it scores the consolidation decision directly, with
 no retrieval and no reader, so a good number cannot come from the reader guessing.
+
+The bench routes through the real `recall()` by default — gate, subject check and token
+budget included. `--raw-topk` is the older path that ranked the store's top-k directly, and
+is how any figure from before `RESULTS.md` §25 is reproduced. **Multi-hop needs
+`--expansion-hops 3`**: the shipped conversational default is 0, and on that corpus it scores
+below no gate at all, for the structural reason in §25.3.
 
 ## References
 
