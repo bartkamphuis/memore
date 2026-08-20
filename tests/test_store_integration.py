@@ -10,6 +10,7 @@ so unit runs stay fast:
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,6 +18,7 @@ from memore.config import StoreConfig
 from memore.consolidate import ConsolidationConfig, DeterministicConsolidator, subject_key
 from memore.embed import StubEmbedder
 from memore.store.falkor import FalkorStore
+from memore.subjects import build_subject_view
 from memore.types import CandidateFact, ConsolidationCase, FactType
 
 pytestmark = pytest.mark.integration
@@ -490,3 +492,79 @@ async def test_a_correction_survives_a_fresh_consolidator(store):
     }
     # No rewrite: the fact retired before the correction is still retired.
     assert "the user wrote the memory system in Den Haag" not in live
+
+
+async def test_subject_view_cache_is_invalidated_by_every_write(store):
+    """C6 (RESULTS.md §24). The cache must never outlive the rows it copied.
+
+    `add_fact` is the obvious one. **`supersede` is the trap**, and it is why this test
+    exists rather than an argument: the rows carry `invalid_at`, `build_subject_view`
+    computes document frequency and competitor counts over LIVE subjects only, and
+    `supersede()` is handed a fact id with no session. A cache that survived it would go
+    on counting a dead subject as live and the admission rule would police a crowd that no
+    longer exists -- a silent precision change in the gate, not a visible failure.
+    """
+    session = f"sv-{uuid.uuid4().hex[:8]}"
+    embedder = StubEmbedder(DIM)
+    con = DeterministicConsolidator(store, embedder)
+
+    await con.consolidate(session, [candidate("the sport is rugby", "sport of Tunisia")])
+    first = await store.subject_view(session)
+    assert len(first) == 1
+    # Same rows, no second query -- the cache is actually in use.
+    assert await store.subject_view(session) is first
+
+    # add_fact invalidates.
+    await con.consolidate(session, [candidate("the sport is football", "sport of Ireland")])
+    after_add = await store.subject_view(session)
+    assert len(after_add) == 2
+    assert {n.subject_key for n in after_add} == {
+        subject_key("sport of Tunisia"),
+        subject_key("sport of Ireland"),
+    }
+
+    # supersede invalidates -- via the session the query now returns, since the caller
+    # only ever supplies a fact id.
+    live = await store.live_facts_for_subject(session, subject_key("sport of Tunisia"))
+    await store.supersede(live[0].id, datetime.now(UTC))
+    after_supersede = await store.subject_view(session)
+    assert [n.invalid_at is not None for n in after_supersede].count(True) == 1
+    # And the fold sees it: the dead subject drops out of the live statistics.
+    view = build_subject_view(after_supersede)
+    assert subject_key("sport of Tunisia") not in view.competitors
+    assert subject_key("sport of Ireland") in view.competitors
+
+    # clear_session invalidates.
+    await store.clear_session(session)
+    assert await store.subject_view(session) == []
+
+
+async def test_the_cached_subject_view_decides_identically_to_the_uncached_one(store):
+    """C6's other acceptance clause: this changes latency and nothing else.
+
+    Built twice over the same session -- once cold, once from cache -- the two views must
+    produce the same `admits()` answer for every (query, fact) pair the session can form.
+    A cache that is merely *fast* and subtly different would move the gate's precision
+    without moving any number this repo currently prints.
+    """
+    session = f"sv-{uuid.uuid4().hex[:8]}"
+    con = DeterministicConsolidator(store, StubEmbedder(DIM))
+    for subject, fact in (
+        ("sport of Tunisia", "the sport of Tunisia is rugby"),
+        ("sport of Ireland", "the sport of Ireland is hurling"),
+        ("sport of Wales", "the sport of Wales is rugby"),
+        ("deploy target", "deploys to staging"),
+    ):
+        await con.consolidate(session, [candidate(fact, subject)])
+
+    store._subject_view_cache.pop(session, None)
+    cold = build_subject_view(await store.subject_view(session))
+    warm = build_subject_view(await store.subject_view(session))
+
+    assert cold.df == warm.df
+    assert cold.competitors == warm.competitors
+    assert cold.subject_of == warm.subject_of
+    queries = ["which sport does Tunisia play", "what sport", "where do i deploy", "sport of Wales"]
+    for query in queries:
+        for fact in cold.subject_of:
+            assert cold.admits(query, fact, 2, 2) == warm.admits(query, fact, 2, 2)

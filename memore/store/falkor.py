@@ -33,6 +33,7 @@ widening over-fetch is what makes that acceptable.
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from datetime import UTC, datetime
 
 from falkordb.asyncio import FalkorDB
@@ -53,6 +54,12 @@ _FT_SPECIAL = FT_SPECIAL
 # returns nothing. So the fetch widens until it has enough in-session hits or gives up.
 _SESSION_OVERFETCH = 4
 _MAX_VECTOR_FETCH = 4096
+
+# How many sessions' subject-view rows to keep cached (C6, RESULTS.md §24). Bounded
+# because a gateway process serves many sessions and the rows are a copy of the session's
+# whole fact text -- unbounded, this is a slow leak rather than a cache. 32 is well past
+# what any one process holds warm at PoC scale and is a few MB at bench sizes.
+_SUBJECT_VIEW_CACHE_SESSIONS = 32
 
 
 def _ts(value: datetime | None) -> float | None:
@@ -89,6 +96,10 @@ class FalkorStore:
         self._db: FalkorDB | None = None
         self._graph = None
         self._ready = False
+        # session -> subject_view rows. C6: the fetch is O(session) and ran on EVERY read,
+        # which was the whole of the 200ms budget breach at 32k (RESULTS.md §23.3).
+        # Invalidated by this instance's own writes -- see `_invalidate_subject_view`.
+        self._subject_view_cache: OrderedDict[str, list[ChainNode]] = OrderedDict()
 
     async def connect(self) -> None:
         if self._graph is None:
@@ -369,6 +380,18 @@ class FalkorStore:
             for row in result.result_set
         ]
 
+    def _invalidate_subject_view(self, session_id: str) -> None:
+        """Drop the cached rows for a session. Called by every write that changes them.
+
+        `supersede` is the one that is easy to miss and the one that matters most. The
+        rows carry `invalid_at`, and `build_subject_view` computes document frequency and
+        competitor counts over LIVE subjects only -- so a cache that survived a supersede
+        would go on counting a dead subject as live, and the admission rule would police a
+        crowd that no longer exists. That is a silent precision change in the gate, not a
+        visible failure, which is why it is a named test rather than an argued one.
+        """
+        self._subject_view_cache.pop(session_id, None)
+
     async def subject_view(self, session_id: str) -> list[ChainNode]:
         """Every fact in the session with its subject key, live and superseded.
 
@@ -381,14 +404,39 @@ class FalkorStore:
         fetch. Both features are off by default and independent, so paying ~14ms twice
         only happens when both are on; folding them together would couple two things
         that have no reason to be coupled. Worth revisiting if both become defaults.
+
+        **Cached per session, invalidated by this instance's writes (C6, RESULTS.md §24).**
+        This query is O(session) and `recall()` ran it on every read, which was the entire
+        200ms budget breach at 32k: 21ms at 455 facts, 106ms at 2310, exactly linear
+        (§23.3). Nothing else in A-D grows with session size.
+
+        Two things this cache does NOT do, both deliberate:
+
+          it does not cache the FOLD.  `build_subject_view` is 1.4ms at 455 facts and
+                                      12.2ms at 2310 -- an order of magnitude under the
+                                      fetch. Caching it would mean a domain fold living
+                                      behind the store boundary, which is exactly what
+                                      `normalize_subject` was lifted out of this module to
+                                      avoid. Revisit only if the fold starts to matter.
+          it does not see other       The counter is per store INSTANCE. Another process
+          processes' writes.          writing leaves this one's view stale until it writes
+                                      itself. That is acceptable and not a correctness
+                                      bug: the admission rule is a precision refinement,
+                                      and §3.1 already requires that losing it costs
+                                      recall nothing. It would NOT be acceptable for
+                                      anything that decides freshness.
         """
+        cached = self._subject_view_cache.get(session_id)
+        if cached is not None:
+            self._subject_view_cache.move_to_end(session_id)
+            return cached
         await self.connect()
         result = await self._q(
             "MATCH (f:Fact) WHERE f.session_id = $sid "
             "RETURN f.fact, f.subject_key, f.valid_at, f.invalid_at ORDER BY f.ordinal",
             {"sid": session_id},
         )
-        return [
+        rows = [
             ChainNode(
                 fact=row[0],
                 subject_key=row[1] or "",
@@ -397,6 +445,11 @@ class FalkorStore:
             )
             for row in result.result_set
         ]
+        self._subject_view_cache[session_id] = rows
+        self._subject_view_cache.move_to_end(session_id)
+        while len(self._subject_view_cache) > _SUBJECT_VIEW_CACHE_SESSIONS:
+            self._subject_view_cache.popitem(last=False)
+        return rows
 
     async def max_ordinal(self, session_id: str, subject_key: str | None = None) -> int:
         """Highest ordinal issued in this session, or within one subject if given."""
@@ -451,14 +504,21 @@ class FalkorStore:
                 "occurs_at": occurs_at,
             },
         )
+        self._invalidate_subject_view(fact.session_id)
 
     async def supersede(self, fact_id: str, invalid_at: datetime) -> None:
         """Mark superseded -- never delete (recall-writepath-spec.md §2.2 case 3)."""
         await self.connect()
-        await self._q(
-            "MATCH (f:Fact {id: $id}) SET f.invalid_at = $ts",
+        # RETURN the session so the subject-view cache can be invalidated: this signature
+        # takes a fact id and nothing else, so without asking, the one write most likely
+        # to corrupt that cache is the one that cannot reach it. Costs nothing -- the node
+        # is already matched.
+        result = await self._q(
+            "MATCH (f:Fact {id: $id}) SET f.invalid_at = $ts RETURN f.session_id",
             {"id": fact_id, "ts": _ts(invalid_at)},
         )
+        for row in result.result_set:
+            self._invalidate_subject_view(row[0])
 
     async def subject_slots(self, session_id: str) -> list[str]:
         await self.connect()
@@ -600,6 +660,7 @@ class FalkorStore:
         # shared graph completely invisibly. A harness that clears between runs (the
         # `--runs 9` scripts do) must not leave the next run's arity decided by the last.
         await self._q("MATCH (s:Slot) WHERE s.session_id = $sid DELETE s", {"sid": session_id})
+        self._invalidate_subject_view(session_id)
 
     async def aclose(self) -> None:
         if self._db is not None:
