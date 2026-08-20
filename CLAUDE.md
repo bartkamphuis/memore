@@ -190,12 +190,23 @@ uv run python -m memore.bench.calibrate --configs all --reingest
 # if it were the fused one -- a wrong answer that looks like a right one.
 uv run python -m memore.bench.calibrate --analyze data/results/calibration_gate.json
 
-# Multi-hop (RESULTS.md §8). --via-recall routes through the real recall stage (gate +
-# budget) instead of raw top-k; with --expansion-hops 0 that isolates the gate's
-# contribution from the walk's. --no-context is the parametric-knowledge control.
+# Multi-hop (RESULTS.md §8, §25.3). The default path is recall() since W1; --raw-topk is
+# the pre-W1 control and reproduces any figure from before §25. --no-context is the
+# parametric-knowledge control. Multi-hop NEEDS --expansion-hops: the shipped
+# `expansion_hops = 0` scores 0.050 retrieval_any on mh_6k, BELOW raw top-k's 0.380,
+# because a multi-hop answer shares no entity with the question -- §25.3.
 uv run python -m memore.bench.run --source factconsolidation_mh_6k --expansion-hops 3
-uv run python -m memore.bench.run --source factconsolidation_mh_6k --via-recall
+uv run python -m memore.bench.run --source factconsolidation_mh_6k --raw-topk
 uv run python -m memore.bench.run --source factconsolidation_mh_6k --no-context
+
+# Paraphrase stability of P1 (W2, RESULTS.md §26) -- does one assertion get named the same
+# way when the wording changes? Variants 0 and 1 of each turn are identical on purpose:
+# that pair is the stochasticity control the paraphrase number is read against.
+MEMORE_GRAPH=memore_slots uv run python -m memore.bench.paraphrase --runs 3
+
+# Gate feature dump (W4, RESULTS.md §28). Collected after each recall() call from a second
+# lookup, so gate decisions are unchanged -- run with and without and diff to check.
+uv run python -m memore.bench.calibrate --configs mxbai --feature-dump data/results/gate_features.csv
 ```
 
 Each embedder needs its **own graph** (`MEMORE_GRAPH`): the vector index is created at a

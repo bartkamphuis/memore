@@ -12,7 +12,8 @@ anywhere in the pipeline, and none at all in the recall path or the consolidatio
 
 ```
 turn ──► recall()   A key synthesis ─► B hybrid lookup ─► C gate ─► D assembly ──► prompt
-                    no LLM in A–D · 200ms P95 budget · ~96ms measured
+                    no LLM in A–D · 200ms P95 budget · 79ms conversational,
+                                                        127-134ms at 2310 facts
 
 turn ──► write path  P1 extract (LLM, off-path) ─► P2 consolidate ─► P3 commit
                                                    deterministic: (subject key,
@@ -126,7 +127,7 @@ replaces a `Forever` pin with a 5-minute default:
 
 ```
 gemma4:26b                32768 ctx   # extraction (P1) and the bench reader
-mxbai-embed-large:latest    512 ctx   # embeddings; paired with score_floor 0.48
+mxbai-embed-large:latest    512 ctx   # embeddings; paired with score_floor 0.57
 ```
 
 `MEMORE_LLM_MODEL` / `MEMORE_LLM_NUM_CTX` / `MEMORE_EMBED_MODEL` align a different host.

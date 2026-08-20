@@ -1,0 +1,92 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 100,
+    "accuracy": 0.99,
+    "exact_match": 0.99,
+    "retrieval_hit": 0.9,
+    "retrieval_any": 1.0,
+    "n_clean": 23,
+    "retrieval_any_clean": 1.0,
+    "exact_match_clean": 0.9565217391304348,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 301,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 154,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 6.977373950008769,
+    "query_seconds": 168.8877262819733,
+    "gate_open_rate": 0.0,
+    "gate_shut_but_retrievable": 0.0,
+    "recall_p95_ms": 0.0,
+    "lookup_timeouts": 0,
+    "lookup_failures": 0,
+    "notes": [],
+    "samples": [
+      {
+        "question": "Which sport is goaltender associated with?",
+        "gold": [
+          "pes\u00e4pallo"
+        ],
+        "answer": "pes\u00e4pallo",
+        "top_live": "goaltender is associated with the sport of pes\u00e4pallo.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Nobuhiro Watsuki famous for?",
+        "gold": [
+          "The Fairly OddParents"
+        ],
+        "answer": "The Fairly OddParents.",
+        "top_live": "Nobuhiro Watsuki is famous for The Fairly OddParents.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which country was rugby union created in?",
+        "gold": [
+          "India"
+        ],
+        "answer": "India",
+        "top_live": "Gala RFC is associated with the sport of rugby union.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Ferdowsi famous for?",
+        "gold": [
+          "Shahnameh"
+        ],
+        "answer": "Shahnameh",
+        "top_live": "Ferdowsi is famous for Shahnameh.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which university was Joan Didion educated at?",
+        "gold": [
+          "University of California, Berkeley"
+        ],
+        "answer": "University of California, Berkeley",
+        "top_live": "The univeristy where Joan Didion was educated is University of California, Berkeley.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city is the headquarter of University of Bucharest located in?",
+        "gold": [
+          "Ankara"
+        ],
+        "answer": "Bucharest",
+        "top_live": "Leonte R\u0103utu is employed by University of Bucharest.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      }
+    ]
+  }
+]

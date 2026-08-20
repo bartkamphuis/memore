@@ -1,0 +1,82 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_sh_6k",
+    "n_questions": 100,
+    "accuracy": 1.0,
+    "exact_match": 1.0,
+    "retrieval_hit": 0.97,
+    "retrieval_any": 1.0,
+    "n_clean": 23,
+    "retrieval_any_clean": 1.0,
+    "exact_match_clean": 1.0,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 301,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 154,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 7.009639133990277,
+    "query_seconds": 152.71263021600316,
+    "gate_open_rate": 1.0,
+    "gate_shut_but_retrievable": 0.0,
+    "recall_p95_ms": 120.24512901552953,
+    "lookup_timeouts": 0,
+    "lookup_failures": 0,
+    "notes": [],
+    "samples": [
+      {
+        "question": "Which sport is goaltender associated with?",
+        "gold": [
+          "pes\u00e4pallo"
+        ],
+        "answer": "pes\u00e4pallo",
+        "top_live": "goaltender is associated with the sport of pes\u00e4pallo.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Nobuhiro Watsuki famous for?",
+        "gold": [
+          "The Fairly OddParents"
+        ],
+        "answer": "The Fairly OddParents.",
+        "top_live": "Nobuhiro Watsuki is famous for The Fairly OddParents.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which country was rugby union created in?",
+        "gold": [
+          "India"
+        ],
+        "answer": "India",
+        "top_live": "rugby union was created in the country of India.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is Ferdowsi famous for?",
+        "gold": [
+          "Shahnameh"
+        ],
+        "answer": "Shahnameh",
+        "top_live": "Ferdowsi is famous for Shahnameh.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which university was Joan Didion educated at?",
+        "gold": [
+          "University of California, Berkeley"
+        ],
+        "answer": "University of California, Berkeley",
+        "top_live": "The univeristy where Joan Didion was educated is University of California, Berkeley.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      }
+    ]
+  }
+]

@@ -1,0 +1,222 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_mh_6k",
+    "n_questions": 100,
+    "accuracy": 0.88,
+    "exact_match": 0.85,
+    "retrieval_hit": 0.0,
+    "retrieval_any": 0.94,
+    "n_clean": 63,
+    "retrieval_any_clean": 0.9365079365079365,
+    "exact_match_clean": 0.8888888888888888,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 301,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 154,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 6.707503675017506,
+    "query_seconds": 163.07271387899527,
+    "gate_open_rate": 0.98,
+    "gate_shut_but_retrievable": 0.0,
+    "recall_p95_ms": 190.7264649926219,
+    "lookup_timeouts": 0,
+    "lookup_failures": 0,
+    "notes": [],
+    "samples": [
+      {
+        "question": "What is the country of citizenship of the spouse of the author of Our Mutual Friend?",
+        "gold": [
+          "Belgium"
+        ],
+        "answer": "Belgium",
+        "top_live": "The author of Our Mutual Friend is Charles Darwin.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "In which location did the spouse of Igor of Kiev pass away?",
+        "gold": [
+          "Rodez"
+        ],
+        "answer": "the city of Rodez",
+        "top_live": "Igor of Kiev is married to Olga of Kiev.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which country is the birthplace of the sport associated with Steve Sax?",
+        "gold": [
+          "Italy"
+        ],
+        "answer": "Italy",
+        "top_live": "Steve Sax is associated with the sport of association football.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city serves as the capital of the country of origin for the sport of the Tunisia national football team?",
+        "gold": [
+          "Russellville"
+        ],
+        "answer": "Russellville",
+        "top_live": "Tunisia national football team is associated with the sport of basketball.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "What is the sport that Blair Walsh plays in which he is known for his position on the team?",
+        "gold": [
+          "rugby"
+        ],
+        "answer": "rugby",
+        "top_live": "Blair Walsh plays the position of placekicker.",
+        "exact_match": 1.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city is the capital of the country where the performer of \"Free as a Bird\"'s director/manager comes from?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "I cannot answer this question because no Knowledge Pool was provided.",
+        "top_live": null,
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Where is the country of origin of FC Vorskla Poltava?",
+        "gold": [
+          "Soviet Union"
+        ],
+        "answer": "Not mentioned",
+        "top_live": "FC Vorskla Poltava is associated with the sport of basketball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which country was Darryl Strawberry's sport developed, and who is the head of government in that nation?",
+        "gold": [
+          "Shinz\u014d Abe"
+        ],
+        "answer": "Japan, Shinz\u014d Abe",
+        "top_live": "Darryl Strawberry is associated with the sport of baseball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city serves as the capital of the country where the sport that Mike D'Antoni specialized in hails from?",
+        "gold": [
+          "London"
+        ],
+        "answer": "Oderzo",
+        "top_live": "Mike D'Antoni plays the position of point guard.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what place was the organization that Ron Dennis works for, first established?",
+        "gold": [
+          "Sweden"
+        ],
+        "answer": "Karachi",
+        "top_live": "Ron Dennis is employed by Pakistan International Airlines.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "On which continent was Le Petit Parisien originally made?",
+        "gold": [
+          "Africa"
+        ],
+        "answer": "Germany",
+        "top_live": "Le Petit Parisien was created in the country of Germany.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the political entity that was established from the successor of the Sasanian Empire?",
+        "gold": [
+          "Charles Frederick, Duke of Holstein-Gottorp"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "Sasanian Empire was founded by Walter Chrysler.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the place of death of the performer of the song collection \"Back to Black\"?",
+        "gold": [
+          "Berlin"
+        ],
+        "answer": "Los Angeles",
+        "top_live": "Back to Black was performed by Frank Zappa.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which position did the person related to the original broadcaster of \"The Brady Bunch\" serve?",
+        "gold": [
+          "Ernst Heinkel"
+        ],
+        "answer": "Director",
+        "top_live": "The origianl broadcaster of The Brady Bunch is American Broadcasting Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what language is the notable work associated with Hugh Hefner written?",
+        "gold": [
+          "German"
+        ],
+        "answer": "English and German",
+        "top_live": "Hugh Hefner is famous for Playboy.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which city serves as the capital of the country that gave rise to the sport played by Rog\u00e9rio Ceni?",
+        "gold": [
+          "New Delhi"
+        ],
+        "answer": "Grosseto",
+        "top_live": "Rog\u00e9rio Ceni plays the position of flanker.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the capital city of the country where the founder of the manufacturer of Ford F-Series hailed from?",
+        "gold": [
+          "New Delhi"
+        ],
+        "answer": "Grosseto",
+        "top_live": "The company that produced Ford F-Series is Ford Motor Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which language is the official language of the country whose citizenship is held by the director/manager of \"Past Masters\"?",
+        "gold": [
+          "Arabic"
+        ],
+        "answer": "I cannot answer this question because no Knowledge Pool was provided.",
+        "top_live": null,
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital city of the country where the founder of the manufacturer of Ford Transit Connect holds citizenship?",
+        "gold": [
+          "Paris"
+        ],
+        "answer": "Grosseto",
+        "top_live": "The company that produced Ford Transit Connect is Ford Motor Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      }
+    ]
+  }
+]

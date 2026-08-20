@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" role="img"><title>String key versus entity identity</title><style>text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}.th{font-size:14px;fill:#1f2937}.ts{font-size:12px;fill:#6b7280}.teal{fill:#ccfbf1;stroke:#14b8a6;stroke-width:1}.coral{fill:#ffe4e6;stroke:#f43f5e;stroke-width:1}.purple{fill:#ede9fe;stroke:#8b5cf6;stroke-width:1}.gray{fill:#f3f4f6;stroke:#9ca3af;stroke-width:1}.arr{stroke:#9ca3af;stroke-width:1.5;fill:none}.dash{fill:none;stroke:#d1d5db;stroke-width:1;stroke-dasharray:4 4}</style><defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/></marker></defs><rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="30" y="40" width="270" height="270" rx="20" class="dash"/><rect x="370" y="40" width="270" height="270" rx="20" class="dash"/>
+<text class="th" x="165" y="72" text-anchor="middle">Today: the key is identity</text>
+<text class="th" x="505" y="72" text-anchor="middle">Proposed: the node is identity</text>
+<rect class="gray" x="60" y="98" width="210" height="44" rx="8"/><text class="th" x="165" y="125" text-anchor="middle">Fact row</text>
+<line x1="165" y1="142" x2="165" y2="168" class="arr" marker-end="url(#a)"/>
+<rect class="coral" x="60" y="172" width="210" height="56" rx="8"/><text class="th" x="165" y="195" text-anchor="middle">Generated string key</text><text class="ts" x="165" y="213" text-anchor="middle">coined by P1</text>
+<line x1="165" y1="228" x2="165" y2="254" class="arr" marker-end="url(#a)"/>
+<rect class="coral" x="60" y="258" width="210" height="44" rx="8"/><text class="th" x="165" y="285" text-anchor="middle">Merge rewrites the key</text>
+<rect class="gray" x="400" y="98" width="210" height="44" rx="8"/><text class="th" x="505" y="125" text-anchor="middle">Fact row</text>
+<line x1="505" y1="142" x2="505" y2="168" class="arr" marker-end="url(#a)"/>
+<rect class="teal" x="400" y="172" width="210" height="56" rx="8"/><text class="th" x="505" y="195" text-anchor="middle">Entity id</text><text class="ts" x="505" y="213" text-anchor="middle">surface forms hang off it</text>
+<line x1="505" y1="228" x2="505" y2="254" class="arr" marker-end="url(#a)"/>
+<rect class="teal" x="400" y="258" width="210" height="44" rx="8"/><text class="th" x="505" y="285" text-anchor="middle">Merge adds an edge</text>
+<text class="ts" x="340" y="350" text-anchor="middle">A rewritten key cannot be undone. An edge can be dropped and the view rebuilt.</text></svg>

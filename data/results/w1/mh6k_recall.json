@@ -1,0 +1,982 @@
+[
+  {
+    "arm": "deterministic",
+    "source": "factconsolidation_mh_6k",
+    "n_questions": 100,
+    "accuracy": 0.06,
+    "exact_match": 0.05,
+    "retrieval_hit": 0.0,
+    "retrieval_any": 0.05,
+    "n_clean": 63,
+    "retrieval_any_clean": 0.06349206349206349,
+    "exact_match_clean": 0.047619047619047616,
+    "facts_ingested": 455,
+    "facts_stored": 455,
+    "cases": {
+      "NEW": 301,
+      "DUPLICATE": 0,
+      "CONTRADICTION": 154,
+      "REFINEMENT": 0
+    },
+    "ingest_seconds": 7.107269555010134,
+    "query_seconds": 159.0961010559986,
+    "gate_open_rate": 0.98,
+    "gate_shut_but_retrievable": 0.0,
+    "recall_p95_ms": 130.73646000702865,
+    "lookup_timeouts": 0,
+    "lookup_failures": 0,
+    "notes": [],
+    "samples": [
+      {
+        "question": "What is the country of citizenship of the spouse of the author of Our Mutual Friend?",
+        "gold": [
+          "Belgium"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The author of Our Mutual Friend is Charles Darwin.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which location did the spouse of Igor of Kiev pass away?",
+        "gold": [
+          "Rodez"
+        ],
+        "answer": "the city of Rodez",
+        "top_live": "Igor of Kiev is married to Olga of Kiev.",
+        "exact_match": 0.0,
+        "substring_exact_match": 1.0
+      },
+      {
+        "question": "Which country is the birthplace of the sport associated with Steve Sax?",
+        "gold": [
+          "Italy"
+        ],
+        "answer": "association football",
+        "top_live": "Steve Sax is associated with the sport of association football.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital of the country of origin for the sport of the Tunisia national football team?",
+        "gold": [
+          "Russellville"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Tunisia national football team is associated with the sport of basketball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the sport that Blair Walsh plays in which he is known for his position on the team?",
+        "gold": [
+          "rugby"
+        ],
+        "answer": "placekicker",
+        "top_live": "Blair Walsh plays the position of placekicker.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the educational institution where the partner of Nicolae Ceau\u0219escu was educated?",
+        "gold": [
+          "Baldwin Wallace University"
+        ],
+        "answer": "University of Bucharest",
+        "top_live": "The univeristy where Elena Ceau\u0219escu was educated is University of Bucharest.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which country does the current CEO of Twitter hold citizenship of?",
+        "gold": [
+          "France"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The chief executive officer of Twitter is Bernard Arnault.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "On which continent was the place of birth of Thomas Arne located?",
+        "gold": [
+          "Oceania"
+        ],
+        "answer": "Bengaluru",
+        "top_live": "Thomas Arne was born in the city of London.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "To which continent does the country of citizenship of Colin Irwin pertain?",
+        "gold": [
+          "North America"
+        ],
+        "answer": "South America",
+        "top_live": "Colin Irwin is a citizen of Israel.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the location of work of the founder of the religion to which John Walsh belongs?",
+        "gold": [
+          "Berlin"
+        ],
+        "answer": "Not provided in the knowledge pool.",
+        "top_live": "John Walsh is affiliated with the religion of Methodism.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the religious affiliation of the person who founded the Transcendental Meditation movement?",
+        "gold": [
+          "atheism"
+        ],
+        "answer": "Adalbert of Prague",
+        "top_live": "Transcendental Meditation movement was founded by Adalbert of Prague.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What was the religion of the person with the citizenship of the country to which Edmund Burke belonged?",
+        "gold": [
+          "Zoroastrianism"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Edmund Burke is a citizen of Kingdom of Ireland.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital city of the country where the sport associated with John Harkes has its origin?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "John Harkes is associated with the sport of association football.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which faith is the partner of Laura Bush associated with?",
+        "gold": [
+          "Anglicanism"
+        ],
+        "answer": "United Methodist Church",
+        "top_live": "George W. Bush is affiliated with the religion of United Methodist Church.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "From which capital city did the Surrey Senior Cup, a sports competition, originate?",
+        "gold": [
+          "Russellville"
+        ],
+        "answer": "London",
+        "top_live": "Surrey Senior Cup is associated with the sport of basketball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "From which country does the sport, with which Carlos G\u00f3mez is associated, come from?",
+        "gold": [
+          "Soviet Union"
+        ],
+        "answer": "Unknown",
+        "top_live": "Carlos G\u00f3mez is associated with the sport of basketball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the job title of the chairperson of the political organization Fatah?",
+        "gold": [
+          "soldier"
+        ],
+        "answer": "Moshe Kahlon",
+        "top_live": "The chairperson of Fatah is Moshe Kahlon.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city is the capital of the country where the performer of \"Free as a Bird\"'s director/manager comes from?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "I cannot answer this question because no Knowledge Pool was provided.",
+        "top_live": null,
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the language of the work that was created by the individual who created Rand al'Thor?",
+        "gold": [
+          "Persian"
+        ],
+        "answer": "Not provided in the knowledge pool.",
+        "top_live": "Rand al'Thor was created by Ferdowsi.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the work location of the person who founded the religion Karen Armstrong belongs to?",
+        "gold": [
+          "Edinburgh"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "Karen Armstrong is affiliated with the religion of Church of Scotland.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the child category of \"Categories\" created by the author?",
+        "gold": [
+          "George Alexander Kohut"
+        ],
+        "answer": "There is no information provided in the Knowledge Pool regarding a child category of \"Categories\".",
+        "top_live": "The author of Categories is Aristotle.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Where is the country of origin of FC Vorskla Poltava?",
+        "gold": [
+          "Soviet Union"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "FC Vorskla Poltava is associated with the sport of basketball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city is the capital of the country where the CEO of the developer of SteamOS holds a citizenship?",
+        "gold": [
+          "Harare"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "SteamOS was developed by ABB Group.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the person who is the chief executive officer of the developer of F-22 Raptor?",
+        "gold": [
+          "Adel al-Jubeir"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "F-22 Raptor was developed by Boeing.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Who holds the position of chairperson in the organization where Joseph Story was employed?",
+        "gold": [
+          "Peter Diamandis"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Joseph Story is employed by Harvard University.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What city serves as the capital of the country where the performer who is the spouse of Derek Shepherd holds citizenship?",
+        "gold": [
+          "Harrisville"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Derek Shepherd is married to Meredith Grey.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the city that serves as the capital of the country to which Sable belongs?",
+        "gold": [
+          "Prague"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Sable is a citizen of Czech Republic.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city serves as the capital of the country of citizenship of Country Joe McDonald?",
+        "gold": [
+          "Rajanpur"
+        ],
+        "answer": "Harrisville",
+        "top_live": "Country Joe McDonald is a citizen of Romania.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What city or town is the headquarters of the educational institution, where the performer of the album \"Blood on the Tracks\" received education, located in?",
+        "gold": [
+          "New York City"
+        ],
+        "answer": "I am sorry, but the provided Knowledge Pool does not contain information regarding the educational institution or its headquarters.",
+        "top_live": "Blood on the Tracks was performed by Lou Reed.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the chief executive of the country where the sport associated with Bo Ryan was first developed?",
+        "gold": [
+          "Giuseppe Conte"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Bo Ryan is associated with the sport of association football.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the continent of origin of the chief executive officer for the developer of Windows Phone?",
+        "gold": [
+          "North America"
+        ],
+        "answer": "Insufficient information provided in the Knowledge Pool.",
+        "top_live": "Windows Phone was developed by Microsoft.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which continent does the country where the sport played by the Slovakia national football team originated come from?",
+        "gold": [
+          "South America"
+        ],
+        "answer": "Not provided",
+        "top_live": "Slovakia national football team is associated with the sport of cricket.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the significant creation associated with the creator of Vito Corleone?",
+        "gold": [
+          "The Fairly OddParents"
+        ],
+        "answer": "Vito Corleone",
+        "top_live": "Vito Corleone was created by Nobuhiro Watsuki.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "To which country does the performer who goes by the name Rocket Man hold citizenship?",
+        "gold": [
+          "Japan"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "Rocket Man was performed by Ayumi Hamasaki.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which language does the performer of Hermione Granger know how to speak, write or sign?",
+        "gold": [
+          "German"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Hermione Granger was performed by Kylie Minogue.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "From which country does the musical genre Michael Mantler is associated with come from?",
+        "gold": [
+          "Canada"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "The type of music that Michael Mantler plays is post-punk.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which sport is associated with the position played by Robert Parish on a team or his specialty?",
+        "gold": [
+          "Muay Thai"
+        ],
+        "answer": "quarterback",
+        "top_live": "Robert Parish plays the position of quarterback.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the person who founded the organization that Benjamin Mazar was part of?",
+        "gold": [
+          "Philippe, Duke of Orl\u00e9ans"
+        ],
+        "answer": "Insufficient information provided in the Knowledge Pool.",
+        "top_live": "Benjamin Mazar is a citizen of Israel.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which language is recognized as the official language of the place where Gennady Rozhdestvensky took his last breath?",
+        "gold": [
+          "German"
+        ],
+        "answer": "English",
+        "top_live": "Gennady Rozhdestvensky died in the city of United States of America.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the birthplace of the author of \"The Marriage of Figaro\"?",
+        "gold": [
+          "Leeds"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The author of The Marriage of Figaro is Thomas Kyd.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which country was Darryl Strawberry's sport developed, and who is the head of government in that nation?",
+        "gold": [
+          "Shinz\u014d Abe"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "Darryl Strawberry is associated with the sport of baseball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital of the country where the sport that Mike D'Antoni specialized in hails from?",
+        "gold": [
+          "London"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Mike D'Antoni plays the position of point guard.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "At what location did the author of \"Sketches by Boz\" breathe his last?",
+        "gold": [
+          "London"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The author of Sketches by Boz is Sigmund Freud.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital city of the country from which the sport of Daniele De Rossi originated?",
+        "gold": [
+          "Tokyo"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Daniele De Rossi plays the position of midfielder.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "To which continent is the country of citizenship of Ferdinand von Richthofen located?",
+        "gold": [
+          "Asia"
+        ],
+        "answer": "North America",
+        "top_live": "Ferdinand von Richthofen is a citizen of Canada.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city is the capital of the country where the sport played by Galwegians RFC was originated?",
+        "gold": [
+          "Grosseto"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Galwegians RFC is associated with the sport of rugby union.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What languages are spoken, written or signed by the founder of Shingon Buddhism?",
+        "gold": [
+          "Latin"
+        ],
+        "answer": "William Waynflete",
+        "top_live": "Shingon Buddhism was founded by William Waynflete.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the place of death of the partner of the head of government of the Council of People's Commissars?",
+        "gold": [
+          "Mansourah, Algeria"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer that question.",
+        "top_live": "The name of the current head of the Council of People's Commissars government is Tony Blair.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the professional role of the chairperson of the Congolese Party of Labour?",
+        "gold": [
+          "journalist"
+        ],
+        "answer": "Stephen McNeil",
+        "top_live": "The chairperson of Congolese Party of Labour is Stephen McNeil.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Where did the religion associated with the Bagratuni Dynasty come into existence?",
+        "gold": [
+          "Taipei"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "Bagratuni Dynasty is affiliated with the religion of Christianity.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What country does the genre of music associated with the spouse of Roy Rogers originate from?",
+        "gold": [
+          "Russian Empire"
+        ],
+        "answer": "United States of America",
+        "top_live": "Roy Rogers is married to John McVie.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city is the capital located of the country where the director/producer of \"666 Park Avenue\" is a citizen?",
+        "gold": [
+          "Beaumont"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The origianl broadcaster of 666 Park Avenue is American Broadcasting Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what place was the organization that Ron Dennis works for, first established?",
+        "gold": [
+          "Sweden"
+        ],
+        "answer": "Pakistan International Airlines",
+        "top_live": "Ron Dennis is employed by Pakistan International Airlines.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "On which continent was Le Petit Parisien originally made?",
+        "gold": [
+          "Africa"
+        ],
+        "answer": "Germany",
+        "top_live": "Le Petit Parisien was created in the country of Germany.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital city of the country where the sport played by the partner of Victoria Beckham originated?",
+        "gold": [
+          "Oderzo"
+        ],
+        "answer": "I cannot answer this question because the provided Knowledge Pool does not contain information regarding the country where the sport played by David Beckham originated, nor does it contain information about",
+        "top_live": "Victoria Beckham is married to David Beckham.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the political entity that was established from the successor of the Sasanian Empire?",
+        "gold": [
+          "Charles Frederick, Duke of Holstein-Gottorp"
+        ],
+        "answer": "The provided Knowledge Pool does not contain information regarding the successor of the Sasanian Empire.",
+        "top_live": "Sasanian Empire was founded by Walter Chrysler.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city is the capital of the country that FC Irtysh Omsk originates from located?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "FC Irtysh Omsk is associated with the sport of association football.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the place of death of the performer of the song collection \"Back to Black\"?",
+        "gold": [
+          "Berlin"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "Back to Black was performed by Frank Zappa.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What was the sport that Hines Ward competed in professionally?",
+        "gold": [
+          "field hockey"
+        ],
+        "answer": "cornerback",
+        "top_live": "Hines Ward plays the position of cornerback.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which position did the person related to the original broadcaster of \"The Brady Bunch\" serve?",
+        "gold": [
+          "Ernst Heinkel"
+        ],
+        "answer": "Not provided in the knowledge pool.",
+        "top_live": "The origianl broadcaster of The Brady Bunch is American Broadcasting Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what location did the person who founded Chanel pass away?",
+        "gold": [
+          "Montm\u00e9lian"
+        ],
+        "answer": "Paris",
+        "top_live": "Chanel was founded by Andy Warhol.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the country of citizenship of the author of \"Starship Troopers\"?",
+        "gold": [
+          "United Kingdom"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The author of Starship Troopers is Daphne du Maurier.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which individual holds the position of director/manager at the company that employs Dave Filoni?",
+        "gold": [
+          "Narendra Modi"
+        ],
+        "answer": "British Broadcasting Corporation",
+        "top_live": "Dave Filoni is employed by British Broadcasting Corporation.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what language is the notable work associated with Hugh Hefner written?",
+        "gold": [
+          "German"
+        ],
+        "answer": "The Vampyre",
+        "top_live": "Hugh Hefner is famous for Playboy.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital of the country that gave rise to the sport played by Rog\u00e9rio Ceni?",
+        "gold": [
+          "New Delhi"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Rog\u00e9rio Ceni plays the position of flanker.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "From which educational institution did the author of 'Sidereus Nuncius' receive their education?",
+        "gold": [
+          "University of Southern California"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "The author of Sidereus Nuncius is Samuel Beckett.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the place of death of the author of Endymion?",
+        "gold": [
+          "Leipzig"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The author of Endymion is John Keats.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city can the headquarters of the educational institution attended by the spouse of Sophia Hawthorne be found?",
+        "gold": [
+          "Botevgrad"
+        ],
+        "answer": "Not mentioned in the knowledge pool",
+        "top_live": "The univeristy where Nathaniel Hawthorne was educated is Bowdoin College.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Who serves as the head of government in the location where the AP1000 was made by its manufacturer?",
+        "gold": [
+          "Jonathan Rothschild"
+        ],
+        "answer": "Shinz\u014d Abe",
+        "top_live": "The company that produced AP1000 is Canadair.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what place did the author of \"A Wizard of Earthsea\" breathe his last?",
+        "gold": [
+          "Wolverhampton"
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "The author of A Wizard of Earthsea is Pius XII.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which religion does the partner of the performer of \"Aladdin Sane\" follow?",
+        "gold": [
+          "interdenominational organization"
+        ],
+        "answer": "Insufficient information",
+        "top_live": "Aladdin Sane was performed by Yves Montand.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "At which location does the Prime Minister of Sweden spend most of their work hours?",
+        "gold": [
+          "Washington, D.C."
+        ],
+        "answer": "Not mentioned in the knowledge pool.",
+        "top_live": "The Prime Minister of Sweden is Pedro Pierluisi.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital city of the country whose citizenship is held by the CEO of the developer of AppleScript?",
+        "gold": [
+          "Rome"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "AppleScript was developed by Apple Inc..",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which continent is the country of origin for Gala RFC located in?",
+        "gold": [
+          "Africa"
+        ],
+        "answer": "Information not available in the knowledge pool.",
+        "top_live": "Gala RFC is associated with the sport of rugby union.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What sport is associated with the position played by Irving Fryar on a team/specialty?",
+        "gold": [
+          "rugby"
+        ],
+        "answer": "Not provided in the knowledge pool.",
+        "top_live": "Irving Fryar plays the position of wide receiver.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which continent is the country to which C\u00e9dric Klapisch holds citizenship located?",
+        "gold": [
+          "Antarctica"
+        ],
+        "answer": "Asia",
+        "top_live": "C\u00e9dric Klapisch is a citizen of Malaysia.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the location of the headquarters of the company where Leonte R\u0103utu worked?",
+        "gold": [
+          "Ankara"
+        ],
+        "answer": "University of Bucharest",
+        "top_live": "Leonte R\u0103utu is employed by University of Bucharest.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "To whom does the head of government of the country of origin of Club Nouveau report to?",
+        "gold": [
+          "Elizabeth II"
+        ],
+        "answer": "The Soviet Union",
+        "top_live": "Club Nouveau was created in the country of Soviet Union.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which individual is responsible for founding the organization that has its headquarters in the same location where Bill Frisell received his education?",
+        "gold": [
+          "William Penn"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The univeristy where Bill Frisell was educated is The University of the Arts.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city of the country where Charles Messier held citizenship is the capital located?",
+        "gold": [
+          "Tehran"
+        ],
+        "answer": "Harrisville",
+        "top_live": "Charles Messier is a citizen of Iran.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which country does the sportsperson who specializes in Lisa Leslie's position originally come from?",
+        "gold": [
+          "Philippines"
+        ],
+        "answer": "I am sorry, but the provided Knowledge Pool does not contain information regarding which country the sportsperson's position originates from.",
+        "top_live": "Lisa Leslie plays the position of goaltender.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the name of the capital city of the country where the founder of the manufacturer of Ford F-Series hailed from?",
+        "gold": [
+          "New Delhi"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The company that produced Ford F-Series is Ford Motor Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital of the country where the sport that Sandy Alderson is associated with originated?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Sandy Alderson is associated with the sport of association football.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which language is the official language of the country whose citizenship is held by the director/manager of \"Past Masters\"?",
+        "gold": [
+          "Arabic"
+        ],
+        "answer": "I cannot answer this question because no Knowledge Pool was provided.",
+        "top_live": null,
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which nation is the birthplace of the sport that features the split-finger fastball?",
+        "gold": [
+          "Australia"
+        ],
+        "answer": "cricket",
+        "top_live": "split-finger fastball is associated with the sport of cricket.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which languages can the author of \"The Witcher\" write, speak, or sign?",
+        "gold": [
+          "French"
+        ],
+        "answer": "The provided Knowledge Pool does not contain information regarding the languages in which the author of \"The Witcher\" can write, speak, or sign.",
+        "top_live": "The author of The Witcher is T. S. Eliot.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In which city is the capital of the country, where the book \"The Birth of Tragedy\" first came from, located?",
+        "gold": [
+          "Duluth"
+        ],
+        "answer": "Not provided in the knowledge pool",
+        "top_live": "The author of The Birth of Tragedy is Stephen Crane.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what language are communications in the headquarters location of the manufacturer of Il-2 Shturmovik conducted officially?",
+        "gold": [
+          "German"
+        ],
+        "answer": "Insufficient information provided in the Knowledge Pool.",
+        "top_live": "The company that produced Il-2 Shturmovik is Ilyushin.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which city serves as the capital of the country where the spouse of the performer of \"Viva Las Vegas\" is a citizen?",
+        "gold": [
+          "Harare"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Viva Las Vegas was performed by Elvis Presley.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the country of origin of the sport that the New Firm is related to?",
+        "gold": [
+          "Japan"
+        ],
+        "answer": "baseball",
+        "top_live": "New Firm is associated with the sport of baseball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "Which religious leader is responsible for founding the religion to which Sarit Thanarat belongs?",
+        "gold": [
+          "Mekere Morauta"
+        ],
+        "answer": "Insufficient information provided in the Knowledge Pool.",
+        "top_live": "Sarit Thanarat is affiliated with the religion of Buddhism.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "At which place did the creator of \"Lady Windermere's Fan\" breathe their last?",
+        "gold": [
+          "Guangzhou"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The author of Lady Windermere's Fan is Oscar Wilde.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "what kind of music does \"Born in the U.S.A.\" fall under according to its performer?",
+        "gold": [
+          "Australian hip hop"
+        ],
+        "answer": "country music",
+        "top_live": "Born in the U.S.A. was performed by Dana International.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "What is the capital city of the country where the founder of the manufacturer of Ford Transit Connect holds citizenship?",
+        "gold": [
+          "Paris"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "The company that produced Ford Transit Connect is Ford Motor Company.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      },
+      {
+        "question": "In what language are the official documents of the country where Alta IF originates written?",
+        "gold": [
+          "Swedish"
+        ],
+        "answer": "I do not have enough information in the provided Knowledge Pool to answer this question.",
+        "top_live": "Alta IF is associated with the sport of baseball.",
+        "exact_match": 0.0,
+        "substring_exact_match": 0.0
+      }
+    ]
+  }
+]

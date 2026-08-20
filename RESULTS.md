@@ -3257,3 +3257,119 @@ actually spend.
 None of this touches the gate's decision, the subject rule's behaviour, or B6. §23.4's
 warning still holds: the subject check's *accuracy* contribution has never been measured on
 B6's axis, only its price, and C6 changes the price rather than the trade.
+
+---
+
+## 25. W1: `recall()` is the default bench path, and every headline number moved
+
+`wrap-up-spec.md` W1. §23 built the mechanism and ran it once behind `--via-recall`; the
+default path still called `store.hybrid_search` and `build_block` directly, which meant
+every *published* number in this file was measured around the read path that ships. W1
+flips the default. `--raw-topk` is the old path, kept so any earlier figure stays
+reproducible, and it now refuses to combine with `--expansion-hops` rather than picking a
+silent precedence — expansion lives inside `recall()`, after the gate.
+
+Measured 2026-08-21, `gemma4:26b` @32768 and `mxbai-embed-large` @512 both pinned,
+`MEMORE_GRAPH=memore_mxbai`, reader on (so these are SubEM numbers, unlike §23's). One run
+per arm; §22.4's caution about reading a single deterministic point applies throughout, and
+the two `retrieval_hit` figures that can be compared to §23 differ by a point in one case.
+
+### 25.1 Single-hop: the shipped path is better on top-1 at both scales
+
+| | `--raw-topk` (the old default) | `recall()` (the new default) |
+|---|---|---|
+| **sh_6k** SubEM / exact | 0.990 / 0.990 | **1.000 / 1.000** |
+| `retrieval_hit` | 0.900 | **0.970** |
+| `retrieval_any` | 1.000 | 1.000 |
+| clean subset (n=23) exact | 0.957 | **1.000** |
+| A–D p95 | — | 120.2ms |
+| **sh_32k** SubEM / exact | 0.980 / 0.980 | 0.980 / 0.980 |
+| `retrieval_hit` | 0.910 | **0.960** |
+| `retrieval_any` | 1.000 | **0.980** |
+| clean subset (n=12) exact | 1.000 | 1.000 |
+| A–D p95 | — | 143.0ms |
+
+`gate_open_rate` 1.000 and `gate_shut_but_retrievable` 0.000 in both `recall()` arms, zero
+lookup timeouts, zero lookup failures — §23's result reproducing at n=2 in a different
+week, which is worth something given §22.
+
+**The deltas are §23's, now measured with a reader in the loop.** +7.0 and +5.0 points of
+top-1, and §23's third arm already established the mechanism: the whole improvement is the
+**subject check**, not the gate. What is new here is that it survives the reader — sh_6k's
+SubEM reaches 1.000 and its clean-subset exact match goes 0.957 → 1.000, so the better
+top-1 is not being wasted on a reader that would have answered correctly anyway.
+
+**The one cost is the same one §23 found and it is unchanged:** two points of
+`retrieval_any` at 32k, lost *inside an open gate* (the gate never shut on an answerable
+question), split one to the subject check and one to the gate or the token budget. It buys
+five points of top-1 and does not move SubEM, because at 32k the reader was already
+answering from a block that contained the gold.
+
+### 25.2 The oracle numbers are unchanged, by construction
+
+W1's acceptance clause asks for the existing oracle numbers before and after.
+`bench/oracle_run.py` ingests through the consolidator and scores the decision directly —
+**no retrieval, no reader, no `recall()` anywhere in it**. It cannot move, and it did not:
+
+```
+oracle consolidation accuracy   sh_6k  0.990 (99/100)    sh_32k  0.960
+gold fact wrongly superseded    0 at both scales
+groups left with >1 live fact   0 at both scales
+```
+
+Identical to §3 and §10. This is not a null result to skip past: it is the check that W1
+changed the read path and nothing else, and it is the only number in this file that can
+make that statement, because it is the only one with no read path in it.
+
+### 25.3 Multi-hop craters on the new default, and that is the shipped config, not a regression
+
+The advisor's trap, and it is real. `expansion_hops` ships at 0 (§8, §9: expansion is a
+no-op in the conversational regime), so a *default* `mh_6k` invocation is now `recall()`
+with the gate and no walk:
+
+| `mh_6k` arm | SubEM | exact | `retrieval_any` | A–D p95 |
+|---|---|---|---|---|
+| `--raw-topk` (the old default) | 0.250 | 0.210 | 0.380 | — |
+| `recall()`, shipped config (`--expansion-hops 0`) | **0.060** | 0.050 | **0.050** | 130.7ms |
+| `recall() --expansion-hops 3` | **0.880** | **0.850** | **0.940** | 190.7ms |
+
+The middle row is §8's arm B reproducing to within a hundredth — it measured 0.400 → 0.050
+on `retrieval_any` and this measures 0.380 → 0.050 — for the structural reason the
+chain-walk invariant states: **a multi-hop answer shares no entity with the question**, so
+it cannot clear a similarity floor and must not be asked to. The gate is doing exactly what
+it was calibrated to do, on a corpus where doing it is wrong.
+
+Three consequences, all of which have to be stated rather than left to be rediscovered:
+
+1. **`--expansion-hops 3` is not optional for multi-hop; it is the configuration the number
+   belongs to.** §8 already required quoting the hop count with the figure. W1 makes the
+   default *worse* than the old default on this corpus, so the requirement is now load-bearing
+   rather than pedantic.
+2. **`gate_open_rate` is 0.980 on `mh_6k`** against 1.000 on both single-hop corpora — the
+   first time in this file the gate has shut on anything under the bench.
+   `gate_shut_but_retrievable` is still **0.000**, so both shut turns were unanswerable from
+   the live top-k anyway and the gate cost nothing even here.
+3. **The expansion arm beats §8's headline, and the reason is the reader, not the walk.**
+   §8 measured 0.800 SubEM / 0.760 exact; this measures 0.880 / 0.850. `bench.reader.Reader`
+   follows `DEFAULT_LLM_MODEL` now, so §8's figures are `gemma4:12b`'s and these are
+   `gemma4:26b`'s. Retrieval is what isolates the walk, and `retrieval_any` 0.940 is the
+   number to compare — pass `--reader-model gemma4:12b` to reproduce §8's row. **Do not quote
+   0.880 against arXiv:2606.01435's 0.515 as though it were §8's 0.800 improved**; it is a
+   different reader on the same store.
+
+`--expansion-hops 3` also puts A–D p95 at **190.7ms against the 200ms budget** at 6k — the
+walk is the expensive part and it is now the closest thing to the budget in the file. §24
+bought that headroom; expansion spends most of it.
+
+### 25.4 What W1 changes about reading this file
+
+Every retrieval and accuracy figure in §2, §3, §8 and elsewhere before this section was
+produced on the raw-top-k path. They are not wrong and they are still reproducible — pass
+`--raw-topk` — but they describe a path that no longer runs by default, and the two headline
+single-hop `retrieval_hit` figures they carry (0.900, 0.910/0.920) are five to seven points
+below what the shipped read path actually does.
+
+The A–D latency figures now have a third correct answer, which is the third in this file:
+**~79ms conversational (§24), 120–143ms on the bench corpora with a reader in the loop
+(here), 190.7ms with chain expansion on (here).** Quote the scale, the config *and* the
+date; §23's 270–285ms was correct on 2026-08-20 and is not correct now.
