@@ -44,8 +44,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
+import dataclasses
 import hashlib
 import json
+import math
 import statistics
 import time
 from dataclasses import asdict, dataclass, field
@@ -56,6 +59,7 @@ from ..consolidate import DeterministicConsolidator
 from ..embed import OllamaEmbedder
 from ..recall import recall
 from ..store.falkor import FalkorStore, normalize_subject
+from ..subjects import build_subject_view
 from ..types import CandidateFact, FactType, TurnContext
 from . import data as bench_data
 from .calib_fixtures import (
@@ -149,6 +153,174 @@ VARIANTS: dict[str, EmbedderVariant] = {
         ),
     ]
 }
+
+
+@dataclass
+class GateFeatures:
+    """One row per query per regime: what the gate COULD have looked at (W4, B1).
+
+    The gate ships as one number against one threshold (`gate_on="cosine"`, floor 0.57),
+    and §5 established the shape of what that cannot separate: off-domain false-open
+    ~0.03 against hard-negative false-open 0.68-0.88, distributions that overlap so no
+    threshold splits them. `identity-and-gate-spec.md` Part B's answer is a profile
+    rather than a scalar; B1 is the data collection that would let anyone decide whether
+    that is worth building, and this is B1.
+
+    **Nothing here is fitted, and nothing here is read by `recall()`.** Every field is
+    computed AFTER the recall call that produced the observation, from a second, separate
+    lookup. That is the whole reason the "bit-identical gate decisions" acceptance clause
+    is checkable rather than argued: the gate cannot see these numbers, because they do
+    not exist until it has already decided.
+
+    Three deliberate shapes, each of which the scalar throws away:
+
+    * **BM25 raw and its normalizer, separately, never as a ratio.** The fused score is
+      `cos * (1 + w*bm25/best_text) / (1 + w)`, and dividing by `best_text` is what makes
+      the text arm *set-relative*: a query whose best match is weak and one whose best
+      match is strong produce the same `bm25_norm` (RESULTS.md §12's finding, one step
+      earlier). `bm25_top1_raw` and `bm25_best_text` are recorded apart so that
+      normalization is a modelling choice downstream instead of a fact of the data.
+    * **Subject evidence as numbers, not as a veto.** `subjects.admits()` returns a
+      boolean, and §23.2 measured the whole of the shipped path's advantage over raw
+      top-k coming from that one bit. The counts it folds away -- how crowded the
+      subject's neighbourhood is, how many distinctive tokens it has, how many of them
+      the query actually named -- are what a graded action (B5) would need.
+    * **The margin.** `identity-and-gate-spec.md` B3 names it the feature most likely to
+      move §5's stubborn number, and it is not derivable from a single top-1 score.
+
+    `entropy` is over the k block's fused scores normalized to sum to 1, in nats. That is
+    a choice, not the only one: the scores are similarities and not a distribution, so the
+    normalization is arbitrary and is recorded here so a later reader can renormalize.
+    """
+
+    variant: str
+    fixture: str
+    regime: str
+    session: str
+    query: str
+    label: str
+    # --- retrieval block ---------------------------------------------------------
+    n_block: int
+    cos_top1: float
+    cos_top2: float
+    cos_margin: float
+    fused_top1: float
+    fused_top2: float
+    fused_margin: float
+    entropy: float
+    # --- text arm, unnormalized --------------------------------------------------
+    bm25_top1_raw: float
+    bm25_best_text: float
+    bm25_hits: int
+    vector_top1_is_text_top1: bool
+    # --- subject evidence, as counts ---------------------------------------------
+    subject_key: str
+    subject_competitors: int
+    subject_distinctive: int
+    subject_query_overlap: int
+    subject_min_df: int
+    subject_admits: bool
+    # --- the query itself ---------------------------------------------------------
+    query_chars: int
+    query_tokens: int
+    query_is_question: bool
+    query_first_word: str
+    # --- the session it was asked against -----------------------------------------
+    live_facts: int
+    stored_facts: int
+    n_subjects: int
+    session_span_s: float
+    # --- what the shipped gate actually did, so the dump is joinable to the decision --
+    gate_open: bool
+    top1_fact: str | None
+
+
+def _entropy(scores: list[float]) -> float:
+    total = sum(s for s in scores if s > 0.0)
+    if total <= 0.0:
+        return 0.0
+    return -sum((s / total) * math.log(s / total) for s in scores if s > 0.0)
+
+
+async def _features_for(
+    *,
+    variant: str,
+    fixture: Fixture,
+    labelled: LabelledQuery,
+    result,
+    store: FalkorStore,
+    embedder: OllamaEmbedder,
+    k: int,
+    config: RecallConfig,
+) -> GateFeatures:
+    """Compute the dump row. Runs after `recall()` and touches none of its state."""
+    query_vec = await embedder.embed_one(labelled.query, query=True)
+    # The raw block, before the gate, the subject check and the token budget -- the same
+    # lookup `recall()` performed (`blend(v, None, alpha)` is idempotent and k matches),
+    # which is what makes these features describe the block the gate saw.
+    block = await store.hybrid_search(labelled.query, query_vec, fixture.session, k)
+    # `_text_arm` rather than a hand-rolled full-text query: same sanitization, same
+    # session overfetch. Private on purpose -- this is the bench reading the store's
+    # internals for a dump, not a caller depending on them.
+    text_hits = await store._text_arm(labelled.query, fixture.session, k)
+    text_scores = {row["fact"]: score for row, score in text_hits.values()}
+    best_text = max(text_scores.values(), default=0.0)
+    text_top1 = max(text_scores, key=lambda f: text_scores[f], default=None)
+
+    nodes = await store.subject_view(fixture.session)
+    view = build_subject_view(nodes)
+    top_fact = block[0].fact if block else None
+    subject_key = view.subject_of.get(top_fact or "", "")
+    distinctive = {t for t in subject_key.split() if view.df.get(t, 0) <= config.subject_df_max}
+    overlap = distinctive & set(normalize_subject(labelled.query).split())
+
+    valid = [n.valid_at.timestamp() for n in nodes if n.valid_at is not None]
+    words = labelled.query.split()
+    return GateFeatures(
+        variant=variant,
+        fixture=fixture.name,
+        regime=regime_of(fixture.name),
+        session=fixture.session,
+        query=labelled.query,
+        label=labelled.label,
+        n_block=len(block),
+        cos_top1=block[0].similarity if block else 0.0,
+        cos_top2=block[1].similarity if len(block) > 1 else 0.0,
+        cos_margin=(block[0].similarity - block[1].similarity) if len(block) > 1 else 0.0,
+        fused_top1=block[0].score if block else 0.0,
+        fused_top2=block[1].score if len(block) > 1 else 0.0,
+        fused_margin=(block[0].score - block[1].score) if len(block) > 1 else 0.0,
+        entropy=_entropy([h.score for h in block]),
+        bm25_top1_raw=text_scores.get(top_fact or "", 0.0),
+        bm25_best_text=best_text,
+        bm25_hits=len(text_scores),
+        vector_top1_is_text_top1=bool(top_fact is not None and top_fact == text_top1),
+        subject_key=subject_key,
+        subject_competitors=view.competitors.get(subject_key, 0),
+        subject_distinctive=len(distinctive),
+        subject_query_overlap=len(overlap),
+        subject_min_df=min((view.df.get(t, 0) for t in subject_key.split()), default=0),
+        subject_admits=(
+            view.admits(
+                labelled.query,
+                top_fact,
+                config.subject_min_competitors,
+                config.subject_df_max,
+            )
+            if top_fact is not None
+            else False
+        ),
+        query_chars=len(labelled.query),
+        query_tokens=len(words),
+        query_is_question=labelled.query.strip().endswith("?"),
+        query_first_word=(words[0].lower().strip(",.?!") if words else ""),
+        live_facts=sum(1 for n in nodes if n.invalid_at is None),
+        stored_facts=len(nodes),
+        n_subjects=len({n.subject_key for n in nodes if n.invalid_at is None and n.subject_key}),
+        session_span_s=(max(valid) - min(valid)) if valid else 0.0,
+        gate_open=result.gate_open,
+        top1_fact=top_fact,
+    )
 
 
 @dataclass
@@ -429,8 +601,10 @@ async def measure_variant(
     ollama_url: str,
     reingest: bool,
     subject_check: bool = False,
+    features: list[GateFeatures] | None = None,
 ) -> list[Observation]:
     config = variant.embed_config(ollama_url)
+    gate_config = _open_gate(subject_check)
     embedder = OllamaEmbedder(config)
     store = FalkorStore(
         StoreConfig(
@@ -476,7 +650,7 @@ async def measure_variant(
                 print(f"  [{variant.name}] {fixture.name}: reusing {stored} stored facts")
             for labelled in fixture.queries:
                 turn = TurnContext(session_id=fixture.session, user_message=labelled.query)
-                result = await recall(turn, _open_gate(subject_check), store, embedder)
+                result = await recall(turn, gate_config, store, embedder)
                 hits = result.memories_used
                 top = hits[0] if hits else None
                 observations.append(
@@ -494,6 +668,22 @@ async def measure_variant(
                         latency_ms=result.latency_ms,
                     )
                 )
+                if features is not None:
+                    # W4. Appended after the observation, from a second lookup, so the
+                    # gate decision above is already made and cannot be influenced by
+                    # anything computed here.
+                    features.append(
+                        await _features_for(
+                            variant=variant.name,
+                            fixture=fixture,
+                            labelled=labelled,
+                            result=result,
+                            store=store,
+                            embedder=embedder,
+                            k=gate_config.k,
+                            config=gate_config,
+                        )
+                    )
             print(f"  [{variant.name}] {fixture.name}: {len(fixture.queries)} queries scored")
     finally:
         await embedder.aclose()
@@ -845,6 +1035,7 @@ async def main_async(args: argparse.Namespace) -> None:
 
     store_config = StoreConfig.from_env()
     observations: list[Observation] = []
+    features: list[GateFeatures] | None = [] if args.feature_dump else None
     reports: list[VariantReport] = []
     for name in names:
         variant = VARIANTS[name]
@@ -855,6 +1046,7 @@ async def main_async(args: argparse.Namespace) -> None:
             args.ollama_url,
             reingest=args.reingest,
             subject_check=args.subject_check,
+            features=features,
         )
         observations += rows
         # One measurement pass, both gate quantities. The scores are already in hand, so
@@ -867,6 +1059,20 @@ async def main_async(args: argparse.Namespace) -> None:
             )
             reports.append(report)
             print_report(report)
+
+    if features is not None:
+        # CSV, not JSON: one row per query per regime, joinable to the labels by
+        # (variant, fixture, query) and openable by anything. B1 is a data-collection
+        # item, so the artefact is the point and it should not need this module to read.
+        path = Path(args.feature_dump)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        columns = [f.name for f in dataclasses.fields(GateFeatures)]
+        with path.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            for row in features:
+                writer.writerow(asdict(row))
+        print(f"\nwrote {path}  ({len(features)} rows, {len(columns)} columns)")
 
     if args.out:
         path = Path(args.out)
@@ -890,6 +1096,15 @@ def main() -> None:
     parser.add_argument("--extractor-model", default=CACHED_EXTRACTOR_MODEL)
     parser.add_argument("--ollama-url", default="http://localhost:11434")
     parser.add_argument("--chat-only", action="store_true", help="skip the benchmark fixture")
+    parser.add_argument(
+        "--feature-dump",
+        default=None,
+        metavar="PATH",
+        help="write a per-query gate feature CSV (wrap-up-spec.md W4 / identity-and-gate-spec.md "
+        "B1). Collected AFTER each recall() call from a second lookup, so gate decisions are "
+        "unchanged by it -- run with and without and diff the report to check that. Does not "
+        "fit anything, by design: B4 needs a label budget that does not exist.",
+    )
     parser.add_argument("--reingest", action="store_true", help="rebuild stores even if populated")
     parser.add_argument(
         "--fpr-budget",
