@@ -143,11 +143,12 @@ Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async 
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
 cross-session recall. The §14 200ms P95 latency budget is met **at conversational scale
 only** (~96ms P95, ~146ms with chain expansion on — RESULTS.md §5, on calibration fixtures
-holding tens of facts). **§23 measured it on the bench corpora and it is breached at 32k:
-≈270–285ms P95 (n=3), of which the entire excess is `subject_check`'s O(session)
-`subject_view` —
-20ms at 455 facts, 102.6ms at 2310, linear.** With the check off, A–D is flat at ~80–115ms
-at both sizes. Do not quote ~96ms without the scale it was measured at. The open weakness is wrong-subject recall, not
+holding tens of facts). §23 measured it on the bench corpora and found it **breached** at 32k — ≈270–285ms P95,
+the entire excess being `subject_check`'s O(session) `subject_view` (20ms at 455 facts,
+102.6ms at 2310, linear). **§24 fixes that**: `subject_view` is cached and the budget is
+met again — 127–134ms at 32k, 122ms at 6k, and a conversational median flat at ~78.7ms
+from 300 to 1200 facts. Quote a latency figure with the scale AND the date it was measured
+at; three different answers have been correct in this file. The open weakness is wrong-subject recall, not
 latency: see the scalar-floor limit below, and **§21.4 for what that costs and what it
 would take to fix** — subject identity is ranked first there by two independent
 measurements, and this deferred list is ranked fourth.
@@ -459,6 +460,19 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
 - **Aliasing reads document frequency in ARRIVAL order, not from the finished corpus.** The rule is conservative when cold — `affiliated` is not yet a relation word on its first appearance — and converges as the session fills. `bench.oracle.build_groups` replays the same growing vocabulary deliberately: grouping a completed corpus in one pass credits the store with merges ingest never made and scores a system that was never run. If you add a caller, pass it the same `AliasConfig` the ingest used. RESULTS.md §10.
 - **Chain expansion runs AFTER the gate, never before, and never seeds it.** A multi-hop answer fact shares no entity with the question — that is what makes it multi-hop — so it cannot clear a similarity floor and must not be asked to. Judging relevance on the seeds and letting the chain ride along is what keeps `score_floor` meaning what it was calibrated to mean. Moving expansion ahead of the gate would silently re-open the gate on turns that have nothing relevant, and would invalidate §5's calibration. Chain facts carry `score=0.0` because they were never ranked against the turn — do not invent a similarity for them. RESULTS.md §8.
 - **Hybrid fusion is multiplicative** (`cos · (1 + w·bm25)/(1 + w)`), not additive. Additive fusion mixes an absolute score with a set-relative one and lets an irrelevant query clear `score_floor`. Full-text queries must be `|`-joined term unions, or the index ANDs them and the BM25 arm silently returns nothing. RESULTS.md §5.
+- **`subject_view` is cached, and the cache is MAINTAINED across writes, not dropped.**
+  Drop-on-write is correct, passes the bench, and is nearly useless: a conversational turn
+  is read *then* write, so the cache is invalidated by turn N and cold for turn N+1 —
+  measured at 1 warm read in 20, against 19 in 20 in a read-only loop. The bench is the one
+  workload where dropping looks fine (ingest everything, then ask 100 questions), which is
+  why this was almost shipped. So `add_fact` appends, `supersede` flips `invalid_at`, and
+  only `clear_session` drops. `supersede` takes a fact id and nothing else, so its query
+  `RETURN`s the session and fact text to reach the cache at all — remove that and a dead
+  subject keeps being counted live, silently changing the gate's precision. Anything a write
+  cannot express *exactly* must go back to dropping. Cache the rows, never the fold: the
+  fold is 10x cheaper and belongs on the domain side of the store boundary. Per store
+  instance, so another process's write leaves it stale — fine for a precision refinement,
+  never for anything deciding freshness. RESULTS.md §24.
 - **Performance: four expensive wrong turns, each closed by arithmetic. Do not reopen them.**
   Restated here from `specs/performance-addendum.md` because that file is not in the public
   repo and this list is the single most re-derivable thing in it — every item is a plausible
