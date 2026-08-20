@@ -28,19 +28,25 @@ Metrics per arm:
                     one fact in the corpus. For the rest it appears in up to 5+ facts
                     ("Italy") and a retrieval metric is close to trivially satisfiable.
 
-Three flags change what is measured rather than how: `--via-recall` routes through the
-real recall stage instead of raw top-k, `--expansion-hops` turns on the chain walk, and
+Three flags change what is measured rather than how: `--raw-topk` drops back to the
+pre-W1 path (store top-k, no gate), `--expansion-hops` turns on the chain walk, and
 `--no-context` answers with no recalled block at all -- the parametric-knowledge floor,
 without which a retrieval number cannot be interpreted.
 
-## `--via-recall` and what it does and does not cover (RESULTS.md §21.3, §23)
+## The default path is `recall()` (wrap-up-spec.md W1; RESULTS.md §21.3, §23, §25)
 
-§21.3 names the largest untested surface in the shipped read path: no headline number
-routes through `recall()`, so `score_floor`, the lookup timeout and the failure-safety
-path are in none of them. `--via-recall` is the mechanism; running it is the item.
+§21.3 named the largest untested surface in the shipped read path: no headline number
+routed through `recall()`, so `score_floor`, the lookup timeout and the failure-safety
+path were in none of them. §23 measured it behind a `--via-recall` flag. W1 makes it the
+default, because a flag nobody passes leaves every *published* number measured around the
+code that ships. `--raw-topk` is the old path, kept as the control below.
 
-Under `--via-recall` the raw `hybrid_search` above is **still performed, and is the
-control**, not waste. It is the same retrieval `recall()` itself performs -- `embed_one`
+**Numbers taken before 2026-08-21 are raw-top-k numbers** -- RESULTS.md §2, §3 and §8
+included. Do not compare them to a run from here on without saying which path each used;
+§25 reports the delta at both scales.
+
+On the default path the raw `hybrid_search` is **still performed, and is the control**,
+not waste. It is the same retrieval `recall()` itself performs -- `embed_one`
 normalizes and `blend(v, None, alpha)` is idempotent, so the two query vectors are
 identical, and `RecallConfig.k` is `--k`. That makes it the right comparator for the one
 number this item exists to produce:
@@ -60,7 +66,10 @@ about the floor. Only a materially non-zero cost would be a finding about 0.57 i
 Multi-hop is the opposite and is already measured: §8's arm B ran `recall()` gate-only on
 mh_6k and `retrieval_any` fell 0.400 -> 0.050, for the structural reason the chain-walk
 invariant states -- a multi-hop answer shares no entity with the question, so it cannot
-clear a similarity floor and must not be asked to.
+clear a similarity floor and must not be asked to. **That is now what a default `mh_6k`
+invocation reports**, and it is a property of the shipped config (`expansion_hops = 0`),
+not a regression: pass `--expansion-hops 3` for §8's headline, or `--raw-topk` for §8's
+ungated baseline. §25.3 states this rather than leaving it to be rediscovered.
 
 Three surfaces, and this covers one. `score_floor` is genuinely exercised. The lookup
 timeout is only *touched*: Falkor answers in 2.6-4.3ms against a 180ms timeout, so zero
@@ -122,8 +131,8 @@ class ArmResult:
     cases: dict[str, int] = field(default_factory=dict)
     ingest_seconds: float = 0.0
     query_seconds: float = 0.0
-    # --via-recall only (RESULTS.md §23). All default to the inert value so a raw top-k
-    # run serializes exactly as it did before this existed.
+    # `recall()` path only (RESULTS.md §23), so `--raw-topk` leaves them all at the inert
+    # value and serializes exactly as a pre-W1 run did.
     #
     # `gate_open_rate` is how often the shipped gate let anything through.
     # `gate_shut_but_retrievable` is the one that matters: gate shut on a question whose
@@ -246,9 +255,10 @@ async def run_deterministic(
             hits = await store.hybrid_search(question, query_vec, session, k)
         if not no_context and recall_config is not None:
             # Route through recall(): the shipped path, gate first and chain expansion
-            # after it, under one budget. Kept opt-in because the default path above is
-            # raw top-k with no gate, which is what every existing number in RESULTS.md
-            # was measured with -- switching it silently would break comparability.
+            # after it, under one budget. This is the DEFAULT since W1 -- a number
+            # measured around the read path cannot see a change inside it (§11's
+            # argument, one stage over). `--raw-topk` restores the older path, which is
+            # what every RESULTS.md number before §25 was measured with.
             # With expansion_hops=0 this isolates the gate's contribution from the
             # walk's, which is the only way `0.40 -> 0.91` means anything.
             #
@@ -392,7 +402,7 @@ async def main_async(args: argparse.Namespace) -> None:
                         inject_token_budget=args.inject_token_budget,
                         subject_check=not args.no_subject_check,
                     )
-                    if (args.via_recall or args.expansion_hops)
+                    if not args.raw_topk
                     else None
                 ),
                 no_context=args.no_context,
@@ -423,7 +433,7 @@ async def main_async(args: argparse.Namespace) -> None:
             f"   exact_match {result.exact_match_clean:.3f}"
         )
         print(f"  ingest {result.ingest_seconds:.1f}s   query {result.query_seconds:.1f}s")
-        if result.arm == "deterministic" and (args.via_recall or args.expansion_hops):
+        if result.arm == "deterministic" and not args.raw_topk:
             # RESULTS.md §23. `gate shut w/ answer` is the number this arm exists for;
             # the rest is context for reading it. Timeouts/failures print even at 0
             # deliberately -- a zero that is never shown cannot be distinguished from a
@@ -472,7 +482,7 @@ def main() -> None:
     parser.add_argument(
         "--no-subject-check",
         action="store_true",
-        help="disable the §9 subject admission rule inside recall() (--via-recall only). "
+        help="disable the §9 subject admission rule inside recall() (ignored under --raw-topk). "
         "Two jobs: it separates what an OPEN gate discarded from what the gate shut out, "
         "and it is the ONLY instrument that prices the check -- RESULTS.md §23.4's "
         "latency figure for B6 comes from the difference between this arm and the shipped "
@@ -481,9 +491,11 @@ def main() -> None:
         "the check on a corpus where wrong-subject confusion is structurally rare.",
     )
     parser.add_argument(
-        "--via-recall",
+        "--raw-topk",
         action="store_true",
-        help="route retrieval through recall() (gate + budget) instead of raw top-k",
+        help="the pre-W1 path: rank the store's top-k directly, with no gate, no subject "
+        "check and no budget. The control for the default recall() path, and the way to "
+        "reproduce any RESULTS.md figure from before §25.",
     )
     parser.add_argument(
         "--no-context",
@@ -492,7 +504,13 @@ def main() -> None:
     )
     parser.add_argument("--inject-token-budget", type=int, default=RecallConfig.inject_token_budget)
     parser.add_argument("--out", default=None)
-    asyncio.run(main_async(parser.parse_args()))
+    args = parser.parse_args()
+    if args.raw_topk and args.expansion_hops:
+        # Expansion lives inside recall(), after the gate (the chain-walk invariant), so
+        # there is no such thing as raw top-k with expansion. Refuse rather than pick a
+        # precedence: a silent winner here would mislabel whichever arm lost.
+        parser.error("--raw-topk and --expansion-hops are mutually exclusive")
+    asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":
