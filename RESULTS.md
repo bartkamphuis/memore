@@ -3652,3 +3652,100 @@ step earlier), and **subject evidence as counts** (`subject_competitors`,
 `subject_distinctive`, `subject_query_overlap`, `subject_min_df`) rather than as the single
 bit `admits()` returns — the bit §23.2 measured carrying the whole of the shipped path's
 advantage over raw top-k.
+
+---
+
+## 29. Closing: what was solved, what was not, and what the open problem is
+
+Written 2026-08-21, at the end of the wrap-up pass. §21 was the standing assessment while
+work continued; this is the account of what the work found. Nothing here is new
+measurement.
+
+### 29.1 What was solved
+
+- **Consolidation.** A deterministic freshness-ordinal primitive with no LLM anywhere in the
+  decision, pinned by a test that asserts the collaborators. Oracle accuracy 0.990 at 6k and
+  0.960 at 32k, zero gold facts wrongly superseded and zero groups left with two live facts
+  at either scale, unchanged across every change in this file including W1's — which is the
+  one measurement that could say the read path moved and the decision did not (§25.2).
+- **The slot.** A subject is a topic; the thing that holds one value at a time is the
+  `(subject_key, attribute)` pair. Before §11 the supersede loop ran over every live fact on
+  the subject: 18 supersedes fired across three real sessions and 1 was correct. The arity of
+  a slot is now recorded on a `:Slot` node by the first fact that lands and read thereafter,
+  so it stops depending on P1 agreeing with itself (§22).
+- **Multi-hop.** A deterministic value→subject graph walk over live facts, run after the
+  gate, no LLM and no embeddings: 0.200 → 0.940 `retrieval_any` on `mh_6k` (§8, §25.3). It is
+  cheap *because* consolidation keeps the graph sparse.
+- **Wrong-subject admission control.** The separating signal is whether the query names the
+  subject, decided from the session's own vocabulary. Hard-negative false-open 0.846 → 0.462
+  with useful recall rising, and §23.2 later found this one bit carrying the whole of the
+  shipped read path's advantage over raw top-k.
+- **The latency budget, three times over.** 200ms p95 for stages A–D: met conversationally
+  (§5), breached at 32k when it was finally measured on the bench corpora (§23), and met
+  again once `subject_view` was cached (§24). 120–143ms on the bench corpora with a reader in
+  the loop, ~79ms conversationally and flat in session size.
+- **A read path that never lies about failure.** `recall()` does not raise; a store timeout
+  and a store outage both degrade to a closed gate, and the bench counts them rather than
+  letting a silent zero look like a healthy one.
+
+### 29.2 What was not solved, and will not be here
+
+**Write-lane identity.** One assertion, worded two ways, is named two ways, and the store
+keys identity on exact match. W2 put the number on it: **0.583 subject agreement and 0.417
+attribute agreement across four paraphrases**, against a self-agreement control of 12/12 —
+so it is the wording, not the sampler. Every standing harness failure is an instance of it
+(§21.5), both independent measurements of where the bottleneck lies point at it (§21.2), and
+§20 established that the search space has no locality: two `_SYSTEM` example-list passes both
+fixed `[9->10]` and both paid for it somewhere else.
+
+The architectural fix — entity ids, reversible merges, a pairwise matcher — is a rebuild on a
+different data model, not another iteration. It starts from entity identity rather than
+inheriting a string key it would spend a month unpicking. **It is a separate project, and
+the lessons cross as text rather than as code.**
+
+Three smaller things stayed open, each with its reason recorded rather than its intent:
+
+- **A2, the k=5 vote on P1's structured fields, is not shipped.** Its original bar — "nine
+  identical runs at k=5" — was **met at k=1** and could therefore only have failed by
+  introducing variance, which is an inverted criterion rather than a strict one. It was
+  restated to require a named pair that fails at k=1 and passes at k=5, decided in advance.
+  That bar was never attempted, and §22.4's observation is why it would probably fail: the
+  extractor is currently deterministic under a pinned model, which is exactly the regime in
+  which k-sampling has nothing to average over.
+- **A cross-encoder reranker (C2) is specified and not built.** Its bench-side acceptance
+  clause was withdrawn as unmeasurable — a reranker between retrieval and the gate was
+  invisible to a bench that did not call `recall()` — and W1 has since made it measurable
+  again. It should be restated against §25.1's post-W1 baselines, not the pre-W1 ones every
+  earlier section quotes.
+- **The `llama.cpp` CUDA embedder (W3) is untested**, blocked by a prebuilt-wheel instruction
+  set mismatch rather than by anything about this system, and no longer urgent since §24
+  closed the budget breach it was meant to relieve.
+
+### 29.3 The open problem, stated precisely
+
+> Two utterances assert the same thing about the same entity in different words. A memory
+> system must file them in one place. Similarity does not decide it — "milk" and "coffee
+> preference" are the same subject while "mobile app" and "web app" are not, at the same
+> cosine. Lexical overlap does not decide it either. A generative model asked to name the
+> subject answers consistently when the wording is held fixed and **inconsistently when it is
+> not**, which is the one thing a hash function may not do.
+
+Everything else in this repo is downstream of that sentence. The gate's residual error is
+wrong-*subject* recall, not off-topic recall (§5). The standing harness failures are naming
+failures (§21.5). The one mechanical fix W2 surfaced — stemming inside `normalize_subject`,
+so `allergy` and `allergies` are one slot — is recorded and **not made**, because §3 and §10
+are two records of a merge rule being judged on its refuse-list before its score, and this
+one has no refuse-list yet.
+
+### 29.4 What this record is for
+
+The code is the smaller half. Almost everyone building one of these is re-deriving §13, §20
+and §22 privately, with no idea the wall is a known wall. A public account saying *the prompt
+arms were tried twice, both fixed the same pair, both cost elsewhere, do not run a third* —
+with the runs behind it — is worth more to the next person than a system they would have to
+adopt wholesale.
+
+That is why the negative results are in this file at the same weight as the positive ones,
+why CLAUDE.md now carries every dead end in one section with the arithmetic that closed it,
+and why four separate items here (§11, §13, §23.3, §24.3) are the same lesson arriving from
+four directions: **a fixture that cannot express a failure cannot be evidence about it.**

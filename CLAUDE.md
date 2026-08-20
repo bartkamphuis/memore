@@ -4,20 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Starting a session? Read `RESULTS.md` §21, then §22.** §21 is the standing assessment —
-the three-tier verdict on what here is and is not an advance, the convergence finding that
-the bottleneck is subject identity rather than freshness, and the ranked list of what is
-left. It exists so none of that gets re-derived from twenty sections, and it is the one
-section to read before deciding what to work on. **§22 qualifies it**: A1 of
-`specs/identity-and-gate-spec.md` is built and controlled, and the same measurement found
-that two slot-harness numbers from §15–§20 no longer reproduce under unchanged code and an
-unchanged serving state. Read §22.4 before quoting any harness figure or starting A2.
-**§23 closes §21.3** — `recall()` now runs under the bench. The gate opened on 100% of
-single-hop questions and shut on zero answerable ones, so it is not the risk §21.3
-anticipated; **the A–D latency budget is, and it is breached at 32k (≈270–285ms p95, n=3,
-against 200ms)**. The whole breach is one O(session) call. Read §23.3 before quoting a
-latency figure and §23.4 before spending headroom — and note §23.4's warning that the
-subject-check *accuracy* figure there does not transfer to B6's axis, only the price does.
+**Starting a session? Read `RESULTS.md` §29, then §21.** §29 is the closing account,
+written at the end of the wrap-up pass: what was solved, what was not, why three named items
+were left unshipped rather than merely unstarted, and the open problem stated in one
+paragraph. §21 is the older standing assessment it grew out of — the three-tier verdict on
+what here is and is not an advance, the convergence finding that the bottleneck is subject
+identity rather than freshness, and the ranked list of what was left at that point. Read §29
+first; read §21 for the reasoning behind the ranking.
+
+Four sections qualify anything quoted from §1–§20, and all four are cheap to miss:
+
+- **§22** — A1 is built and controlled, and the same measurement found two slot-harness
+  figures from §15–§20 no longer reproducing under unchanged code and an unchanged serving
+  state. Read §22.4 before quoting any harness figure.
+- **§24** — the A–D latency budget was breached at 32k (§23) and is met again now that
+  `subject_view` is cached. Three different latency answers have been correct in this file;
+  quote the scale, the config **and** the date.
+- **§25** — `recall()` is the **default** bench path since W1. Every retrieval and accuracy
+  figure before §25 was measured on raw top-k, five to seven points below what the shipped
+  read path does on top-1 — and multi-hop on the *default* config now scores 0.060, below
+  raw top-k, because expansion ships off. §25.3 before quoting any `mh_6k` number.
+- **§26** — W2 put a number on write-lane identity: 0.583 subject and 0.417 attribute
+  agreement across paraphrases of one assertion, against a self-agreement control of 12/12.
+  It is the wording, not the sampler.
 
 Step 0 (the consolidation spike) is complete — both arms ran; see `RESULTS.md`, and read
 it before quoting any number, because several of its findings correct earlier claims.
@@ -47,11 +56,15 @@ bench harness, and the `score_floor` calibration harness (`memore/bench/calibrat
 
 Multi-hop is built and measured too (RESULTS.md §8): a deterministic value→subject graph
 walk in `memore/chain.py`, run *after* the gate, taking `factconsolidation_mh_6k` from
-0.200 to **0.760** exact-match (0.800 SubEM). It is off by default (`expansion_hops = 0`)
-— see the invariant below before turning it on, and note that "off by default" is part of
-how the number must be quoted: it is not the shipped conversational config's result, and
-§9 calls expansion a no-op in that regime. The comparison is **0.515** (arXiv:2606.01435,
-gpt-4o), not the single-digit Graphiti figure this line used to cite — RESULTS.md §0.
+0.200 to **0.940** `retrieval_any` — 0.880 SubEM / 0.850 exact-match through the shipped
+`recall()` path on 2026-08-21 (§25.3), where §8's 0.800/0.760 was the same store read by a
+`gemma4:12b`; do not mix the two readers. It is off by default (`expansion_hops = 0`) —
+see the invariant below before turning it on, and note that "off by default" is not a
+footnote to the number, it **inverts** it: the default config scores 0.050 `retrieval_any`
+on this corpus, *below* raw top-k's 0.380, because a multi-hop answer shares no entity with
+its question (§25.3). §9 calls expansion a no-op in the conversational regime. The
+comparison is **0.515** (arXiv:2606.01435, gpt-4o), not the single-digit Graphiti figure
+this line used to cite — RESULTS.md §0.
 
 Subject aliasing is built and measured (RESULTS.md §10): `memore/aliases.py` merges two
 namings of one subject when they differ only by *generic relation words*, decided by
@@ -141,17 +154,21 @@ list. Both passes are on the record.
 
 Still unbuilt, all deliberately deferred by `recall-poc-spec.md` §5: the async job
 machinery, rolling-summary-vector key synthesis, the queryable audit log, and
-cross-session recall. The §14 200ms P95 latency budget is met **at conversational scale
-only** (~96ms P95, ~146ms with chain expansion on — RESULTS.md §5, on calibration fixtures
-holding tens of facts). §23 measured it on the bench corpora and found it **breached** at 32k — ≈270–285ms P95,
-the entire excess being `subject_check`'s O(session) `subject_view` (20ms at 455 facts,
-102.6ms at 2310, linear). **§24 fixes that**: `subject_view` is cached and the budget is
-met again — 127–134ms at 32k, 122ms at 6k, and a conversational median flat at ~78.7ms
-from 300 to 1200 facts. Quote a latency figure with the scale AND the date it was measured
-at; three different answers have been correct in this file. The open weakness is wrong-subject recall, not
-latency: see the scalar-floor limit below, and **§21.4 for what that costs and what it
-would take to fix** — subject identity is ranked first there by two independent
-measurements, and this deferred list is ranked fourth.
+cross-session recall. Two further items are specified and **not shipped**, each for a
+recorded reason rather than for lack of time — A2's k-sample vote (its bar was met at k=1,
+so the item could only fail by adding variance) and C2's cross-encoder reranker. RESULTS.md
+§29.2.
+
+**The §14 200ms P95 latency budget is met, and it has had three different correct answers.**
+§5 measured ~96ms conversationally on calibration fixtures holding tens of facts. §23
+measured the bench corpora for the first time and found it **breached** at 32k (≈270–285ms
+P95), the entire excess being `subject_check`'s O(session) `subject_view`. §24 cached that
+and the budget is met again. Current figures, 2026-08-21: **~79ms conversational and flat
+from 300 to 1200 facts, 120–143ms on the bench corpora with a reader in the loop (§25.1),
+190.7ms with chain expansion on at 6k** — which is now the closest thing in the file to the
+budget. Quote a latency figure with the scale, the config AND the date. The open weakness is
+wrong-subject recall, not latency: see the scalar-floor limit below, **§21.4** for what that
+costs, and **§26** for the number W2 put on it.
 
 **§5's calibration is superseded by §13.** The shipped pairing is now `gate_on="cosine"`
 with floor **0.57**, not the fused score at 0.48. §5's numbers were measured against
@@ -253,7 +270,7 @@ those). The oracle uses no LLM and is unaffected either way.
 
 ## The spec set — cited everywhere, not published
 
-Source docstrings cite six design documents by bare filename:
+Source docstrings cite seven design documents by bare filename:
 
 - `recall-poc-spec.md` — scopes the standalone terminal PoC this repo builds. The entry point.
 - `recall-stage-spec.md` — the read path (recall stage A–D), store choice, config, invariants (§13), definition of done (§14).
@@ -265,8 +282,16 @@ Source docstrings cite six design documents by bare filename:
   against measurement since: A1's stale `63/72`, and A2's bar, which was met at k=1 and could
   only fail by introducing variance.
 - `performance-addendum.md` — serving, latency and ranking quality; explicitly no change to
-  consolidation, identity, or the gate's decision logic. Its "do not" list is restated in the
-  invariants above, because it is the most re-derivable content in the set.
+  consolidation, identity, or the gate's decision logic. C6 is done — RESULTS.md §24.
+- `wrap-up-spec.md` — the closing spec, and it **supersedes the open items in the two above**.
+  Four items (W1 `recall()` under the bench, W2 paraphrase metamorphic tests, W3 in-process
+  embedder, W4 gate feature dump) plus three cleanups, then publish. All four are measured —
+  RESULTS.md §25–§28 — and W3 stopped at its own acceptance clause rather than shipping. Its
+  stop condition is explicit: **not** when the gate model is fitted, and **not** when the
+  paraphrase pass rate reaches any particular value.
+
+Both "do not" lists are restated in **"Do not re-litigate"** above, because `specs/` is
+gitignored and that list is the most re-derivable content in the set.
 
 **These are not in the public repo.** They describe a private production integration target, so a `§`-reference in a docstring points at a document you will not find here. That is deliberate, not rot. Everything load-bearing from them — the invariants, the interfaces, the reasoning behind each — is restated below and in `RESULTS.md`, which is why those two files are long. Nothing in the code depends on the specs being present.
 
