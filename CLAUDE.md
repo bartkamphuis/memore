@@ -281,6 +281,135 @@ Production (`recall-stage-spec.md` §12) is read-path-first. The PoC is **write-
 
 Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `TurnContext`, `RecallResult`, `MemoryHit`, `Episode`, `CandidateFact`, `Consolidator`, `RecallConfig`, `WritePathConfig`. This is the discipline that makes the PoC the production core rather than a throwaway — the test is whether the gateway could import `recall()` and the consolidator unchanged. Inventing quick shapes to move fast defeats the point of building standalone.
 
+## Do not re-litigate — the dead ends, and the arithmetic that closed them
+
+Every entry here was **tried and measured**, or ruled out by a calculation, and each is a
+plausible instinct that the numbers refuse. Consolidated from the two private specs
+(`identity-and-gate-spec.md`, `performance-addendum.md`), because `specs/` is gitignored
+and this is the most re-derivable knowledge in the project — the part a reader would
+otherwise spend weeks rediscovering. The section reference is where the run lives.
+
+### The P1 prompt and the write lane
+
+- **`_SYSTEM` example-list arms.** Two passes are on the record; both fixed `[9->10]`, both
+  cost elsewhere (one 4 points of subject coherence, one a destroyed fact). Do not run a
+  third — §20.
+- **A rule in `_SYSTEM` as the fix for reply leakage.** Arm E: the rule was already there
+  verbatim and P1 violated it four times in one column. The fix was moving text, not
+  adding words — §17.
+- **A question-suppressor.** Mutes P1 on exactly the turns a real assertion can arrive
+  hedged as a question — §12a.
+- **A `COLLECTION_TYPES` keyword list** instead of asking P1 the arity directly. Scores 3/3
+  on turns 39–41 and breaks `(42, 43)`, because a favourite is a preference holding one
+  value at a time — §18.
+- **Simplifying the five naming rules to "use the proper name".** Rule 2 — the speaker is
+  always `the user`, never their name — is the whole failure if deleted: "My name is Bart"
+  splits the store's most-loaded subject in two — §15.
+- **A surface merge rule for the remaining subject split.** Two shapes of split exist and
+  only one is reachable by a surface rule; the other is why no matcher was built — §15.
+- **Attribute-name snapping, "§10 for slots".** The df gate is degenerate at conversational
+  scale (30–34 attributes puts every single token above threshold), and the one subset pair
+  it could act on reproduces the exact defect being fixed — §16.5.
+- **A smaller model on the write lane.** The residual errors are identity judgements, not
+  throughput — §11, §18. A4's pairwise matcher is the one place a small model belongs.
+- **The ungated subset merge of subject keys.** §10 ships the gated version; §3 rejected the
+  ungated one *despite a better score*, which is the precedent for judging a merge rule on
+  its log rather than its number.
+- **Judging a P1 change on three runs.** Pre-§18, identical input scored 2/3 then 1/3. Nine
+  — §18. And nine identical runs is one deterministic point, not an average — §22.4.
+
+### The consolidation decision
+
+- **Delegating consolidation to Graphiti's edge-invalidation.** `recall-poc-spec.md` §4
+  overrides `recall-writepath-spec.md` §2.3. It is the one thing this project owns.
+- **Embedding similarity for DUPLICATE detection.** Measured at 32k: real value changes sit
+  *above* the threshold and genuine paraphrases *below* real contradictions. No threshold
+  separates the cases, and a false DUPLICATE discards an update permanently — §6.
+- **Simplifying the competing-set filter back to `live`.** That single word reverts §11
+  entirely: 18 supersedes fired across three real sessions and 1 was correct.
+- **Flipping `single_valued`'s default to False "for safety".** True is the pre-§18 code
+  path and is what keeps old graphs and the bench inert; False silently stops every
+  contradiction the bench measures — §18.
+- **Acting on a slot-arity disagreement.** Logged at INFO and not acted on: acting is the
+  newest answer winning, which is the variance the field exists to remove — §22.
+- **Reading an unchanged bench number as evidence about slotting.** FactConsolidation is
+  one-attribute-per-subject *by construction*, so the §11 defect is structurally
+  inexpressible in it — §11. The general form: a fixture that cannot express a failure
+  cannot be evidence about it, and it has caught four items in this file (§11, §13, §23.3,
+  §24.3).
+
+### The read path and the gate
+
+- **Tuning the floor to fix wrong-subject recall.** The distributions overlap: off-domain
+  false-open ~0.03 against hard-negative 0.68–0.88 at the same floor. No threshold splits
+  them; it needs a subject-key check the score cannot carry — §5.
+- **Hand-picking a floor.** §5's 0.35 was wrong for every model including the one it was
+  written for. Re-run `calibrate` — §13.
+- **`nomic-embed-text`'s prefixes, and `mxbai`'s query prefix.** Both measured, both
+  rejected; the mxbai one costs conversational recall at every operating point — §5, §13.
+- **A smaller embedder for speed.** `nomic-embed-text` gets the speed and loses the ranking
+  (`retrieval_hit` 0.93 → 0.76). Quality is the binding axis — §5.
+- **Additive hybrid fusion.** Mixes an absolute score with a set-relative one and lets an
+  irrelevant query clear the floor. Multiplicative, so `fused <= cos` always — §5, §12.
+- **Moving chain expansion ahead of the gate, or letting it seed the gate.** A multi-hop
+  answer shares no entity with the question, so it cannot clear a similarity floor and must
+  not be asked to — §8.
+- **`expansion_hops > 0` as a conversational default.** A no-op in the target regime, and
+  the reason §8's 0.760 must always be quoted with the config that produced it — §8, §9.
+- **Catching the vector-index width mismatch.** The write succeeds and only the query
+  raises, and `recall()` swallows store errors by design — so catching it leaves a gate shut
+  forever — §5.
+- **Letting a PAST label suppress recall.** Expiry that drops the fact, docks its score or
+  shuts the gate is deletion wearing a different hat — §19.
+- **Fitting a gate model on the labels that exist.** 68 subject labels budget about six
+  features; 25 chat positives budget about three. Reaching past that is how the last pass
+  becomes the rebuild — B1/B4, and `bench/calibrate.py --feature-dump` collects the data
+  without fitting anything.
+
+### Performance — four expensive wrong turns, each closed by arithmetic
+
+- **No FPGA or GPU vector index.** The workload is a scan over 1559 vectors of 1024
+  dimensions — 6.4MB. Custom silicon starts paying near 10^7 vectors, three orders of
+  magnitude away.
+- **No rewrite in Rust or another language.** Wall time is in an HTTP call to a model server
+  and in FalkorDB; interpreter overhead is inside the ~18ms "everything else". (The "budget
+  is half empty" half of this argument was retired by §23 and restored by §24 — the rewrite
+  was pointless under both, because the excess was a per-query session scan that no language
+  change removes.)
+- **Do not optimise the FalkorDB lookup.** 13.5–20.4ms and flat in session size (§23; §5's
+  2.6–4.3ms is wrong by 3–5x). Not the dominant cost. The O(session) term that *was* worth
+  attention is `subject_view`, and §24 closed it.
+- **No smaller embedder and no smaller write-lane model** — restated from the two lists
+  above, because both are usually reached for as performance moves.
+- **Do not cache across sessions, and do not drop the `subject_view` cache on write.**
+  Drop-on-write passes the bench and delivers 1 warm read in 20 conversationally, because a
+  real turn is read-then-write — §24.
+- **Do not wrap this in MCP.** MCP puts recall back behind a model decision, which is the
+  pattern this design leaves behind. It is only right for the deliberate model-initiated
+  fallback lookup — `recall-poc-spec.md` §5a.
+
+The framing that generates the performance list: **the read path is latency-bound and its
+remaining errors need a *better* model; the write path is accuracy-bound and has no latency
+constraint.** Optimisation runs in opposite directions in the two lanes, and the instinct
+that is right in one is wrong in the other.
+
+What IS worth doing, measured rather than proposed: **the embedder pays a per-call load
+charge on a model that is already resident.** Re-measured 2026-08-20 under the pinned
+serving state — 10 queries, wall 50.6–75.6ms, `load_duration` **36–56ms per call** while
+`/api/ps` reports `mxbai-embed-large` resident at 0.62GB, pinned. Pinning does not remove
+it; only an in-process embedder does, and actual compute is the remaining ~15–20ms. (§5's
+"`/api/ps` showing 0 GB VRAM" line is about `embeddinggemma` — do not cite it for `mxbai`.)
+
+### Method
+
+- **Do not change the model and the serving stack in one step.** A change made with no valid
+  baseline cannot be attributed. Establish a control at the pre-change commit, as §22.3 did;
+  a figure quoted from a RESULTS.md section is not a control — §22.
+- **Do not trust a gateway console trace without checking the installed revision.**
+  `source_episode_id == ""` on every fact is the fingerprint of a pre-§16 install — §18.2.
+- **Do not pool regimes, and do not average runs that vary.** Both are how a real effect gets
+  absorbed into a mean — §5, §11.
+
 ## Invariants that are easy to violate by accident
 
 - **No LLM in recall components A–D, and none in the consolidation decision.** An LLM *is* the right tool for P1 extraction — that runs off the response path.
@@ -473,42 +602,8 @@ Use the production-spec types exactly as written: `MemoryStore`, `recall()`, `Tu
   fold is 10x cheaper and belongs on the domain side of the store boundary. Per store
   instance, so another process's write leaves it stale — fine for a precision refinement,
   never for anything deciding freshness. RESULTS.md §24.
-- **Performance: four expensive wrong turns, each closed by arithmetic. Do not reopen them.**
-  Restated here from `specs/performance-addendum.md` because that file is not in the public
-  repo and this list is the single most re-derivable thing in it — every item is a plausible
-  instinct that the measurements rule out.
-  - **No FPGA or GPU vector index.** The workload is a scan over 1559 vectors of 1024
-    dimensions — 6.4MB. Custom silicon starts paying near 10^7 vectors, three orders of
-    magnitude away.
-  - **No rewrite in Rust or another language.** Wall time is in an HTTP call to a model
-    server and in FalkorDB. Interpreter overhead is inside the ~18ms "everything else"
-    figure. (The "budget is half empty" half of this argument is retired by §23 — at 32k
-    it is 72ms *over*. The rewrite is still pointless, because the excess is a per-query
-    session scan, which no language change removes.)
-  - **Do not optimise the FalkorDB lookup.** Still true, but not for the reason usually
-    quoted: §5's 2.6–4.3ms is wrong by 3–5x — §23 measures 13.5–20.4ms on the bench
-    corpora, and it does *not* grow with session size (13.5ms at 2310 facts vs 20.4ms at
-    455). It is not the dominant cost and not worth optimising; the O(session) cost that
-    *is* worth attention is `subject_view`, not the index (§23.3).
-  - **No smaller embedder for speed.** Measured and rejected in §5: `nomic-embed-text` gets
-    the speed and loses the ranking (`retrieval_hit` 0.93 → 0.76 across candidates at the
-    same speed). Quality is the binding axis, not speed.
-  - **No smaller model on the write lane.** §11 and §18 establish the residual errors are
-    identity judgements. The one place a small model belongs is A4's pairwise matcher — a
-    same-or-not decision over a short candidate list.
-
-  The framing that generates all five: **the read path is latency-bound and its remaining
-  errors need a *better* model; the write path is accuracy-bound and has no latency
-  constraint.** Optimisation runs in opposite directions in the two lanes, and the instinct
-  that is right in one is wrong in the other.
-
-  What IS worth doing, and it is measured rather than proposed: **the embedder pays a
-  per-call load charge on a model that is already resident.** Re-measured 2026-08-20 under
-  the pinned serving state — 10 queries, wall 50.6–75.6ms, `load_duration` **36–56ms per
-  call** while `/api/ps` reports `mxbai-embed-large` resident at 0.62GB, pinned. Pinning does
-  not remove it; only an in-process embedder does. Actual compute is the remaining ~15–20ms.
-  (§5's "`/api/ps` showing 0 GB VRAM" line is about `embeddinggemma` — do not cite it for
-  `mxbai`.)
-- **Do not wrap this in MCP.** MCP is permanently the wrong shape for pre-fetch recall (it would put recall back behind a model decision, which is the pattern this design leaves behind). It is only the right shape for the deliberate model-initiated fallback lookup — see `recall-poc-spec.md` §5a.
+- **The performance dead ends, the gate dead ends and the `_SYSTEM` dead ends all live
+  in one place now** — see "Do not re-litigate" above. They were duplicated here and in
+  two gitignored specs; one copy is the point of that section.
 
 Deferred PoC scope is listed in `recall-poc-spec.md` §5 (cross-session recall, async job machinery, rolling-summary key synthesis, provider abstraction, audit-log query path). Mark these in code with comments pointing at the production spec section rather than omitting them silently.
