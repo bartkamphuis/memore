@@ -158,12 +158,33 @@ Ollama runs on the host (it has the GPUs); FalkorDB runs in Compose.
 
 ```bash
 docker compose up -d falkordb
-uv sync --extra dev --extra bench
+uv sync --extra dev --extra bench --extra demo
 
-uv run memore demo        # interactive trace of both paths
+uv run memore-demo        # browser demo: chat left, store right -> http://127.0.0.1:8900
+uv run memore demo        # the same trace in a terminal
 uv run memore inspect     # what the store actually holds, by session
 uv run pytest tests/ -q
 ```
+
+### The browser demo, which is the fastest way to see the point
+
+`uv run memore-demo` serves a single dark page: conversation on the left, **the store on
+the right**. Say something about yourself, ask about it a few turns later, then contradict
+yourself. The old fact does not vanish — it stays in the right-hand pane, struck through and
+marked `SUPERSEDED`, beside the value that replaced it. That is the design claim made
+visible, and a scrolling terminal cannot show it.
+
+Each turn also prints what the two paths decided: gate OPEN/SHUT with the similarity of
+every hit and the exact block that was injected, then P1's candidate facts (subject,
+attribute, `single_valued`, confidence) and P2's case per candidate — `NEW`, `DUPLICATE`,
+`CONTRADICTION`, `REFINEMENT` — with the freshness ordinal. Recall runs *before* the model
+call and is injected at prompt-assembly time; the reply is handed to the write path as
+context and never as text to extract from.
+
+It runs on its own graph (`memore_demo`) and its own session, needs FalkorDB and Ollama, and
+checks both at startup: if the store is down, the models are not served, or the graph's
+vector index was built for a different embedder, the page says which, because all three
+otherwise look identical to an empty store.
 
 Models are pinned to how the host serves them — mismatched `num_ctx` makes Ollama reload an
 18GB model on every process start, and `keep_alive` is per-request, so omitting it silently

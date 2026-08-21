@@ -190,6 +190,13 @@ uv run ruff check memore/ tests/
 uv run memore inspect
 uv run memore inspect --session <name> --query '...'
 
+# The browser demo (`memore/demo/`, needs --extra demo). Same recall() and WritePath the
+# gateway imports; it is a VIEWER and is deliberately not wired into the bench, the
+# calibration harness or slots.py. Own graph (memore_demo) and own session (demo-web), so
+# it cannot mix into bench or terminal-demo data.
+uv run memore-demo                       # http://127.0.0.1:8900
+uv run memore-demo --port 8901 --graph memore_scratch
+
 # Step-0 spike (needs FalkorDB up and Ollama on the host)
 uv run python -m memore.bench.run --source factconsolidation_sh_6k --arm deterministic
 uv run python -m memore.bench.oracle_run --source factconsolidation_sh_6k

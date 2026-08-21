@@ -38,6 +38,9 @@ Results = "https://github.com/bartkamphuis/memore/blob/main/RESULTS.md"
 # RESULTS.md §0 and §4: Graphiti is storage+retrieval only.
 graphiti = ["graphiti-core[falkordb]>=0.29.3"]
 bench = ["pyarrow>=17.0", "rouge-score>=0.1.2"]
+# The browser demo (`memore-demo`). An extra because the library must not drag a web
+# framework in: nothing under `memore/` outside `memore/demo/` imports fastapi.
+demo = ["fastapi>=0.110", "uvicorn>=0.29", "pydantic>=2.0"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -46,6 +49,7 @@ dev = [
 
 [project.scripts]
 memore = "memore.cli:main"
+memore-demo = "memore.demo.__main__:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
