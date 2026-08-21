@@ -182,16 +182,29 @@ recall   gate OPEN  2 fact(s) · 70ms      @70ms     <- before the model is call
 · 0.656  the user's default deployment target is production
 · 0.637  the user deploys to staging by default     <- struck through: SUPERSEDED
          <recalled_context> … the exact text injected …
-Your default deployment target is production.       <- streams, ~1.5s
-write    CONTRADICTION  ordinal 4 · superseded the incumbent   @4.4s
+write…   @76ms (in parallel)                        <- the write lane, launched beside it
+Your default deployment target is production.       <- streams
+write    CONTRADICTION  ordinal 4 · superseded the incumbent   @1.6s
          P1  the user's default deployment target is production
              subject=the user attribute=default deployment target single_valued=true
+                                                    <- reply finishes @2.1s, AFTER the write
 ```
 
 Recall lands in **~70ms, before the model call**, and is injected at prompt-assembly time
-rather than offered as a tool the model may decide to invoke. P1 extraction lands **seconds
-after the reply is finished**, which is what "off the response path" means. Returning all
-three at once — the first version did — asserts a sequence the user never observes.
+rather than offered as a tool the model may decide to invoke.
+
+**The write lane runs beside the reply, not after it.** "Off the response path" does not
+mean *after* the response path. `OLLAMA_NUM_PARALLEL=3` and both lanes use the same model,
+so the two requests share the loaded weights across slots with no reload — measured at
+1221ms against 2213ms serial, a 45% overlap. The write result routinely lands while the
+reply is still streaming, which is the clearest way to show that extraction never sits on
+the response path.
+
+The tradeoff is stated rather than hidden: P1 is given an empty `assistant_response`,
+because the reply does not exist yet when the write starts. `extract_window_turns` is 3, so
+it still sees earlier turns' replies and misses only the current one. The `llm_gateway`
+integration makes the opposite choice — it fires after the model call, with the reply, and
+does not await it. Both are defensible; this one makes the parallelism visible.
 
 It runs on its own graph (`memore_demo`) and its own session, needs FalkorDB and Ollama, and
 checks both at startup: if the store is down, the models are not served, or the graph's

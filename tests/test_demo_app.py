@@ -12,6 +12,7 @@ when the store is down teaches the opposite of what it is for.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime
 
@@ -76,6 +77,9 @@ class _Chat:
     async def chat_stream(self, messages, max_tokens=None):
         self.seen.append(messages)
         for character in self.reply:
+            # A real reply takes seconds. The delay is what makes "the write lane did not
+            # wait for it" an assertion rather than a coincidence of scheduling order.
+            await asyncio.sleep(0.01)
             yield character
 
 
@@ -210,20 +214,39 @@ def _events(http, message: str) -> list[tuple[str, dict]]:
     return out
 
 
-def test_the_stages_arrive_as_separate_events_in_the_order_they_happen(client):
-    """The ordering IS the contract, and it is the whole reason this endpoint streams.
-
-    A single JSON body made recall (~80ms), the reply (seconds) and P1 extraction (seconds
-    more) arrive together, so the page asserted a sequence the user never observed. In
-    particular `write` must come after `reply_end`: awaiting the write path any earlier
-    puts P1's own LLM call between the last token and the reply finishing.
-    """
+def test_recall_completes_before_either_lane_starts(client):
+    """Recall must read the store as it was BEFORE this turn's fact. A write committing
+    mid-lookup would let a turn recall itself."""
     http, _ = client(hits=[_hit_obj()], outcomes=[_outcome()])
     events = [name for name, _ in _events(http, "where do I deploy?")]
-    assert [e for e in events if e != "delta"] == [
-        "recall", "reply_start", "reply_end", "write", "store",
-    ]
-    assert events.index("recall") < events.index("delta") < events.index("write")
+    assert events[0] == "recall"
+    assert events.index("recall") < events.index("reply_start")
+    assert events.index("recall") < events.index("write_start")
+
+
+def test_the_write_lane_does_not_wait_for_the_reply_to_finish(client):
+    """The assertion that replaced a fixed event order, because the fixed order was the
+    thing being disproved.
+
+    "Off the response path" does not mean *after* the response path. `OLLAMA_NUM_PARALLEL`
+    is 3 and both lanes use the same model, so they share the loaded weights across slots
+    -- measured at 1221ms against 2213ms serial. Here the fake reply streams with a delay
+    and the fake write returns at once, so a `write` arriving after `reply_end` means the
+    lanes were serialized again.
+    """
+    http, _ = client(outcomes=[_outcome()])
+    events = [name for name, _ in _events(http, "I deploy to staging")]
+    assert events.index("write") < events.index("reply_end")
+    assert events.index("write_start") < events.index("reply_end")
+
+
+def test_the_write_result_still_precedes_the_store_snapshot(client):
+    """The one ordering that survives: the store view is taken after the write commits, or
+    it shows the turn's own fact missing."""
+    http, _ = client(outcomes=[_outcome()])
+    events = [name for name, _ in _events(http, "q")]
+    assert events.index("write") < events.index("store")
+    assert events.index("reply_start") < events.index("delta") < events.index("reply_end")
 
 
 def test_every_event_carries_the_server_s_own_elapsed_ms(client):
@@ -234,6 +257,20 @@ def test_every_event_carries_the_server_s_own_elapsed_ms(client):
     assert all("ms" in data for _, data in events)
     stamps = [data["ms"] for _, data in events]
     assert stamps == sorted(stamps), stamps
+
+
+def test_a_failing_write_lane_does_not_kill_the_reply(client, monkeypatch):
+    """The lanes are independent, so one falling over must not truncate the other's stream
+    -- the response path is the one that must never be taken down by the write path."""
+    http, runtime = client()
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("falkor is down")
+
+    monkeypatch.setattr(runtime.write_path, "run", boom)
+    events = dict(_events(http, "hi"))
+    assert "falkor is down" in events["write_error"]["error"]
+    assert events["reply_end"]["reply"] == "ok"
 
 
 def test_the_recall_event_carries_the_gate_the_hits_and_the_block(client):

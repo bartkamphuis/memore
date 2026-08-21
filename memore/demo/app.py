@@ -10,18 +10,41 @@ takes seconds more, after the reply. A single response makes all three arrive to
 hides exactly the property being demonstrated -- the user waits, sees "thinking", and then
 gets numbers that assert a sequence they never observed.
 
-So a turn emits events in the order they actually happen:
+So a turn emits events when they actually happen:
 
-    recall      the gate decision, the hits and the injected block   (~80ms)
+    recall      the gate decision, the hits and the injected block   (~70ms)
     reply_start the model call has begun
+    write_start the write lane has been launched, in parallel with it
     delta       content, as it arrives
     reply_end   the reply is complete
-    write       P1's candidates and P2's case per candidate          (seconds later)
+    write       P1's candidates and P2's case per candidate
     store       the store after the write
 
-`write` is emitted **after** `reply_end` and awaited only then. Awaiting the write path
-before finishing the reply would put its own LLM call between the last token and the user
-seeing the reply complete -- the same mistake one layer down.
+## The write lane runs CONCURRENTLY with the reply, and that is the point
+
+The first streaming version awaited the write after `reply_end`, so P1's extraction --
+seconds of `gemma4:26b` -- began only once the last token had landed. That is still not
+what the architecture claims. "Off the response path" does not mean *after* the response
+path; it means *not on it*. `OLLAMA_NUM_PARALLEL=3` and both lanes use the same model, so
+the two requests share the loaded weights across slots with no reload: measured, two
+concurrent calls take 1221ms against 2213ms serial, a 45% overlap.
+
+So the write task is launched as soon as recall returns and the reply stream starts, and
+its result is emitted whenever it lands -- often while the reply is still streaming. Events
+are multiplexed through a queue rather than yielded in a fixed order, because a fixed order
+is exactly the thing being disproved.
+
+**Launched after recall, never before.** Recall must read the store as it was *before* this
+turn's fact, and a write committing mid-lookup would let a turn recall itself.
+
+**The tradeoff, stated because it is real.** P1 is given `assistant_response=""`: the reply
+does not exist yet when the write starts. RESULTS.md §17 has the reply as *context* in the
+P1 prompt -- deliberately demoted out of the block being extracted from, but present. The
+cost here is narrow: `extract_window_turns` is 3, so P1 still sees the previous turns'
+replies from history and misses only the current one. `memore.cli`'s terminal demo passes
+`""` for the same reason. `llm_gateway` does the opposite and it is also right: it fires
+`after_model_call(...)` with the reply, un-awaited, because a gateway has no reason to
+start early. Two defensible choices; this one makes the parallelism visible.
 
 Every event carries `ms`, measured from a single `t0` at request start, on the server.
 The page does not compute it from arrival times: the sequence is a claim about the system,
@@ -43,6 +66,8 @@ teaches the opposite of what it is for.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -272,12 +297,11 @@ def _sse(event: str, payload: dict, t0: float) -> str:
 
 
 async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
-    """One turn, in the order it happens. The order IS the architecture.
+    """One turn. Recall first, then the reply and the write lane in parallel.
 
-    Recall runs before the model call and its result is injected at prompt-assembly time,
-    rather than offered as a tool the model may decide to invoke. The write path runs after
-    the reply is complete, and is handed that reply as CONTEXT only -- never as text to
-    extract from (RESULTS.md §17).
+    The order is the architecture. Recall runs before the model call and is injected at
+    prompt-assembly time rather than offered as a tool the model may decide to invoke. The
+    write lane runs beside the reply, not after it, and never touches the response.
     """
     t0 = time.perf_counter()
     now = datetime.now(UTC)
@@ -299,43 +323,71 @@ async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
     messages += [{"role": m.role, "content": m.content} for m in runtime.history[-6:]]
     messages.append({"role": "user", "content": message})
 
-    yield _sse("reply_start", {}, t0)
-    chunks: list[str] = []
+    # Snapshot: the write lane must see the history as it was before this turn, and it runs
+    # while `runtime.history` is being appended to below.
+    history = list(runtime.history)
+    events: asyncio.Queue[tuple[str, dict] | None] = asyncio.Queue()
+
+    async def pump_reply() -> None:
+        await events.put(("reply_start", {}))
+        chunks: list[str] = []
+        try:
+            async for delta in runtime.chat.chat_stream(messages, max_tokens=300):
+                chunks.append(delta)
+                await events.put(("delta", {"text": delta}))
+        except httpx.HTTPError as exc:
+            logger.exception("chat failed")
+            chunks.append(f"[the model is unreachable: {type(exc).__name__}]")
+            await events.put(("delta", {"text": chunks[-1]}))
+        reply = "".join(chunks)
+        runtime.history.append(Message(role="user", content=message))
+        runtime.history.append(Message(role="assistant", content=reply))
+        await events.put(("reply_end", {"reply": reply}))
+
+    async def pump_write() -> None:
+        await events.put(("write_start", {}))
+        try:
+            # `assistant_response=""` -- it does not exist yet. See the module docstring;
+            # this is the one thing concurrency costs and it is not free.
+            write = await runtime.write_path.run(SESSION, message, "", history)
+        except Exception as exc:  # noqa: BLE001 -- a failed write must not kill the stream
+            logger.exception("write path failed")
+            await events.put(("write_error", {"error": f"{type(exc).__name__}: {exc}"}))
+            return
+        await events.put(("write", {
+            "candidates": write.candidates,
+            "outcomes": [
+                {
+                    "case": outcome.case.value,
+                    "fact": outcome.candidate.fact,
+                    "type": outcome.candidate.type.value,
+                    "confidence": round(outcome.candidate.confidence, 2),
+                    "subject": outcome.candidate.subject_hint,
+                    "attribute": outcome.candidate.attribute,
+                    "single_valued": outcome.candidate.single_valued,
+                    "ordinal": outcome.ordinal,
+                    "superseded_fact_id": outcome.superseded_fact_id,
+                }
+                for outcome in write.outcomes
+            ],
+        }))
+        await events.put(("store", {"store": await _store_view(runtime)}))
+
+    async def drain() -> None:
+        await asyncio.gather(pump_reply(), pump_write())
+        await events.put(None)   # the sentinel, once BOTH lanes are done
+
+    runner = asyncio.create_task(drain())
     try:
-        async for delta in runtime.chat.chat_stream(messages, max_tokens=300):
-            chunks.append(delta)
-            yield _sse("delta", {"text": delta}, t0)
-    except httpx.HTTPError as exc:
-        logger.exception("chat failed")
-        chunks.append(f"[the model is unreachable: {type(exc).__name__}]")
-        yield _sse("delta", {"text": chunks[-1]}, t0)
-    reply = "".join(chunks)
-    yield _sse("reply_end", {"reply": reply}, t0)
-
-    # Only now. Awaiting the write path earlier would put P1's own LLM call -- seconds --
-    # between the last token and the user seeing the reply finish.
-    write = await runtime.write_path.run(SESSION, message, reply, list(runtime.history))
-    yield _sse("write", {
-        "candidates": write.candidates,
-        "outcomes": [
-            {
-                "case": outcome.case.value,
-                "fact": outcome.candidate.fact,
-                "type": outcome.candidate.type.value,
-                "confidence": round(outcome.candidate.confidence, 2),
-                "subject": outcome.candidate.subject_hint,
-                "attribute": outcome.candidate.attribute,
-                "single_valued": outcome.candidate.single_valued,
-                "ordinal": outcome.ordinal,
-                "superseded_fact_id": outcome.superseded_fact_id,
-            }
-            for outcome in write.outcomes
-        ],
-    }, t0)
-
-    runtime.history.append(Message(role="user", content=message))
-    runtime.history.append(Message(role="assistant", content=reply))
-    yield _sse("store", {"store": await _store_view(runtime)}, t0)
+        while (item := await events.get()) is not None:
+            yield _sse(item[0], item[1], t0)
+    finally:
+        # A browser that navigates away closes the response mid-stream. Cancel rather than
+        # leak the two lanes, and let the write finish if it already has.
+        if not runner.done():
+            runner.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await runner
 
 
 # `response_model=None`: the union return type is two Response classes, and FastAPI would

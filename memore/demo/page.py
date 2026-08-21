@@ -255,6 +255,8 @@ $("f").addEventListener("submit", async (e) => {
   const bot = add("memore", "bot",
     `<div class="trace"><div class="stage-recall waiting">recall…</div>
      <div class="stage-write"></div></div><div class="reply"></div>`);
+  // Both lanes write into elements that already exist, so an event landing in either order
+  // updates its own slot instead of appending and reflowing the other.
   const $recall = bot.querySelector(".stage-recall");
   const $write  = bot.querySelector(".stage-write");
   const $reply  = bot.querySelector(".reply");
@@ -272,12 +274,18 @@ $("f").addEventListener("submit", async (e) => {
     for await (const {event, data} of sse(res)) {
       if (event === "recall") { $recall.className = "stage-recall"; $recall.innerHTML = recallRows(data); }
       else if (event === "reply_start") { $reply.className = "reply streaming"; }
-      else if (event === "delta") { $reply.textContent += data.text; }
-      else if (event === "reply_end") {
-        $reply.className = "reply";
-        $write.innerHTML = `<div class="row waiting">write… <span class="t">@${ms(data.ms)}</span></div>`;
+      // The write lane is launched here, beside the reply rather than after it -- so the
+      // placeholder appears while the first token is still being generated, and the result
+      // usually lands mid-stream. That overlap is the thing worth seeing.
+      else if (event === "write_start") {
+        $write.innerHTML = `<div class="row waiting">write… <span class="t">@${ms(data.ms)} (in parallel)</span></div>`;
       }
+      else if (event === "delta") { $reply.textContent += data.text; }
+      else if (event === "reply_end") { $reply.className = "reply"; }
       else if (event === "write") { $write.innerHTML = writeRows(data); }
+      else if (event === "write_error") {
+        $write.innerHTML = `<div class="row"><span class="k">write</span> failed — ${esc(data.error)}</div>`;
+      }
       else if (event === "store") { renderStore(data.store); }
       follow();
     }
