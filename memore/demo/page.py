@@ -69,6 +69,12 @@ PAGE = r"""<!doctype html>
   .trace .row { color:var(--dim); font-size:12px; line-height:1.5; }
   .trace .row + .row { margin-top:4px; }
   .reply { margin-top:6px; white-space:pre-wrap; }
+  .reply.streaming::after {
+    content:"▋"; color:var(--accent); animation:blink 1s steps(2,start) infinite;
+  }
+  @keyframes blink { to { visibility:hidden; } }
+  .t { color:#55606f; }            /* the elapsed-ms stamp on each stage */
+  .waiting { color:var(--old); }
   .trace .row .k { color:#6f7d90; }
   .pill {
     display:inline-block; padding:0 6px; margin:0 4px; border-radius:4px; font-size:11px;
@@ -92,7 +98,8 @@ PAGE = r"""<!doctype html>
        margin:0 0 10px; font-weight:600; }
   .subject { margin-bottom:14px; }
   .subject .name { color:var(--accent); font-size:12px; }
-  .fact { font-size:12px; padding:2px 0 2px 10px; border-left:2px solid var(--line); }
+  .fact { font-size:12px; padding:2px 0 2px 10px; border-left:2px solid var(--line);
+          color:#e6edf6; }
   .fact.sup { color:var(--old); border-left-color:#2a323d; }
   .fact.sup .t { text-decoration:line-through; }
   .fact .meta { color:#5f6b7a; font-size:11px; }
@@ -154,29 +161,33 @@ function renderStore(groups) {
 // Newline-bearing gaps only. `/>\s+</` also ate the single space in `</span> <span>`,
 // which is a real word gap: it rendered `recall[gate OPEN]` and `P2[NEW]`.
 const flat = (s) => s.replace(/>[^\S\n]*\n\s*</g, "><").trim();
+const ms = (v) => v >= 1000 ? (v / 1000).toFixed(1) + "s" : Math.round(v) + "ms";
 
-function renderTrace(t) {
-  const r = t.recall, w = t.write;
+function recallRows(r) {
   const hits = r.hits.map(h =>
     `<div class="hit${h.superseded ? " sup" : ""}">· <span class="s">${h.similarity.toFixed(3)}</span> ${esc(h.fact)}${h.past ? " <i>[past]</i>" : ""}</div>`
   ).join("");
-  const outcomes = w.outcomes.map(o => `
+  return flat(`<div class="row"><span class="k">recall</span>
+      <span class="pill ${r.gate_open ? "open" : "shut"}">gate ${r.gate_open ? "OPEN" : "SHUT"}</span>
+      ${r.hits.length} fact(s) · ${r.latency_ms}ms <span class="t">@${ms(r.ms)}</span></div>`)
+    + hits
+    + (r.block ? `<pre class="block">${esc(r.block)}</pre>` : "");
+}
+
+function writeRows(w) {
+  if (!w.outcomes.length) {
+    return flat(`<div class="row"><span class="k">write</span> nothing stored — transient turn
+      (P1's salience gate returned nothing) <span class="t">@${ms(w.ms)}</span></div>`);
+  }
+  return w.outcomes.map(o => flat(`
     <div class="row">
       <span class="k">P2</span> <span class="pill ${o.case}">${o.case}</span>
-      ordinal ${o.ordinal}${o.superseded_fact_id ? " · superseded the incumbent" : ""}<br>
+      ordinal ${o.ordinal}${o.superseded_fact_id ? " · superseded the incumbent" : ""}
+      <span class="t">@${ms(w.ms)}</span><br>
       <span class="k">P1</span> ${esc(o.fact)}<br>
       <span class="k">  </span> subject=<i>${esc(o.subject)}</i> attribute=<i>${esc(o.attribute || "—")}</i>
       single_valued=${o.single_valued} conf=${o.confidence}
-    </div>`).join("");
-  return flat(`<div class="trace">
-    <div class="row"><span class="k">recall</span>
-      <span class="pill ${r.gate_open ? "open" : "shut"}">gate ${r.gate_open ? "OPEN" : "SHUT"}</span>
-      ${r.hits.length} fact(s) · ${r.latency_ms}ms</div>
-    ${hits}
-    ${r.block ? `<pre class="block">${esc(r.block)}</pre>` : ""}
-    ${w.outcomes.length ? outcomes
-      : `<div class="row"><span class="k">write</span> nothing stored — transient turn (P1's salience gate returned nothing)</div>`}
-  </div>`);
+    </div>`)).join("");
 }
 
 function add(who, cls, body) {
@@ -186,6 +197,31 @@ function add(who, cls, body) {
   $("log").appendChild(el);
   $("log").scrollTop = $("log").scrollHeight;
   return el;
+}
+
+// `EventSource` is GET-only and the turn's body is a message, so the stream is read off a
+// POST with a reader instead. The buffer matters: a `data:` line can be split across two
+// reads, and appending straight through would corrupt or drop that frame.
+async function* sse(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const {value, done} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    let split;
+    while ((split = buffer.indexOf("\n\n")) !== -1) {
+      const frame = buffer.slice(0, split);
+      buffer = buffer.slice(split + 2);
+      let event = "message", data = "";
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) data += line.slice(5).trim();
+      }
+      if (data) yield {event, data: JSON.parse(data)};
+    }
+  }
 }
 
 async function boot() {
@@ -212,21 +248,43 @@ $("f").addEventListener("submit", async (e) => {
   if (!text) return;
   $("m").value = ""; $("send").disabled = true;
   add("you", "user", esc(text));
-  const pending = add("memore", "bot", "<span style='color:var(--dim)'>thinking…</span>");
+
+  // The three stages get their elements up front and fill in as events land. That is the
+  // entire point of streaming this: the gate result is on screen in ~80ms, the reply
+  // arrives over seconds, and the write path lands after the reply is finished.
+  const bot = add("memore", "bot",
+    `<div class="trace"><div class="stage-recall waiting">recall…</div>
+     <div class="stage-write"></div></div><div class="reply"></div>`);
+  const $recall = bot.querySelector(".stage-recall");
+  const $write  = bot.querySelector(".stage-write");
+  const $reply  = bot.querySelector(".reply");
+  const follow = () => { $("log").scrollTop = $("log").scrollHeight; };
+
   try {
     const res = await fetch("/api/turn", {
       method: "POST", headers: {"content-type": "application/json"},
       body: JSON.stringify({message: text}),
     });
-    const t = await res.json();
-    if (t.error) { pending.querySelector(".body").innerHTML = esc(t.error); return; }
-    // Trace above the reply: it describes what happened BEFORE the model was called.
-    pending.querySelector(".body").innerHTML =
-      renderTrace(t) + `<div class="reply">${esc(t.reply)}</div>`;
-    renderStore(t.store);
+    if (!res.ok || !res.body) {
+      $reply.textContent = (await res.json().catch(() => ({}))).error || ("HTTP " + res.status);
+      return;
+    }
+    for await (const {event, data} of sse(res)) {
+      if (event === "recall") { $recall.className = "stage-recall"; $recall.innerHTML = recallRows(data); }
+      else if (event === "reply_start") { $reply.className = "reply streaming"; }
+      else if (event === "delta") { $reply.textContent += data.text; }
+      else if (event === "reply_end") {
+        $reply.className = "reply";
+        $write.innerHTML = `<div class="row waiting">write… <span class="t">@${ms(data.ms)}</span></div>`;
+      }
+      else if (event === "write") { $write.innerHTML = writeRows(data); }
+      else if (event === "store") { renderStore(data.store); }
+      follow();
+    }
   } catch (err) {
-    pending.querySelector(".body").textContent = "request failed: " + err;
+    $reply.textContent += " [stream failed: " + err + "]";
   } finally {
+    $reply.className = "reply";
     $("send").disabled = false; $("m").focus();
   }
 });

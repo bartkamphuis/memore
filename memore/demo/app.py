@@ -1,9 +1,35 @@
-"""The FastAPI app: three routes, one page, no streaming.
+"""The FastAPI app: three routes, one page, and a turn that streams.
 
-Deliberately plain. A turn completes atomically and returns the whole trace in one JSON
-body, because the trace is more legible when it arrives assembled than when it races the
-reply token by token -- and because SSE would add a moving part that teaches nothing about
-memore.
+## Why the turn streams, having first been written not to
+
+The first version returned the whole trace in one JSON body, on the argument that an
+assembled trace is more legible than one racing the reply. That argument was wrong here,
+and it was wrong about the thing the demo exists to show. **The timings are the claim.**
+Recall lands in ~80ms, before the model is called; the model takes seconds; P1 extraction
+takes seconds more, after the reply. A single response makes all three arrive together and
+hides exactly the property being demonstrated -- the user waits, sees "thinking", and then
+gets numbers that assert a sequence they never observed.
+
+So a turn emits events in the order they actually happen:
+
+    recall      the gate decision, the hits and the injected block   (~80ms)
+    reply_start the model call has begun
+    delta       content, as it arrives
+    reply_end   the reply is complete
+    write       P1's candidates and P2's case per candidate          (seconds later)
+    store       the store after the write
+
+`write` is emitted **after** `reply_end` and awaited only then. Awaiting the write path
+before finishing the reply would put its own LLM call between the last token and the user
+seeing the reply complete -- the same mistake one layer down.
+
+Every event carries `ms`, measured from a single `t0` at request start, on the server.
+The page does not compute it from arrival times: the sequence is a claim about the system,
+not about the network.
+
+**SSE framing over POST, read with a streaming `fetch`, not `EventSource`.** EventSource is
+GET-only, and the turn's body is a message. Framing is standard `data: …\n\n` so the wire
+is self-describing.
 
 ## Startup is where a demo of this system actually fails
 
@@ -17,15 +43,17 @@ teaches the opposite of what it is for.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ..assemble import is_past
@@ -237,49 +265,57 @@ async def state() -> JSONResponse:
     })
 
 
-@app.post("/api/turn")
-async def turn(body: Turn) -> JSONResponse:
-    """One turn: recall -> reply -> write. The order is the whole architecture.
+def _sse(event: str, payload: dict, t0: float) -> str:
+    """One SSE frame. `ms` is the server's own elapsed time, never the browser's."""
+    body = dict(payload, ms=round((time.perf_counter() - t0) * 1000, 1))
+    return f"event: {event}\ndata: {json.dumps(body)}\n\n"
 
-    Recall runs BEFORE the model call and its result is injected at prompt-assembly time,
-    rather than being offered as a tool the model may decide to call. The write path runs
-    after, and is handed the assistant's reply as CONTEXT only -- never as text to extract
-    from (RESULTS.md §17).
+
+async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
+    """One turn, in the order it happens. The order IS the architecture.
+
+    Recall runs before the model call and its result is injected at prompt-assembly time,
+    rather than offered as a tool the model may decide to invoke. The write path runs after
+    the reply is complete, and is handed that reply as CONTEXT only -- never as text to
+    extract from (RESULTS.md §17).
     """
-    from datetime import UTC, datetime
-
-    runtime = _runtime()
-    message = body.message.strip()
-    if not message:
-        return JSONResponse({"error": "empty message"}, status_code=400)
-
-    trace: dict[str, Any] = {}
+    t0 = time.perf_counter()
     now = datetime.now(UTC)
 
     context = TurnContext(
         session_id=SESSION, user_message=message, recent_messages=list(runtime.history)
     )
     result = await recall(context, runtime.recall_config, runtime.store, runtime.embedder)
-    trace["recall"] = {
+    yield _sse("recall", {
         "gate_open": result.gate_open,
         "latency_ms": round(result.latency_ms, 1),
         "block": result.injected_block,
         "hits": [_hit(hit, now) for hit in result.memories_used],
-    }
+    }, t0)
 
     messages = [{"role": "system", "content": SYSTEM}]
     if result.injected_block:
         messages.append({"role": "system", "content": f"MEMORY:\n{result.injected_block}"})
     messages += [{"role": m.role, "content": m.content} for m in runtime.history[-6:]]
     messages.append({"role": "user", "content": message})
-    try:
-        reply = await runtime.chat.chat(messages, max_tokens=300)
-    except httpx.HTTPError as exc:
-        reply = f"[the model is unreachable: {type(exc).__name__}]"
-        logger.exception("chat failed")
 
+    yield _sse("reply_start", {}, t0)
+    chunks: list[str] = []
+    try:
+        async for delta in runtime.chat.chat_stream(messages, max_tokens=300):
+            chunks.append(delta)
+            yield _sse("delta", {"text": delta}, t0)
+    except httpx.HTTPError as exc:
+        logger.exception("chat failed")
+        chunks.append(f"[the model is unreachable: {type(exc).__name__}]")
+        yield _sse("delta", {"text": chunks[-1]}, t0)
+    reply = "".join(chunks)
+    yield _sse("reply_end", {"reply": reply}, t0)
+
+    # Only now. Awaiting the write path earlier would put P1's own LLM call -- seconds --
+    # between the last token and the user seeing the reply finish.
     write = await runtime.write_path.run(SESSION, message, reply, list(runtime.history))
-    trace["write"] = {
+    yield _sse("write", {
         "candidates": write.candidates,
         "outcomes": [
             {
@@ -295,13 +331,28 @@ async def turn(body: Turn) -> JSONResponse:
             }
             for outcome in write.outcomes
         ],
-    }
+    }, t0)
 
     runtime.history.append(Message(role="user", content=message))
     runtime.history.append(Message(role="assistant", content=reply))
-    trace["reply"] = reply
-    trace["store"] = await _store_view(runtime)
-    return JSONResponse(trace)
+    yield _sse("store", {"store": await _store_view(runtime)}, t0)
+
+
+# `response_model=None`: the union return type is two Response classes, and FastAPI would
+# otherwise try to build a Pydantic response model out of them.
+@app.post("/api/turn", response_model=None)
+async def turn(body: Turn) -> StreamingResponse | JSONResponse:
+    runtime = _runtime()
+    message = body.message.strip()
+    if not message:
+        return JSONResponse({"error": "empty message"}, status_code=400)
+    return StreamingResponse(
+        _turn_events(runtime, message),
+        media_type="text/event-stream",
+        # Without this an intervening proxy will buffer the stream and hand the browser
+        # everything at once -- which is the bug this endpoint was rewritten to fix.
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/reset")

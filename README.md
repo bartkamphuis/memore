@@ -174,12 +174,24 @@ yourself. The old fact does not vanish — it stays in the right-hand pane, stru
 marked `SUPERSEDED`, beside the value that replaced it. That is the design claim made
 visible, and a scrolling terminal cannot show it.
 
-Each turn also prints what the two paths decided: gate OPEN/SHUT with the similarity of
-every hit and the exact block that was injected, then P1's candidate facts (subject,
-attribute, `single_valued`, confidence) and P2's case per candidate — `NEW`, `DUPLICATE`,
-`CONTRADICTION`, `REFINEMENT` — with the freshness ordinal. Recall runs *before* the model
-call and is injected at prompt-assembly time; the reply is handed to the write path as
-context and never as text to extract from.
+**The turn streams, because the timings are the claim.** Each stage appears when it
+actually happens, with the server's own elapsed time beside it:
+
+```
+recall   gate OPEN  2 fact(s) · 70ms      @70ms     <- before the model is called
+· 0.656  the user's default deployment target is production
+· 0.637  the user deploys to staging by default     <- struck through: SUPERSEDED
+         <recalled_context> … the exact text injected …
+Your default deployment target is production.       <- streams, ~1.5s
+write    CONTRADICTION  ordinal 4 · superseded the incumbent   @4.4s
+         P1  the user's default deployment target is production
+             subject=the user attribute=default deployment target single_valued=true
+```
+
+Recall lands in **~70ms, before the model call**, and is injected at prompt-assembly time
+rather than offered as a tool the model may decide to invoke. P1 extraction lands **seconds
+after the reply is finished**, which is what "off the response path" means. Returning all
+three at once — the first version did — asserts a sequence the user never observes.
 
 It runs on its own graph (`memore_demo`) and its own session, needs FalkorDB and Ollama, and
 checks both at startup: if the store is down, the models are not served, or the graph's
