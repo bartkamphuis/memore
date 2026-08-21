@@ -178,7 +178,8 @@ from the real extractor, so read §12 and §13 before quoting any gate figure fr
 ## Commands
 
 ```bash
-uv sync --extra dev --extra bench          # dev env; add --extra graphiti for spike arm (a)
+uv sync --extra dev --extra bench --extra demo   # dev env + the browser demo
+                                                # add --extra graphiti for spike arm (a)
 docker compose up -d falkordb              # the store; app container is `memore` in compose.yaml
 uv run pytest tests/ -q                    # full suite
 uv run pytest tests/test_consolidation.py::test_contradiction_supersedes_without_deleting  # one test

@@ -17,4 +17,15 @@ out next to the new one on the turn it happens. That is the claim this project m
 ("supersede, never delete") and it is the one thing no other memory system puts on screen.
 
 So: chat left, store right, and the trace of what the two paths decided in between.
+
+## Two limits it has on purpose
+
+**One conversation per process.** History and session are process-global, so two browser
+tabs share one store and one thread. A single-user demo is what this is; multi-session
+would need a session id in the URL and a store per id, and would add a moving part that
+teaches nothing about memore.
+
+**The full history goes to `recall()`** via `TurnContext.recent_messages`, unbounded, while
+the extractor windows at `WritePathConfig.extract_window_turns` (3). That asymmetry is the
+library's, not the demo's -- it is just visible here because the demo never truncates.
 """
