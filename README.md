@@ -195,10 +195,21 @@ rather than offered as a tool the model may decide to invoke.
 
 **The write lane runs beside the reply, not after it.** "Off the response path" does not
 mean *after* the response path. `OLLAMA_NUM_PARALLEL=3` and both lanes use the same model,
-so the two requests share the loaded weights across slots with no reload — measured at
-1221ms against 2213ms serial, a 45% overlap. The write result routinely lands while the
-reply is still streaming, which is the clearest way to show that extraction never sits on
-the response path.
+so the two requests share the loaded weights across slots with no reload.
+
+It is a trade, not a free win, and the numbers are the same four turns run both ways:
+
+| | write completes | reply completes |
+|---|---|---|
+| write awaited after the reply | 2578–4285ms | 1182–1468ms |
+| write launched beside it | **1632–3098ms** | 1616–2055ms |
+| mean change | **−1089ms** | **+452ms** |
+
+The write finishes about a second sooner and the reply about half a second later — the two
+lanes contend for one GPU even though neither reloads. Whether the write result lands
+before or after the last token depends on the turn; on these four it landed after in both
+arms. What is *always* true, and what the demo exists to show, is that the write **starts**
+at ~76ms alongside the reply rather than waiting for it.
 
 The tradeoff is stated rather than hidden: P1 is given an empty `assistant_response`,
 because the reply does not exist yet when the write starts. `extract_window_turns` is 3, so

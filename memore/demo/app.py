@@ -5,10 +5,10 @@
 The first version returned the whole trace in one JSON body, on the argument that an
 assembled trace is more legible than one racing the reply. That argument was wrong here,
 and it was wrong about the thing the demo exists to show. **The timings are the claim.**
-Recall lands in ~80ms, before the model is called; the model takes seconds; P1 extraction
-takes seconds more, after the reply. A single response makes all three arrive together and
-hides exactly the property being demonstrated -- the user waits, sees "thinking", and then
-gets numbers that assert a sequence they never observed.
+Recall lands in ~70ms, before the model is called; the model takes seconds; P1 extraction
+runs beside it and takes seconds of its own. A single response makes all three arrive
+together and hides exactly the property being demonstrated -- the user waits, sees
+"thinking", and then gets numbers asserting a sequence they never observed.
 
 So a turn emits events when they actually happen:
 
@@ -26,13 +26,23 @@ The first streaming version awaited the write after `reply_end`, so P1's extract
 seconds of `gemma4:26b` -- began only once the last token had landed. That is still not
 what the architecture claims. "Off the response path" does not mean *after* the response
 path; it means *not on it*. `OLLAMA_NUM_PARALLEL=3` and both lanes use the same model, so
-the two requests share the loaded weights across slots with no reload: measured, two
-concurrent calls take 1221ms against 2213ms serial, a 45% overlap.
+the two requests share the loaded weights across slots with no reload.
 
-So the write task is launched as soon as recall returns and the reply stream starts, and
-its result is emitted whenever it lands -- often while the reply is still streaming. Events
-are multiplexed through a queue rather than yielded in a fixed order, because a fixed order
-is exactly the thing being disproved.
+So the write task is launched as soon as recall returns, beside the reply stream, and its
+result is emitted whenever it lands. Events are multiplexed through a queue rather than
+yielded in a fixed order, because a fixed order is exactly the thing being disproved.
+
+**It is a trade and the numbers say so.** The same four turns, run both ways:
+
+    write awaited after the reply    write 2578-4285ms   reply 1182-1468ms
+    write launched beside it         write 1632-3098ms   reply 1616-2055ms
+    mean change                      write -1089ms       reply  +452ms
+
+The write finishes about a second sooner and the reply about half a second later: no
+reload, but one GPU, so the lanes contend. An earlier single-turn observation had the write
+landing mid-stream, and that was briefly written up as the rule -- on these four it landed
+after the last token in *both* arms. What is always true, and what this demonstrates, is
+that the write **starts** at ~76ms rather than at `reply_end`.
 
 **Launched after recall, never before.** Recall must read the store as it was *before* this
 turn's fact, and a write committing mid-lookup would let a turn recall itself.
