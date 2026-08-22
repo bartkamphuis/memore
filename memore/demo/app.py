@@ -12,7 +12,8 @@ together and hides exactly the property being demonstrated -- the user waits, se
 
 So a turn emits events when they actually happen:
 
-    recall      the gate decision, the hits and the injected block   (~70ms)
+    recall      the gate decision, the hits and the block RECALL produced   (~70ms)
+    linger      the frecency lane's carried facts, and the block actually sent
     reply_start the model call has begun
     write_start the write lane has been launched, in parallel with it
     delta       content, as it arrives
@@ -64,6 +65,22 @@ not about the network.
 GET-only, and the turn's body is a message. Framing is standard `data: …\n\n` so the wire
 is self-describing.
 
+## Two events, because there are two decisions
+
+`recall` is what `recall()` answered and nothing else. `linger` is the harness's own
+frecency lane (`demo/linger.py`) deciding how long a fact recall already surfaced stays in
+the block. They are reported separately on purpose: a turn showing `gate SHUT` **and** a
+block going to the model is not a contradiction, it is the whole demonstration, and folding
+the merged block back into the `recall` event would quietly make the page claim recall
+returned something it did not.
+
+## Sessions are switchable; graphs are not
+
+The page's dropdown lists `store.sessions()` -- `(session_id, total, live)` -- and switching
+one is a string assignment plus clearing history and the linger cache. Graphs are not
+offered: the vector index is created at the embedder's width and `connect()` refuses a
+mismatch, so a graph list is a list of things that may fail to open.
+
 ## Startup is where a demo of this system actually fails
 
 Three failures produce a blank page rather than an error, and all three are ordinary:
@@ -91,16 +108,17 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ..assemble import is_past
+from ..assemble import build_block, is_past
 from ..config import EmbedConfig, RecallConfig, StoreConfig, WritePathConfig
 from ..consolidate import DeterministicConsolidator
 from ..embed import OllamaEmbedder
 from ..extract import OllamaExtractor
 from ..llm import LLMConfig, OllamaClient
-from ..recall import recall
+from ..recall import WordTokenizer, recall
 from ..store.falkor import FalkorStore
-from ..types import Message, TurnContext
+from ..types import MemoryHit, Message, StoredFact, TurnContext
 from ..writepath import WritePath
+from .linger import LingerCache, LingerConfig
 from .page import PAGE
 
 logger = logging.getLogger("memore.demo")
@@ -109,7 +127,14 @@ logger = logging.getLogger("memore.demo")
 # session-scoped, and sharing a graph with the bench or the terminal demo would mix
 # corpora into what this page shows.
 DEFAULT_GRAPH = "memore_demo"
-SESSION = "demo-web"
+DEFAULT_SESSION = "demo-web"
+
+# Sessions are the unit the page's dropdown switches between, and they live inside the one
+# graph. Not graphs: a graph's vector index is created at the embedder's width and
+# `FalkorStore.connect()` refuses a mismatch (see the invariant in CLAUDE.md), so switching
+# graphs at runtime means tearing down and rebuilding the store and can fail on a graph
+# written by a different embedder. Sessions share the index, cost one string to switch, and
+# are the boundary recall itself is scoped to.
 
 SYSTEM = (
     "You are a concise, friendly assistant. Answer in at most three sentences. "
@@ -129,8 +154,15 @@ class Runtime:
     recall_config: RecallConfig
     embed_config: EmbedConfig
     llm_config: LLMConfig
+    # The session is runtime state, not a constant: the page switches it. Everything that
+    # reads the store -- preflight, the store pane, the turn, reset -- must read it from
+    # here, or a switch leaves one of them pointed at the previous session.
+    session: str = DEFAULT_SESSION
     history: list[Message] = field(default_factory=list)
     preflight: list[dict] = field(default_factory=list)
+    # Per session, and cleared on both reset and switch -- otherwise one session's facts
+    # are carried into another's `<recalled_context>`.
+    linger: LingerCache = field(default_factory=lambda: LingerCache(LingerConfig.from_env()))
 
 
 RUNTIME: Runtime | None = None
@@ -146,11 +178,11 @@ async def preflight(runtime: Runtime) -> list[dict]:
 
     try:
         await runtime.store.connect()
-        held = await runtime.store.count(SESSION)
+        held = await runtime.store.count(runtime.session)
         checks.append({
             "name": "FalkorDB",
             "ok": True,
-            "detail": f"graph {runtime.store.config.graph_name!r}, session {SESSION!r}, "
+            "detail": f"graph {runtime.store.config.graph_name!r}, session {runtime.session!r}, "
                       f"{held} fact(s)",
         })
     except Exception as exc:  # noqa: BLE001 -- the diagnosis IS the product here
@@ -238,6 +270,10 @@ class Turn(BaseModel):
     message: str
 
 
+class SessionSwitch(BaseModel):
+    session: str
+
+
 def _runtime() -> Runtime:
     assert RUNTIME is not None, "lifespan did not run"
     return RUNTIME
@@ -253,12 +289,89 @@ def _hit(hit, now) -> dict:
     }
 
 
+def _as_hit(fact: StoredFact) -> MemoryHit:
+    """A stored row rendered as a hit, so `assemble.render_hit` labels it identically.
+
+    `score`/`similarity` stay 0.0 here and the caller sets the decayed weight: a carried
+    fact was ranked against a *previous* turn, so inventing a similarity for this one
+    would be a number about a question nobody asked -- the same reason chain facts carry
+    `score=0.0` (RESULTS.md §8).
+    """
+    return MemoryHit(
+        fact=fact.fact,
+        score=0.0,
+        valid_at=fact.valid_at,
+        invalid_at=fact.invalid_at,
+        source_episode_id=fact.source_episode_id,
+        occurs_at=fact.occurs_at,
+        recurring=fact.recurring,
+    )
+
+
+async def _linger_hits(
+    runtime: Runtime, budget_left: int
+) -> tuple[list[MemoryHit], list[dict]]:
+    """Resolve what the cache is carrying against the store AS IT IS NOW.
+
+    The cache holds weights and fact text, never a rendered line, and this re-reads every
+    carried fact from the store each turn. That is the whole safety argument: if turn N+1
+    contradicts a fact carried from turn N, the store has it superseded and this renders
+    it `[SUPERSEDED - was valid ...]` on the next injection rather than replaying the dead
+    value under `[valid as of ...]`. A harness that resurrected what the store retired
+    would invert the one claim the right-hand pane exists to make.
+
+    Carried facts are also capped against what is LEFT of `inject_token_budget` after
+    recall's own hits, because this path bypasses `apply_gate`'s budget fill and nothing
+    else would bound the block across a long session.
+    """
+    carried = runtime.linger.carried()
+    if not carried:
+        return [], []
+
+    rows = await runtime.store.facts_in_session(runtime.session)
+    # Highest ordinal wins when one text appears twice: that row is the current state.
+    current: dict[str, StoredFact] = {}
+    for row in rows:
+        held = current.get(row.fact)
+        if held is None or row.ordinal > held.ordinal:
+            current[row.fact] = row
+
+    tokenizer = WordTokenizer()
+    hits: list[MemoryHit] = []
+    trace: list[dict] = []
+    gone: list[str] = []
+    now = datetime.now(UTC)
+    for entry in carried:
+        row = current.get(entry.fact)
+        if row is None:
+            # Cleared, or switched away and back. It is not in the store, so it is not
+            # background knowledge about this session any more.
+            gone.append(entry.fact)
+            continue
+        cost = tokenizer.count(row.fact)
+        if cost > budget_left:
+            continue
+        budget_left -= cost
+        hits.append(_as_hit(row))
+        trace.append({
+            "fact": row.fact,
+            "weight": round(entry.weight, 3),
+            "strength": round(entry.strength, 3),
+            "age_turns": entry.age_turns,
+            "seen": entry.seen,
+            "superseded": row.invalid_at is not None,
+            "past": is_past(hits[-1], now),
+        })
+    runtime.linger.forget(gone)
+    return hits, trace
+
+
 async def _store_view(runtime: Runtime) -> list[dict]:
     """The store, grouped by subject, newest ordinal first within each group.
 
     Superseded facts are included and marked -- hiding them would hide the design claim.
     """
-    facts = await runtime.store.facts_in_session(SESSION)
+    facts = await runtime.store.facts_in_session(runtime.session)
     groups: dict[str, dict] = {}
     for fact in facts:
         group = groups.setdefault(
@@ -283,17 +396,55 @@ async def index() -> str:
     return PAGE
 
 
+async def _sessions(runtime: Runtime) -> list[dict]:
+    """Every session in this graph, busiest first, with the current one always present.
+
+    A session with no facts yet -- one just created from the dropdown -- does not exist in
+    the store at all, because a session IS its facts there. It is added here so the page
+    can show you the empty thing you are talking into rather than an unexplained blank.
+    """
+    try:
+        rows = await runtime.store.sessions()
+    except Exception as exc:  # noqa: BLE001 -- inspection must not break the page
+        logger.warning("session list unavailable: %s", exc)
+        rows = []
+    out = [
+        {"session": sid, "facts": total, "live": live, "current": sid == runtime.session}
+        for sid, total, live in rows
+    ]
+    if not any(row["current"] for row in out):
+        out.insert(0, {"session": runtime.session, "facts": 0, "live": 0, "current": True})
+    return out
+
+
 @app.get("/api/state")
 async def state() -> JSONResponse:
     runtime = _runtime()
     config = runtime.recall_config
+    linger = runtime.linger.config
     return JSONResponse({
-        "session": SESSION,
+        "session": runtime.session,
+        "sessions": await _sessions(runtime) if runtime.preflight[0]["ok"] else [],
         "graph": runtime.store.config.graph_name,
         "embedder": runtime.embed_config.model,
         "model": runtime.llm_config.model,
         "gate": f"{config.gate_on} >= {config.score_floor}",
         "k": config.k,
+        # What the cache is still holding, so a page RELOAD shows the standing state
+        # rather than "nothing injected yet" on a server mid-conversation. Weights only;
+        # the carried set is resolved against the store on the turn that uses it.
+        "carried": [
+            {"fact": c.fact, "weight": round(c.weight, 3), "age_turns": c.age_turns,
+             "seen": c.seen, "strength": round(c.strength, 3),
+             "superseded": False, "past": False}
+            for c in runtime.linger.upcoming()
+        ],
+        "linger": {
+            "enabled": linger.enabled,
+            "half_life_turns": linger.half_life_turns,
+            "floor": linger.floor,
+            "max_facts": linger.max_facts,
+        },
         "preflight": runtime.preflight,
         "ok": all(check["ok"] for check in runtime.preflight),
         "store": await _store_view(runtime) if runtime.preflight[0]["ok"] else [],
@@ -317,9 +468,13 @@ async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
     now = datetime.now(UTC)
 
     context = TurnContext(
-        session_id=SESSION, user_message=message, recent_messages=list(runtime.history)
+        session_id=runtime.session, user_message=message, recent_messages=list(runtime.history)
     )
     result = await recall(context, runtime.recall_config, runtime.store, runtime.embedder)
+    # Recall's answer, verbatim and unmodified -- its own `gate_open`, its own block, even
+    # on turns where the harness goes on to inject anyway. The moment this event starts
+    # reporting the merged block, the demo is asserting that recall produced something it
+    # did not, and the trace stops being evidence.
     yield _sse("recall", {
         "gate_open": result.gate_open,
         "latency_ms": round(result.latency_ms, 1),
@@ -327,9 +482,32 @@ async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
         "hits": [_hit(hit, now) for hit in result.memories_used],
     }, t0)
 
+    # The frecency lane (`demo/linger.py`), harness-side. Recall has already run and is
+    # untouched; this only decides how long what it found stays in the injected block.
+    runtime.linger.begin_turn()
+    tokenizer = WordTokenizer()
+    for hit in result.memories_used:
+        runtime.linger.observe(hit.fact, hit.similarity)
+    spent = sum(tokenizer.count(hit.fact) for hit in result.memories_used)
+    carried_hits, carried_trace = await _linger_hits(
+        runtime, runtime.recall_config.inject_token_budget - spent
+    )
+    # Recall's hits first: they were ranked against THIS turn, and a carried fact may only
+    # ever be appended to the gate's decision, never reorder or displace it.
+    block = build_block(list(result.memories_used) + carried_hits, now)
+    yield _sse("linger", {
+        "carried": carried_trace,
+        "block": block,
+        # True exactly when the harness injected on a turn recall would have injected
+        # nothing -- the case this layer exists for, and the one to watch for regressions.
+        "rescued": bool(carried_hits) and not result.gate_open,
+        "half_life_turns": runtime.linger.config.half_life_turns,
+        "floor": runtime.linger.config.floor,
+    }, t0)
+
     messages = [{"role": "system", "content": SYSTEM}]
-    if result.injected_block:
-        messages.append({"role": "system", "content": f"MEMORY:\n{result.injected_block}"})
+    if block:
+        messages.append({"role": "system", "content": f"MEMORY:\n{block}"})
     messages += [{"role": m.role, "content": m.content} for m in runtime.history[-6:]]
     messages.append({"role": "user", "content": message})
 
@@ -359,7 +537,7 @@ async def _turn_events(runtime: Runtime, message: str) -> AsyncIterator[str]:
         try:
             # `assistant_response=""` -- it does not exist yet. See the module docstring;
             # this is the one thing concurrency costs and it is not free.
-            write = await runtime.write_path.run(SESSION, message, "", history)
+            write = await runtime.write_path.run(runtime.session, message, "", history)
         except Exception as exc:  # noqa: BLE001 -- a failed write must not kill the stream
             logger.exception("write path failed")
             await events.put(("write_error", {"error": f"{type(exc).__name__}: {exc}"}))
@@ -417,9 +595,39 @@ async def turn(body: Turn) -> StreamingResponse | JSONResponse:
     )
 
 
+@app.post("/api/session")
+async def switch(body: SessionSwitch) -> JSONResponse:
+    """Point the app at another session in the same graph. Creates by naming.
+
+    Three pieces of state are session-scoped and all three must move together: the store
+    reads (`runtime.session`), the conversation (`history`), and the linger cache. Leaving
+    any behind leaks one session into another -- the cache most visibly, since it would put
+    the previous session's facts straight into the next one's `<recalled_context>`.
+    """
+    runtime = _runtime()
+    name = body.session.strip()
+    if not name:
+        return JSONResponse({"error": "empty session name"}, status_code=400)
+    runtime.session = name
+    runtime.history.clear()
+    runtime.linger.clear()
+    return JSONResponse({
+        "ok": True,
+        "session": name,
+        "sessions": await _sessions(runtime),
+        "store": await _store_view(runtime),
+    })
+
+
 @app.post("/api/reset")
 async def reset() -> JSONResponse:
     runtime = _runtime()
-    await runtime.store.clear_session(SESSION)
+    await runtime.store.clear_session(runtime.session)
     runtime.history.clear()
-    return JSONResponse({"store": [], "ok": True})
+    # The cache resolves carried facts against the store every turn and would drop these
+    # on its own; clearing here means the block is empty on the very next turn rather than
+    # one turn later.
+    runtime.linger.clear()
+    return JSONResponse({
+        "store": [], "ok": True, "sessions": await _sessions(_runtime())
+    })

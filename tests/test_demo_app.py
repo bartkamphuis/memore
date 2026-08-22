@@ -37,7 +37,7 @@ from memore.types import (  # noqa: E402
 def _fact(fact: str, ordinal: int, *, superseded: bool = False) -> StoredFact:
     return StoredFact(
         id=f"f{ordinal}",
-        session_id=demo.SESSION,
+        session_id=demo.DEFAULT_SESSION,
         fact=fact,
         subject_key="the user",
         subject_label="the user",
@@ -62,6 +62,10 @@ class _Store:
     async def connect(self): ...
     async def count(self, session_id): return len(self.facts)
     async def facts_in_session(self, session_id): return list(self.facts)
+
+    async def sessions(self):
+        return [("demo-web", len(self.facts), len(self.facts)), ("other", 4, 3)]
+
     async def clear_session(self, session_id):
         self.cleared = True
         self.facts = []
@@ -172,7 +176,7 @@ def test_state_carries_what_you_need_to_debug_an_empty_store(client):
     session-scoped, so an empty session and a broken lookup look identical."""
     http, _ = client(facts=[_fact("a", 1)])
     body = http.get("/api/state").json()
-    assert body["session"] == demo.SESSION
+    assert body["session"] == demo.DEFAULT_SESSION
     assert body["graph"] == "test_graph"
     assert body["gate"].startswith("cosine >=")
     assert body["store"][0]["subject"] == "the user"
@@ -302,7 +306,8 @@ def test_reset_clears_the_session_and_the_history(client):
     http, runtime = client(facts=[_fact("a", 1)])
     _events(http, "hi")
     assert runtime.history
-    assert http.post("/api/reset").json() == {"store": [], "ok": True}
+    body = http.post("/api/reset").json()
+    assert body["ok"] is True and body["store"] == []
     assert runtime.store.cleared is True
     assert runtime.history == []
 

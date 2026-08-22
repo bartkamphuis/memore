@@ -193,8 +193,11 @@ uv run memore inspect --session <name> --query '...'
 
 # The browser demo (`memore/demo/`, needs --extra demo). Same recall() and WritePath the
 # gateway imports; it is a VIEWER and is deliberately not wired into the bench, the
-# calibration harness or slots.py. Own graph (memore_demo) and own session (demo-web), so
-# it cannot mix into bench or terminal-demo data.
+# calibration harness or slots.py. Own graph (memore_demo) and its own SESSIONS -- the
+# header dropdown lists `store.sessions()` as `live/total` and switching one clears the
+# conversation and the carried context with it. Sessions, never graphs: the vector index
+# is the embedder's width and `connect()` refuses a mismatch, so a graph list would be a
+# list of things that may fail to open.
 uv run memore-demo                       # http://127.0.0.1:8900
 uv run memore-demo --port 8901 --graph memore_scratch
 
@@ -661,6 +664,46 @@ it; only an in-process embedder does, and actual compute is the remaining ~15–
   fold is 10x cheaper and belongs on the domain side of the store boundary. Per store
   instance, so another process's write leaves it stale — fine for a precision refinement,
   never for anything deciding freshness. RESULTS.md §24.
+- **The demo's `<recalled_context>` lingers, and that lane is HARNESS-SIDE ONLY.**
+  `memore/demo/linger.py` is a frecency cache the browser demo wraps around `recall()`:
+  strength is the similarity the gate scored, lifted a little each time the fact is
+  surfaced again, halved every `half_life_turns` (4) and dropped below `floor` (0.20). It
+  exists because the gate is a per-turn similarity decision and a follow-up loses the
+  reference — "Where am I travelling to?" opens the gate, "when?" cannot, and the detail
+  the previous turn surfaced is gone. Four things must not be undone. It imports nothing
+  from `memore.recall` and changes no score, floor or store — the fix is not to widen the
+  gate. The `recall` SSE event reports **recall's own** `gate_open` and **recall's own** block
+  verbatim, with the merged block on a separate `linger` event: fold them together and the
+  page starts claiming recall produced something it did not. The cache holds fact TEXT and
+  a weight, **never a rendered line**, and the carried set is re-read from the store every
+  turn — replaying a cached string would inject a value the store has since superseded,
+  under `[valid as of …]`, which inverts the one claim the store pane makes. And the bar is
+  **two-sided**, like §10's and §15's: carrying everything forever scores perfectly on
+  "the follow-up still works" while destroying the property the gate exists for, so
+  `tests/test_demo_linger.py` tests decay-out as hard as it tests carry. The clock is
+  turns, not wall-clock: a coffee break must not expire the subject under discussion.
+  **Measured against its control** (`memore-demo --no-linger`), 2026-08-22, one 8-turn
+  script, gap of 6 turns between the hit and the follow-up: OFF answers "I don't have any
+  information about a trip", ON puts the fact in the block and the model uses it. That
+  control is the only evidence that means anything here, because the prompt already
+  carries `history[-6:]` — three turns of both roles — and the FIRST defaults shipped
+  (half-life 2, floor 0.30) gave a 2-turn carry window entirely INSIDE it, where a correct
+  follow-up proves nothing about this cache. Defaults are 4 / 0.20 for that reason. The
+  lane also only ever extends a HIT: recall must have surfaced the fact once, so a script
+  where the gate never opens carries nothing, on any setting.
+  **Two costs, both observed rather than argued, and the first one is FIXED.** A carried
+  EVENT did not carry its date: P1 writes "the user is flying to Lisbon" with 2026-08-26
+  in `occurs_at`, `render_hit` emitted a date only on the SUPERSEDED and PAST branches, so
+  the block said `[valid as of 2026-08-21]` and a live run answered "when?" with **the
+  learn date as the travel date** — carrying answered *where*, not *when*, and answered
+  *when* wrongly. `assemble.render_hit` grew an `UPCOMING` branch (see the temporal-expiry
+  invariant above); the demo test that pinned this as a limit is now the end-to-end
+  regression guard for it. And the lane
+  **extends the reach of a consolidation failure**: in the Porto/Lisbon run the slot was
+  declared `single_valued=false` by the first fact, so the correction coexisted instead of
+  superseding, and both destinations were then injected together for turns the gate would
+  have shut. It does not create the staleness — the store says both are live — but it
+  gives it more turns to be read in.
 - **The performance dead ends, the gate dead ends and the `_SYSTEM` dead ends all live
   in one place now** — see "Do not re-litigate" above. They were duplicated here and in
   two gitignored specs; one copy is the point of that section.

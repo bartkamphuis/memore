@@ -34,10 +34,47 @@ PAGE = r"""<!doctype html>
   header span { color:var(--dim); font-size:12px; }
   header span i { color:var(--ink); font-style:normal; }
   header button {
-    margin-left:auto; background:transparent; color:var(--dim); border:1px solid var(--line);
+    background:transparent; color:var(--dim); border:1px solid var(--line);
     border-radius:5px; padding:4px 10px; font:inherit; font-size:12px; cursor:pointer;
   }
-  header button:hover { color:var(--bad); border-color:var(--bad); }
+  header #reset:hover { color:var(--bad); border-color:var(--bad); }
+  header .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  header select {
+    background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:5px;
+    padding:4px 8px; font:inherit; font-size:12px; cursor:pointer; max-width:280px;
+  }
+  header select:focus { outline:none; border-color:var(--accent); }
+
+  /* The injected block, hoisted out of the per-turn trace into its own strip. It is the
+     one piece of state that persists ACROSS turns now (demo/linger.py), so rendering it
+     inside a turn would have shown a per-turn artefact where a standing one lives. */
+  #context {
+    border-bottom:1px solid var(--line); background:#0c1015;
+    padding:10px 16px; max-height:34vh; overflow-y:auto; flex:0 0 auto;
+  }
+  #context .head { display:flex; gap:12px; align-items:baseline; }
+  #context .head h2 { margin:0; text-transform:none; }
+  #context .head .status { color:var(--dim); font-size:12px; }
+  #context .head .status b { color:var(--good); font-weight:600; }
+  #context .head button {
+    margin-left:auto; background:transparent; color:var(--dim); border:1px solid var(--line);
+    border-radius:5px; padding:2px 8px; font:inherit; font-size:11px; cursor:pointer;
+  }
+  /* Two independent reasons the block is not on screen, so two classes: there is no
+     block (a reload, or a turn that injected nothing) and the reader collapsed it. One
+     inline style toggled by the button would have fought the first. */
+  #context.empty-ctx .ctx-rows { display:none; }
+  #context.empty-ctx pre.block, #context.no-block pre.block,
+  #context.hidden-block pre.block { display:none; }
+  .ctx { display:flex; gap:10px; align-items:baseline; font-size:12px; padding:3px 0; }
+  .ctx .w { color:var(--accent); width:52px; flex:0 0 auto; text-align:right; }
+  .ctx.carried .w { color:var(--warn); }
+  .ctx .bar { flex:0 0 64px; height:4px; background:#1b222c; border-radius:2px; overflow:hidden; }
+  .ctx .bar i { display:block; height:100%; background:var(--accent); }
+  .ctx.carried .bar i { background:var(--warn); }
+  .ctx .txt { flex:1; color:#e6edf6; }
+  .ctx.sup .txt { color:var(--old); text-decoration:line-through; }
+  .ctx .why { color:#5f6b7a; font-size:11px; flex:0 0 auto; }
   main { flex:1; display:grid; grid-template-columns:1fr 400px; min-height:0; }
   @media (max-width:900px) { main { grid-template-columns:1fr; } #store { display:none; } }
   #chat { display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--line); }
@@ -112,14 +149,29 @@ PAGE = r"""<!doctype html>
 <body>
 <header>
   <b>memore</b>
-  <span>session <i id="h-session">…</i></span>
   <span>graph <i id="h-graph">…</i></span>
   <span>gate <i id="h-gate">…</i></span>
   <span>embed <i id="h-embed">…</i></span>
   <span>model <i id="h-model">…</i></span>
-  <button id="reset" title="clear_session() -- drops every fact in this session">reset store</button>
+  <span>linger <i id="h-linger">…</i></span>
+  <div class="right">
+    <!-- Sessions, not graphs: see the app module docstring. `n live / n` is what
+         distinguishes two of them -- the name alone does not say which one has the
+         conversation you were demonstrating. -->
+    <select id="sessions" title="the session recall is scoped to -- switching clears the conversation and the carried context"></select>
+    <button id="reset" title="clear_session() -- drops every fact in this session">reset store</button>
+  </div>
 </header>
 <div id="banner"></div>
+<section id="context" class="empty-ctx">
+  <div class="head">
+    <h2>&lt;recalled_context&gt;</h2>
+    <span class="status" id="ctx-status">nothing injected yet</span>
+    <button id="ctx-toggle">hide block</button>
+  </div>
+  <div class="ctx-rows" id="ctx-rows"></div>
+  <pre class="block" id="ctx-block"></pre>
+</section>
 <main>
   <section id="chat">
     <div id="log">
@@ -163,6 +215,9 @@ function renderStore(groups) {
 const flat = (s) => s.replace(/>[^\S\n]*\n\s*</g, "><").trim();
 const ms = (v) => v >= 1000 ? (v / 1000).toFixed(1) + "s" : Math.round(v) + "ms";
 
+// The block itself is NOT rendered per turn any more -- it lives in the #context strip,
+// because it now persists across turns and a per-turn copy would suggest otherwise. The
+// gate decision and the hits stay here: those are per-turn facts.
 function recallRows(r) {
   const hits = r.hits.map(h =>
     `<div class="hit${h.superseded ? " sup" : ""}">· <span class="s">${h.similarity.toFixed(3)}</span> ${esc(h.fact)}${h.past ? " <i>[past]</i>" : ""}</div>`
@@ -170,8 +225,20 @@ function recallRows(r) {
   return flat(`<div class="row"><span class="k">recall</span>
       <span class="pill ${r.gate_open ? "open" : "shut"}">gate ${r.gate_open ? "OPEN" : "SHUT"}</span>
       ${r.hits.length} fact(s) · ${r.latency_ms}ms <span class="t">@${ms(r.ms)}</span></div>`)
-    + hits
-    + (r.block ? `<pre class="block">${esc(r.block)}</pre>` : "");
+    + hits;
+}
+
+// `gate SHUT` above and a block still going to the model is not a contradiction -- it is
+// this row. It says so in words rather than leaving the two events to be reconciled.
+function lingerRows(l) {
+  if (!l.carried.length) return "";
+  const rows = l.carried.map(c =>
+    `<div class="hit${c.superseded ? " sup" : ""}">· <span class="s">${c.weight.toFixed(3)}</span> ${esc(c.fact)} <i>(${c.age_turns} turn${c.age_turns === 1 ? "" : "s"} ago, seen ${c.seen}×)</i></div>`
+  ).join("");
+  return flat(`<div class="row"><span class="k">linger</span>
+      <span class="pill ${l.rescued ? "open" : "shut"}">${l.rescued ? "CARRIED" : "carried"}</span>
+      ${l.carried.length} fact(s) held over${l.rescued ? " — the gate shut and the context survived" : ""}
+      <span class="t">@${ms(l.ms)}</span></div>`) + rows;
 }
 
 function writeRows(w) {
@@ -188,6 +255,59 @@ function writeRows(w) {
       <span class="k">  </span> subject=<i>${esc(o.subject)}</i> attribute=<i>${esc(o.attribute || "—")}</i>
       single_valued=${o.single_valued} conf=${o.confidence}
     </div>`)).join("");
+}
+
+// ---- the #context strip -----------------------------------------------------------
+// One live view of what is currently in `<recalled_context>`, standing apart from the
+// chat because it is no longer a property of a single turn. Two kinds of row, and the
+// distinction is the whole point: `fresh` is what the gate admitted THIS turn, scored
+// against this question; `carried` is what the frecency cache is still holding from an
+// earlier one, at its decayed weight and with its age in turns.
+const CTX = {fresh: [], carried: [], block: null, gate_open: false, turn: 0};
+
+function ctxRow(kind, weight, text, why, superseded, past) {
+  const pct = Math.max(2, Math.min(100, Math.round(weight * 100)));
+  return flat(`<div class="ctx ${kind}${superseded ? " sup" : ""}">
+    <span class="w">${weight.toFixed(3)}</span>
+    <span class="bar"><i style="width:${pct}%"></i></span>
+    <span class="txt">${esc(text)}${past ? " [past]" : ""}${superseded ? " [superseded]" : ""}</span>
+    <span class="why">${esc(why)}</span>
+  </div>`);
+}
+
+function renderContext() {
+  const box = $("context");
+  const total = CTX.fresh.length + CTX.carried.length;
+  box.classList.toggle("empty-ctx", total === 0);
+  if (!total) {
+    $("ctx-status").textContent = CTX.turn
+      ? "empty — the gate shut and nothing was still being carried"
+      : "nothing injected yet";
+    box.classList.add("empty-ctx");
+    $("ctx-rows").innerHTML = ""; $("ctx-block").textContent = "";
+    return;
+  }
+  // `turn === 0` is a fresh page against a server mid-conversation: nothing was recalled
+  // in THIS browser session, so claiming a count for it would be wrong.
+  $("ctx-status").innerHTML = CTX.turn === 0
+    ? `<b>${total} fact(s)</b> still carried, and headed for the next turn's prompt`
+    : `<b>${total} fact(s)</b> in the prompt · ${CTX.fresh.length} recalled this turn · ` +
+      `${CTX.carried.length} carried` +
+      (CTX.carried.length && !CTX.gate_open ? " · <b>gate shut, context survived</b>" : "");
+  box.classList.toggle("no-block", !CTX.block);
+  $("ctx-rows").innerHTML =
+    CTX.fresh.map(h => ctxRow("fresh", h.similarity, h.fact, "recalled now", h.superseded, h.past)).join("")
+    + CTX.carried.map(c => ctxRow("carried", c.weight, c.fact,
+        `${c.age_turns} turn${c.age_turns === 1 ? "" : "s"} ago · seen ${c.seen}× · from ${c.strength.toFixed(2)}`,
+        c.superseded, c.past)).join("");
+  $("ctx-block").textContent = CTX.block || "";
+}
+
+function renderSessions(list, current) {
+  const sel = $("sessions");
+  sel.innerHTML = list.map(s =>
+    `<option value="${esc(s.session)}"${s.session === current ? " selected" : ""}>${esc(s.session)} — ${s.live}/${s.facts} live</option>`
+  ).join("") + `<option value="__new__">+ new session…</option>`;
 }
 
 function add(who, cls, body) {
@@ -226,12 +346,20 @@ async function* sse(response) {
 
 async function boot() {
   const s = await (await fetch("/api/state")).json();
-  $("h-session").textContent = s.session;
   $("h-graph").textContent = s.graph;
   $("h-gate").textContent = s.gate + " k=" + s.k;
   $("h-embed").textContent = s.embedder;
   $("h-model").textContent = s.model;
+  $("h-linger").textContent = s.linger.enabled
+    ? `half-life ${s.linger.half_life_turns} turns ≥ ${s.linger.floor}`
+    : "off";
+  renderSessions(s.sessions, s.session);
   renderStore(s.store);
+  // A reload loses the turn log but NOT the carried set -- that lives on the server. A
+  // strip saying "nothing injected yet" while the next turn would inject three facts is
+  // the panel lying about the state it exists to show.
+  CTX.fresh = []; CTX.carried = s.carried || []; CTX.block = null; CTX.turn = 0;
+  renderContext();
   if (!s.ok) {
     // The three failures that otherwise look like an empty store. Naming them here is
     // most of the point of the preflight check.
@@ -254,10 +382,12 @@ $("f").addEventListener("submit", async (e) => {
   // arrives over seconds, and the write path lands after the reply is finished.
   const bot = add("memore", "bot",
     `<div class="trace"><div class="stage-recall waiting">recall…</div>
+     <div class="stage-linger"></div>
      <div class="stage-write"></div></div><div class="reply"></div>`);
   // Both lanes write into elements that already exist, so an event landing in either order
   // updates its own slot instead of appending and reflowing the other.
   const $recall = bot.querySelector(".stage-recall");
+  const $linger = bot.querySelector(".stage-linger");
   const $write  = bot.querySelector(".stage-write");
   const $reply  = bot.querySelector(".reply");
   const follow = () => { $("log").scrollTop = $("log").scrollHeight; };
@@ -272,7 +402,18 @@ $("f").addEventListener("submit", async (e) => {
       return;
     }
     for await (const {event, data} of sse(res)) {
-      if (event === "recall") { $recall.className = "stage-recall"; $recall.innerHTML = recallRows(data); }
+      if (event === "recall") {
+        $recall.className = "stage-recall"; $recall.innerHTML = recallRows(data);
+        // The strip is rebuilt from this turn's recall and then completed by `linger`,
+        // rather than accumulated: the carried set is the server's to decide, and a
+        // client that added to its own copy would drift from the block actually sent.
+        CTX.turn += 1; CTX.fresh = data.hits; CTX.carried = []; CTX.gate_open = data.gate_open;
+        CTX.block = data.block; renderContext();
+      }
+      else if (event === "linger") {
+        CTX.carried = data.carried; CTX.block = data.block; renderContext();
+        $linger.innerHTML = lingerRows(data);
+      }
       else if (event === "reply_start") { $reply.className = "reply streaming"; }
       // The write lane is launched here, beside the reply rather than after it -- so the
       // placeholder appears while the first token is still being generated, and the result
@@ -299,10 +440,39 @@ $("f").addEventListener("submit", async (e) => {
 
 $("reset").addEventListener("click", async () => {
   if (!confirm("Drop every fact in this session?")) return;
-  await fetch("/api/reset", {method: "POST"});
+  const r = await (await fetch("/api/reset", {method: "POST"})).json();
   renderStore([]);
+  renderSessions(r.sessions, $("sessions").value);
+  CTX.fresh = []; CTX.carried = []; CTX.block = null; CTX.turn = 0; renderContext();
   $("log").innerHTML = "";
-  add("memore", "bot", "Store cleared. The conversation history went with it.");
+  add("memore", "bot", "Store cleared. The conversation history and the carried context went with it.");
+});
+
+// Switching is a whole-app move: the store reads, the conversation and the carried context
+// all belong to the session, and the server clears the last two. A name that is not in the
+// list yet is simply a session with no facts -- there is nothing to create.
+$("sessions").addEventListener("change", async (e) => {
+  const sel = e.target;
+  let name = sel.value;
+  if (name === "__new__") {
+    name = (prompt("Session name — an unused name starts an empty store:") || "").trim();
+    if (!name) { await boot(); return; }
+  }
+  const r = await (await fetch("/api/session", {
+    method: "POST", headers: {"content-type": "application/json"},
+    body: JSON.stringify({session: name}),
+  })).json();
+  if (r.error) { await boot(); return; }
+  renderSessions(r.sessions, r.session);
+  renderStore(r.store);
+  CTX.fresh = []; CTX.carried = []; CTX.block = null; CTX.turn = 0; renderContext();
+  $("log").innerHTML = "";
+  add("memore", "bot", `Now talking into session <b>${esc(r.session)}</b>. Recall is scoped to it, so nothing from the previous one is visible here.`);
+});
+
+$("ctx-toggle").addEventListener("click", () => {
+  const hidden = $("context").classList.toggle("hidden-block");
+  $("ctx-toggle").textContent = hidden ? "show block" : "hide block";
 });
 
 boot();

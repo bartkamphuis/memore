@@ -21,7 +21,23 @@ def main() -> None:
         help="MEMORE_GRAPH to use. Defaults to `memore_demo` -- its own, because recall is "
         "session-scoped and a shared graph mixes bench and demo corpora into this page.",
     )
+    # The linger lane's control arm (`memore/demo/linger.py`). `--no-linger` is what the
+    # carry claim has to be measured against: the prompt already carries `history[-6:]`,
+    # so a follow-up answered correctly with the lane ON proves nothing on its own.
+    parser.add_argument("--no-linger", action="store_true",
+                        help="turn the frecency lane off -- the control arm")
+    parser.add_argument("--linger-half-life", type=float, default=None,
+                        help="turns until a carried fact's weight halves (default 4)")
+    parser.add_argument("--linger-floor", type=float, default=None,
+                        help="weight below which a carried fact is dropped (default 0.20)")
     args = parser.parse_args()
+
+    if args.no_linger:
+        os.environ["MEMORE_DEMO_LINGER"] = "0"
+    if args.linger_half_life is not None:
+        os.environ["MEMORE_DEMO_LINGER_HALF_LIFE"] = str(args.linger_half_life)
+    if args.linger_floor is not None:
+        os.environ["MEMORE_DEMO_LINGER_FLOOR"] = str(args.linger_floor)
 
     from .app import DEFAULT_GRAPH
 
