@@ -532,6 +532,21 @@ it; only an in-process embedder does, and actual compute is the remaining ~15–
   drop the fact or dock its score: expiry that suppresses recall is deletion wearing a
   different hat. `MUST_BE_PAST` exists because a one-sided refuse-list is scored perfectly
   by `occurs_at: null` on everything — the §18 hole again. RESULTS.md §19.
+  **PAST now has a sibling, `UPCOMING`, and every clause above applies to it unchanged.**
+  `- [UPCOMING - occurs 2026-08-26] the user is flying to Lisbon` — read-time only,
+  nothing dropped, docked or gated, `invalid_at` untouched. It exists because the date was
+  otherwise UNREACHABLE: P1 leaves it out of the fact text and puts it in `occurs_at`,
+  which only the SUPERSEDED and PAST branches rendered, so an upcoming trip read
+  `[valid as of <the day it was learned>]` and a live demo turn answered "when?" with the
+  **learn date as the travel date**. Three things hold it in place. It is guarded on `now`
+  like PAST is — without a clock it cannot know the event has not already gone, and
+  claiming UPCOMING then is worse than the silence it replaces. It excludes `recurring`
+  the way `is_past` does, since P1 is told to send `occurs_at: null` with it. And it
+  **drops** `valid as of` rather than joining the two dates on one line: that string is
+  precisely what was being misread, and two dates invite the same mistake. Inert on both
+  bench paths and on calibration — `bench/extract.py` and `bench/calibrate.py` build every
+  `CandidateFact` without `occurs_at`, so §25's figures are untouched — and `slots.py`
+  scores the *field*, never rendered text.
 - **An attribute names a PROPERTY, never the fact's category, and P1 gets this wrong about
   two thirds of the time.** `preference` / `interests` / `likes` are `FactType` values, not
   slots; naming a slot that way puts every simultaneously-true fact of that type in one

@@ -45,6 +45,9 @@ def render_hit(hit: MemoryHit, now: datetime | None = None) -> str:
     # Order is a DECISION, not line-order accident: SUPERSEDED wins over PAST when a fact
     # is both. SUPERSEDED is the stronger and more specific claim -- a newer fact replaced
     # this one -- where PAST only says the calendar moved. Do not reorder these branches.
+    # UPCOMING sits after PAST and is its exact complement -- a dated, non-recurring fact
+    # is one or the other and never both -- so it inherits the same precedence: a
+    # superseded fact is SUPERSEDED whatever its calendar says.
     if hit.invalid_at is not None:
         return f"- [SUPERSEDED - was valid {_day(hit.valid_at)} to {_day(hit.invalid_at)}] {hit.fact}"
     if now is not None and is_past(hit, now):
@@ -52,6 +55,20 @@ def render_hit(hit: MemoryHit, now: datetime | None = None) -> str:
         # ranked, still counted against the budget. Only the framing handed to the
         # reader changes (§19.1).
         return f"- [PAST - occurred {_day(hit.occurs_at)}] {hit.fact}"
+    if now is not None and hit.occurs_at is not None and not hit.recurring:
+        # PAST's sibling, and the same kind of label: read-time framing, nothing dropped,
+        # docked or gated. It exists because the date was UNREACHABLE otherwise -- P1
+        # stores "the user is flying to Lisbon" and puts 2026-08-26 in `occurs_at`, so an
+        # upcoming event rendered `[valid as of <the day it was learned>]` and a live demo
+        # turn answered "when?" with the LEARN date as the travel date. `valid as of` is
+        # dropped here rather than joined to the occurrence, precisely because that string
+        # is what was being misread: two dates on one line invites the same mistake.
+        # Guarded on `now` for the reason the PAST branch is -- without a clock this
+        # cannot know the event has not already gone, and claiming UPCOMING then would be
+        # a worse answer than the silence it replaces. `recurring` has no single date at
+        # all (P1 is told to send `occurs_at: null` with it), so it is excluded the same
+        # way `is_past` excludes it.
+        return f"- [UPCOMING - occurs {_day(hit.occurs_at)}] {hit.fact}"
     if hit.valid_at is not None:
         return f"- [valid as of {_day(hit.valid_at)}] {hit.fact}"
     # Non-temporal store: bare facts, no annotations (§7).
@@ -60,7 +77,8 @@ def render_hit(hit: MemoryHit, now: datetime | None = None) -> str:
 
 def build_block(hits: list[MemoryHit], now: datetime | None = None) -> str | None:
     """`now` is optional so every existing caller keeps its behaviour: without it no hit
-    is labelled PAST, which is what a store holding no `occurs_at` would render anyway."""
+    is labelled PAST or UPCOMING, which is what a store holding no `occurs_at` would
+    render anyway."""
     if not hits:
         return None
     body = "\n".join(render_hit(h, now) for h in hits)

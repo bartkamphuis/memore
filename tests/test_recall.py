@@ -282,3 +282,73 @@ def test_without_a_clock_nothing_is_labelled_past():
     hits = [make_hit("the user flew to Porto", 0.9, valid_at=NOW, occurs_at=PAST_DAY)]
     assert "PAST" not in build_block(hits)
     assert "PAST" in build_block(hits, NOW)
+
+
+async def test_an_upcoming_event_carries_its_DATE_not_the_day_it_was_learned():
+    """PAST's sibling, and the reason it exists is a wrong answer, not a tidier label.
+
+    P1 puts the trip date in `occurs_at` and leaves the fact text dateless -- "the user is
+    flying to Lisbon" -- so before this branch an upcoming event rendered `[valid as of
+    <the day it was learned>]`, and a live demo turn answered "when?" with the learn date
+    as the travel date. The learn date is DROPPED rather than joined by the trip date:
+    that string is what was being misread.
+    """
+    from memore.assemble import render_hit
+
+    hit = make_hit("the user is flying to Porto", 0.9, valid_at=NOW, occurs_at=FUTURE_DAY)
+    rendered = render_hit(hit, NOW)
+
+    assert rendered == "- [UPCOMING - occurs 2099-05-12] the user is flying to Porto"
+    assert "valid as of" not in rendered
+
+
+async def test_upcoming_labels_but_never_drops_docks_or_gates():
+    """§19.1 again, for the new label: a read-time framing and nothing else. Every part of
+    this is the PAST assertion with the calendar the other way round."""
+    hit = make_hit("the user is flying to Porto", 0.95, valid_at=NOW, occurs_at=FUTURE_DAY)
+    store = FakeStore([hit])
+    result = await recall(make_turn(), RecallConfig(), store, StubEmbedder())
+
+    assert "[UPCOMING - occurs 2099-05-12] the user is flying to Porto" in result.injected_block
+    assert result.gate_open
+    assert [h.fact for h in result.memories_used] == ["the user is flying to Porto"]
+    assert result.memories_used[0].score == hit.score
+
+
+def test_a_recurring_event_is_never_upcoming_either():
+    """It has no single date -- P1 is told to send `occurs_at: null` with `recurring` --
+    so a stray date on one must not become a claim about when it next happens. Excluded
+    exactly as `is_past` excludes it, and the fact keeps its ordinary framing."""
+    from memore.assemble import render_hit
+
+    hit = make_hit("renews on the 1st", 0.9, valid_at=NOW, occurs_at=FUTURE_DAY, recurring=True)
+    rendered = render_hit(hit, NOW)
+
+    assert "UPCOMING" not in rendered
+    assert rendered.startswith("- [valid as of")
+
+
+def test_without_a_clock_nothing_is_labelled_upcoming():
+    """The `now is None` guard, which matters more here than for PAST: with no clock this
+    cannot know the event has not already gone, and labelling a trip that happened last
+    year UPCOMING is a worse answer than the silence it replaces. Every pre-§19 caller --
+    both bench harnesses among them -- renders exactly what it rendered before."""
+    from memore.assemble import build_block
+
+    hits = [make_hit("the user is flying to Porto", 0.9, valid_at=NOW, occurs_at=FUTURE_DAY)]
+    assert "UPCOMING" not in build_block(hits)
+    assert "UPCOMING" in build_block(hits, NOW)
+
+
+def test_superseded_wins_over_upcoming_too():
+    """The precedence in `render_hit`'s header comment, checked on the new branch: a newer
+    fact replacing this one is the stronger claim whatever the calendar says."""
+    from memore.assemble import render_hit
+
+    both = make_hit(
+        "flying to Porto", 0.9, valid_at=PAST_DAY, invalid_at=NOW, occurs_at=FUTURE_DAY
+    )
+    rendered = render_hit(both, NOW)
+
+    assert rendered.startswith("- [SUPERSEDED")
+    assert "UPCOMING" not in rendered
